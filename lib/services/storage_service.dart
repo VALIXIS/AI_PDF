@@ -1,0 +1,98 @@
+import 'package:hive/hive.dart';
+import 'package:pdf_ai_toolkit/models/history_entry.dart';
+
+class StorageService {
+  static const String _boxName = 'historyBox';
+
+  /// Gets the history box
+  Box<HistoryEntry> get _historyBox => Hive.box<HistoryEntry>(_boxName);
+
+  /// Adds a history entry
+  Future<void> addHistoryEntry(HistoryEntry entry) async {
+    try {
+      await _historyBox.put(entry.id, entry);
+    } catch (e) {
+      throw Exception('Failed to add history entry: $e');
+    }
+  }
+
+  /// Gets all history entries
+  Future<List<HistoryEntry>> getAllHistoryEntries() async {
+    try {
+      return _historyBox.values.toList().cast<HistoryEntry>();
+    } catch (e) {
+      throw Exception('Failed to get history entries: $e');
+    }
+  }
+
+  /// Gets a history entry by ID
+  Future<HistoryEntry?> getHistoryEntry(String id) async {
+    try {
+      return _historyBox.get(id);
+    } catch (e) {
+      throw Exception('Failed to get history entry: $e');
+    }
+  }
+
+  /// Deletes a history entry
+  Future<void> deleteHistoryEntry(String id) async {
+    try {
+      await _historyBox.delete(id);
+    } catch (e) {
+      throw Exception('Failed to delete history entry: $e');
+    }
+  }
+
+  /// Updates a history entry
+  Future<void> updateHistoryEntry(HistoryEntry entry) async {
+    try {
+      await _historyBox.put(entry.id, entry);
+    } catch (e) {
+      throw Exception('Failed to update history entry: $e');
+    }
+  }
+
+  /// Clears all history
+  Future<void> clearAllHistory() async {
+    try {
+      await _historyBox.clear();
+    } catch (e) {
+      throw Exception('Failed to clear history: $e');
+    }
+  }
+
+  /// Gets history entries sorted by date (newest first)
+  Future<List<HistoryEntry>> getHistoryEntriesSortedByDate() async {
+    try {
+      final entries = _historyBox.values.toList().cast<HistoryEntry>();
+      entries.sort((a, b) => b.date.compareTo(a.date));
+      return entries;
+    } catch (e) {
+      throw Exception('Failed to get sorted history entries: $e');
+    }
+  }
+
+  /// Gets history entries by tool type
+  Future<List<HistoryEntry>> getHistoryEntriesByType(String toolType) async {
+    try {
+      final entries = _historyBox.values
+          .toList()
+          .cast<HistoryEntry>()
+          .where((entry) => entry.toolType == toolType)
+          .toList();
+      entries.sort((a, b) => b.date.compareTo(a.date));
+      return entries;
+    } catch (e) {
+      throw Exception('Failed to get history entries by type: $e');
+    }
+  }
+
+  /// Gets the count of history entries
+  Future<int> getHistoryCount() async {
+    try {
+      return _historyBox.length;
+    } catch (e) {
+      throw Exception('Failed to get history count: $e');
+    }
+  }
+}
