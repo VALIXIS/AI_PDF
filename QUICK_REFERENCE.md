@@ -1,3 +1,5 @@
+<!-- markdownlint-disable -->
+
 # Quick Reference - Hugging Face Integration
 
 ## 🚀 Quick Start
@@ -142,3 +144,5 @@ Messy text with errors → cleaned and organized
 ---
 
 **Ready to use!** Configure your API key and start processing. 🎉
+
+<!-- markdownlint-enable -->

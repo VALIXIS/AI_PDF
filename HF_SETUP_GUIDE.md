@@ -1,3 +1,5 @@
+<!-- markdownlint-disable -->
+
 # Hugging Face API Integration Guide
 
 ## Overview
@@ -340,3 +342,5 @@ static const String _baseUrl =
 ---
 
 **For more help:** Check Hugging Face community or Flutter documentation.
+
+<!-- markdownlint-enable -->

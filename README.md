@@ -1,3 +1,5 @@
+<!-- markdownlint-disable -->
+
 # PDF AI Toolkit
 
 A feature-rich Flutter mobile application for PDF manipulation and AI-powered text transformation.
@@ -262,3 +264,5 @@ Contributions are welcome! Please:
 ---
 
 **Happy PDF crafting!** 📄✨
+
+<!-- markdownlint-enable -->

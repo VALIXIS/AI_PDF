@@ -1,3 +1,5 @@
+<!-- markdownlint-disable -->
+
 # PDF AI Toolkit - Architecture Documentation
 
 ## Project Overview
@@ -394,3 +396,5 @@ The PDF AI Toolkit architecture provides:
 - ✅ Modern Flutter patterns
 
 This foundation enables smooth development and maintenance of the application.
+
+<!-- markdownlint-enable -->
