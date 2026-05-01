@@ -26,6 +26,7 @@ dependencies:
   
   # Networking
   http: ^1.1.0
+  flutter_dotenv: ^5.1.0
   
   # Utilities
   uuid: ^4.0.0

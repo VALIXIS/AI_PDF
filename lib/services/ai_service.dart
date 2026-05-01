@@ -1,9 +1,10 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class AiService {
   // Hugging Face API Configuration
-  static const String _apiKey = 'YOUR_HF_API_KEY'; // Replace with your actual HF API key
+  static String get _apiKey => dotenv.env['HF_API_KEY'] ?? '';
   static const String _baseUrl =
       'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2';
 
@@ -28,6 +29,10 @@ class AiService {
       // Select appropriate prompt builder based on mode
       final prompt = _buildPrompt(input, mode);
 
+      if (_apiKey.isEmpty) {
+        return _getMockResponse(prompt);
+      }
+
       // Call Hugging Face API
       final result = await _callHuggingFaceAPI(prompt);
 
@@ -43,6 +48,10 @@ class AiService {
   /// Sends a POST request to Hugging Face and parses the response
   Future<String> _callHuggingFaceAPI(String prompt) async {
     try {
+      if (_apiKey.isEmpty) {
+        return _getMockResponse(prompt);
+      }
+
       // Make POST request
       final response = await http.post(
         Uri.parse(_baseUrl),
@@ -141,6 +150,10 @@ class AiService {
   @Deprecated('Use generateText instead')
   Future<String> callAi(String prompt) async {
     try {
+      if (_apiKey.isEmpty) {
+        return _getMockResponse(prompt);
+      }
+
       final result = await _callHuggingFaceAPI(prompt);
       return result;
     } catch (e) {
