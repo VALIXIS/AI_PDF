@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
@@ -247,6 +248,7 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
 
       if (!mounted) return;
       if (!mounted) return;
+      if (mounted) { ShareService.showSaveShareDialog(context, filePath); }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('PDF compressed successfully!'),

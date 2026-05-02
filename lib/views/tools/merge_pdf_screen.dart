@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
@@ -213,6 +214,7 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
       });
 
       if (!mounted) return;
+      if (mounted) { ShareService.showSaveShareDialog(context, filePath); }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('PDFs merged successfully!'),

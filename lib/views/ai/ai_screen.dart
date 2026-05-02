@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kCardLight, kCardDark;
@@ -91,6 +92,7 @@ class _AiScreenState extends State<AiScreen> {
         toolType: 'ai_to_pdf',
       );
       await _storageService.addHistoryEntry(entry);
+      if (mounted) { ShareService.showSaveShareDialog(context, filePath); }
       setState(() {
         _isGenerating = false;
         _previewText = null;
@@ -414,3 +416,4 @@ class _AiScreenState extends State<AiScreen> {
     );
   }
 }
+

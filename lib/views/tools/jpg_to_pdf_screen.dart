@@ -1,0 +1,191 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:pdf_ai_toolkit/services/share_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
+import 'package:pdf_ai_toolkit/models/history_entry.dart';
+import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+
+class JpgToPdfScreen extends StatefulWidget {
+  const JpgToPdfScreen({Key? key}) : super(key: key);
+  @override
+  State<JpgToPdfScreen> createState() => _JpgToPdfScreenState();
+}
+
+class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
+  final List<File> _images = [];
+  bool _saving = false;
+  PdfPageFormat _pageFormat = PdfPageFormat.a4;
+  bool _fitPage = true;
+
+  Future<void> _pickImages() async {
+    final picked = await ImagePicker().pickMultiImage(imageQuality: 90);
+    if (picked.isEmpty) return;
+    setState(() => _images.addAll(picked.map((x) => File(x.path))));
+  }
+
+  Future<void> _convert() async {
+    if (_images.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      final pdf = pw.Document();
+      for (final f in _images) {
+        final bytes = await f.readAsBytes();
+        final img   = pw.MemoryImage(bytes);
+        pdf.addPage(pw.Page(
+          pageFormat: _pageFormat,
+          margin: _fitPage ? pw.EdgeInsets.zero : const pw.EdgeInsets.all(20),
+          build: (_) => _fitPage
+              ? pw.Image(img, fit: pw.BoxFit.contain)
+              : pw.Center(child: pw.Image(img, fit: pw.BoxFit.contain)),
+        ));
+      }
+      final dir  = await getApplicationDocumentsDirectory();
+      final path = '${dir.path}/images_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      await File(path).writeAsBytes(await pdf.save());
+      await StorageService().addHistoryEntry(HistoryEntry(
+        id: AiController().generateId(),
+        title: 'Images to PDF (${_images.length})',
+        date: DateTime.now(), filePath: path, toolType: 'jpg_to_pdf',
+      ));
+      setState(() { _saving = false; _images.clear(); });
+      if (!mounted) return;
+      if (mounted) { ShareService.showSaveShareDialog(context, path); }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('PDF saved to history!'),
+        backgroundColor: const Color(0xFF16A34A),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    } catch (e) {
+      setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark  = Theme.of(context).brightness == Brightness.dark;
+    final primary = isDark ? kPrimaryDark : kPrimary;
+    final sub     = isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF);
+    final bg      = isDark ? const Color(0xFF14141E) : Colors.white;
+    final border  = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('JPG / Images to PDF')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Options
+          Text('Options', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: border)),
+            child: Column(children: [
+              Row(children: [
+                const Text('Page size', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                DropdownButton<PdfPageFormat>(
+                  value: _pageFormat,
+                  underline: const SizedBox(),
+                  items: [
+                    DropdownMenuItem(value: PdfPageFormat.a4, child: const Text('A4')),
+                    DropdownMenuItem(value: PdfPageFormat.letter, child: const Text('Letter')),
+                    DropdownMenuItem(value: PdfPageFormat.a3, child: const Text('A3')),
+                  ],
+                  onChanged: (v) { if (v != null) setState(() => _pageFormat = v); },
+                ),
+              ]),
+              const Divider(),
+              SwitchListTile.adaptive(
+                title: const Text('Fit to page', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Scale image to fill page'),
+                value: _fitPage,
+                activeColor: primary,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) => setState(() => _fitPage = v),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          Text('Images', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          if (_images.isEmpty)
+            GestureDetector(
+              onTap: _pickImages,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: bg, borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: border, width: 1.5),
+                ),
+                child: Column(children: [
+                  Icon(Icons.add_photo_alternate_rounded, size: 48, color: sub.withValues(alpha: 0.5)),
+                  const SizedBox(height: 12),
+                  Text('Tap to select images', style: TextStyle(color: sub, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.8),
+              itemCount: _images.length + 1,
+              itemBuilder: (_, i) {
+                if (i == _images.length) {
+                  return GestureDetector(
+                    onTap: _pickImages,
+                    child: Container(
+                      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Icon(Icons.add_rounded, color: sub, size: 28),
+                        Text('Add', style: TextStyle(color: sub, fontSize: 12)),
+                      ]),
+                    ),
+                  );
+                }
+                return Stack(children: [
+                  Container(
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
+                    clipBehavior: Clip.hardEdge,
+                    child: Image.file(_images[i], fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                  ),
+                  Positioned(top: 4, right: 4,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _images.removeAt(i)),
+                      child: Container(
+                        width: 22, height: 22,
+                        decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
+                        child: const Icon(Icons.close_rounded, color: Colors.white, size: 13),
+                      ),
+                    ),
+                  ),
+                ]);
+              },
+            ),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: (_images.isEmpty || _saving) ? null : _convert,
+              icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.picture_as_pdf_rounded),
+              label: Text(_images.isEmpty ? 'Select images first' : 'Convert to PDF', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary, foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}

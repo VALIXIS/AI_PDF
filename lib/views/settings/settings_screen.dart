@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary;
+import 'package:pdf_ai_toolkit/services/share_service.dart';
+import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -49,57 +50,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: const Text('Settings'),
       ),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
         children: [
           // ── Appearance ────────────────────────────────────────────
           _SectionHeader(label: 'APPEARANCE', color: sectionColor),
-          _SettingsTile(
-            icon: Icons.dark_mode_rounded,
-            iconColor: const Color(0xFF6366F1),
-            title: 'Dark Mode',
-            subtitle: _isDark ? 'Currently on' : 'Currently off',
-            trailing: Switch.adaptive(
-              value: _isDark,
-              activeThumbColor: kPrimary,
-              activeTrackColor: kPrimary.withValues(alpha: 0.4),
-              onChanged: (_) => themeNotifier.toggle(),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF14141E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
+            ),
+            child: _SettingsTile(
+              icon: Icons.dark_mode_rounded,
+              iconColor: const Color(0xFF6366F1),
+              title: 'Dark Mode',
+              subtitle: _isDark ? 'Currently on' : 'Currently off',
+              trailing: Switch.adaptive(
+                value: _isDark,
+                activeThumbColor: kPrimary,
+                activeTrackColor: kPrimary.withValues(alpha: 0.4),
+                onChanged: (_) => themeNotifier.toggle(),
+              ),
+              isLast: true,
             ),
           ),
+          const SizedBox(height: 24),
 
           // ── Data ─────────────────────────────────────────────────
           _SectionHeader(label: 'DATA', color: sectionColor),
-          _SettingsTile(
-            icon: Icons.history_rounded,
-            iconColor: const Color(0xFF06B6D4),
-            title: 'History',
-            subtitle: '$_historyCount saved file${_historyCount == 1 ? '' : 's'}',
-            trailing: Icon(
-              Icons.chevron_right_rounded,
-              color: subtitleColor,
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF14141E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
             ),
-            onTap: () => Navigator.of(context).pushNamed('/history'),
+            child: Column(
+              children: [
+                _SettingsTile(
+                  icon: Icons.history_rounded,
+                  iconColor: const Color(0xFF06B6D4),
+                  title: 'History',
+                  subtitle: '$_historyCount saved file${_historyCount == 1 ? '' : 's'}',
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: subtitleColor,
+                  ),
+                  onTap: () => Navigator.of(context).pushNamed('/history'),
+                ),
+                _SettingsTile(
+                  icon: Icons.delete_sweep_rounded,
+                  iconColor: const Color(0xFFEF4444),
+                  title: 'Clear History',
+                  subtitle: 'Remove all saved PDF records',
+                  onTap: () => _confirmClearHistory(context),
+                  isLast: true,
+                ),
+              ],
+            ),
           ),
-          _SettingsTile(
-            icon: Icons.delete_sweep_rounded,
-            iconColor: const Color(0xFFEF4444),
-            title: 'Clear History',
-            subtitle: 'Remove all saved PDF records',
-            onTap: () => _confirmClearHistory(context),
-          ),
+          const SizedBox(height: 24),
 
           // ── About ────────────────────────────────────────────────
           _SectionHeader(label: 'ABOUT', color: sectionColor),
-          _SettingsTile(
-            icon: Icons.info_outline_rounded,
-            iconColor: const Color(0xFF2563EB),
-            title: 'PDF AI Toolkit',
-            subtitle: 'Version 1.0.0',
-          ),
-          _SettingsTile(
-            icon: Icons.description_rounded,
-            iconColor: const Color(0xFF10B981),
-            title: 'Open Source',
-            subtitle: 'Built with Flutter & Dart',
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF14141E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              children: [
+                _SettingsTile(
+                  icon: Icons.info_outline_rounded,
+                  iconColor: const Color(0xFF2563EB),
+                  title: 'PDF AI Toolkit',
+                  subtitle: 'Version 1.0.0',
+                ),
+                _SettingsTile(
+                  icon: Icons.description_rounded,
+                  iconColor: const Color(0xFF10B981),
+                  title: 'Open Source',
+                  subtitle: 'Built with Flutter & Dart',
+                  isLast: true,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -152,6 +187,7 @@ class _SettingsTile extends StatelessWidget {
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final bool isLast;
 
   const _SettingsTile({
     required this.icon,
@@ -160,26 +196,33 @@ class _SettingsTile extends StatelessWidget {
     this.subtitle,
     this.trailing,
     this.onTap,
+    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: isLast ? null : BoxDecoration(
+            border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB))),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: iconColor),
               ),
-              child: Icon(icon, size: 20, color: iconColor),
-            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -211,7 +254,7 @@ class _SettingsTile extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

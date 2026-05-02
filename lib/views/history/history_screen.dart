@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 
@@ -377,12 +378,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _shareEntry(HistoryEntry entry) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Share functionality can be implemented with share_plus package'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    Share.shareXFiles([XFile(entry.filePath)], text: 'Check out this PDF document: ${entry.title}');
   }
 
   String _getToolLabel(String toolType) {

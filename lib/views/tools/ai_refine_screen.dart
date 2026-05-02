@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 
 class AiRefineScreen extends StatefulWidget {
