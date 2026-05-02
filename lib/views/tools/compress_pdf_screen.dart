@@ -18,6 +18,7 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
   final StorageService _storageService = StorageService();
 
   String? _selectedFile;
+  String _compressionLevel = 'medium';
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -51,13 +52,13 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: const Color.fromRGBO(0, 0, 255, 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                border: Border.all(color: const Color.fromRGBO(0, 0, 255, 0.3)),
               ),
               child: Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.info_outline,
                     color: Colors.blue,
                     size: 20,
@@ -79,13 +80,13 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: const Color.fromRGBO(255, 0, 0, 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  border: Border.all(color: const Color.fromRGBO(255, 0, 0, 0.3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline,
+                    const Icon(Icons.error_outline,
                         color: Colors.red, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
@@ -134,36 +135,41 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 12),
-            Column(
-              children: [
-                ListTile(
-                  leading: Radio(
-                    value: 'low',
-                    groupValue: 'medium',
-                    onChanged: (_) {},
-                  ),
-                  title: const Text('Low (Best Quality)'),
-                  subtitle: const Text('Slight reduction in size'),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment<String>(
+                  value: 'low',
+                  label: Text('Low'),
+                  icon: Icon(Icons.high_quality),
                 ),
-                ListTile(
-                  leading: Radio(
-                    value: 'medium',
-                    groupValue: 'medium',
-                    onChanged: (_) {},
-                  ),
-                  title: const Text('Medium (Balanced)'),
-                  subtitle: const Text('Good quality and size'),
+                ButtonSegment<String>(
+                  value: 'medium',
+                  label: Text('Medium'),
+                  icon: Icon(Icons.balance),
                 ),
-                ListTile(
-                  leading: Radio(
-                    value: 'high',
-                    groupValue: 'medium',
-                    onChanged: (_) {},
-                  ),
-                  title: const Text('High (Smaller Size)'),
-                  subtitle: const Text('Reduced quality'),
+                ButtonSegment<String>(
+                  value: 'high',
+                  label: Text('High'),
+                  icon: Icon(Icons.compress),
                 ),
               ],
+              selected: {_compressionLevel},
+              onSelectionChanged: (selection) {
+                setState(() {
+                  _compressionLevel = selection.first;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _compressionLevel == 'low'
+                  ? 'Best quality, smallest reduction.'
+                  : _compressionLevel == 'high'
+                      ? 'Smallest file size, more aggressive compression.'
+                      : 'Balanced quality and size.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                  ),
             ),
 
             const Spacer(),
@@ -239,6 +245,8 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
         _isLoading = false;
       });
 
+      if (!mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('PDF compressed successfully!'),

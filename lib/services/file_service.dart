@@ -5,7 +5,7 @@ class FileService {
   /// Picks a single PDF file
   Future<String?> pickPdfFile() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
       );
@@ -22,7 +22,7 @@ class FileService {
   /// Picks multiple PDF files
   Future<List<String>> pickMultiplePdfFiles() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: true,
@@ -40,7 +40,7 @@ class FileService {
   /// Picks a text file
   Future<String?> pickTextFile() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['txt'],
       );

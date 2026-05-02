@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
-import 'package:pdf_ai_toolkit/services/storage_service.dart';
-import 'package:pdf_ai_toolkit/models/history_entry.dart';
 
 class AiRefineScreen extends StatefulWidget {
   const AiRefineScreen({Key? key}) : super(key: key);
@@ -13,7 +11,6 @@ class AiRefineScreen extends StatefulWidget {
 class _AiRefineScreenState extends State<AiRefineScreen> {
   final TextEditingController _inputController = TextEditingController();
   final AiController _aiController = AiController();
-  final StorageService _storageService = StorageService();
 
   String _selectedMode = AiMode.clean;
   String? _refinedText;
@@ -81,57 +78,32 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
               const SizedBox(height: 12),
 
               // Mode Options
-              Column(
-                children: [
-                  ListTile(
-                    leading: Radio<String>(
-                      value: AiMode.clean,
-                      groupValue: _selectedMode,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedMode = value!;
-                          _refinedText = null;
-                          _errorMessage = null;
-                        });
-                      },
-                    ),
-                    title: const Text('Polish & Clean'),
-                    subtitle: const Text(
-                        'Fix grammar and improve clarity'),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment<String>(
+                    value: AiMode.clean,
+                    label: Text('Clean'),
+                    icon: Icon(Icons.cleaning_services),
                   ),
-                  ListTile(
-                    leading: Radio<String>(
-                      value: AiMode.summary,
-                      groupValue: _selectedMode,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedMode = value!;
-                          _refinedText = null;
-                          _errorMessage = null;
-                        });
-                      },
-                    ),
-                    title: const Text('Condense'),
-                    subtitle: const Text(
-                        'Make it concise and short'),
+                  ButtonSegment<String>(
+                    value: AiMode.summary,
+                    label: Text('Summary'),
+                    icon: Icon(Icons.short_text),
                   ),
-                  ListTile(
-                    leading: Radio<String>(
-                      value: AiMode.notes,
-                      groupValue: _selectedMode,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedMode = value!;
-                          _refinedText = null;
-                          _errorMessage = null;
-                        });
-                      },
-                    ),
-                    title: const Text('Organize'),
-                    subtitle: const Text(
-                        'Structure into sections'),
+                  ButtonSegment<String>(
+                    value: AiMode.notes,
+                    label: Text('Notes'),
+                    icon: Icon(Icons.note),
                   ),
                 ],
+                selected: {_selectedMode},
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _selectedMode = selection.first;
+                    _refinedText = null;
+                    _errorMessage = null;
+                  });
+                },
               ),
               const SizedBox(height: 20),
 
@@ -140,13 +112,13 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: const Color.fromRGBO(255, 0, 0, 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    border: Border.all(color: const Color.fromRGBO(255, 0, 0, 0.3)),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline,
+                      const Icon(Icons.error_outline,
                           color: Colors.red, size: 20),
                       const SizedBox(width: 12),
                       Expanded(

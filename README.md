@@ -76,7 +76,7 @@ lib/
 
 - **pdf** (3.10.0) - PDF generation
 - **printing** (5.11.0) - PDF printing
-- **file_picker** (6.1.0) - File selection
+- **file_picker** (11.0.2) - File selection
 - **path_provider** (2.1.0) - Device path access
 - **hive** (2.2.3) - Local storage
 - **hive_flutter** (1.1.0) - Flutter Hive integration
@@ -92,7 +92,7 @@ lib/
 ### Services (`lib/services/`)
 
 #### AI Service (`ai_service.dart`)
-- Integrates with OpenRouter API for AI capabilities
+- Integrates with the Hugging Face Inference API for AI capabilities
 - Three prompt builders:
   - `buildNotesPrompt()` - Structured notes format
   - `buildSummaryPrompt()` - Concise summaries
@@ -127,14 +127,14 @@ lib/
 ### API Key Setup
 To use the AI features with real API responses:
 
-1. Get an API key from [OpenRouter](https://openrouter.ai)
-2. Open `lib/services/ai_service.dart`
-3. Replace `'YOUR_API_KEY'` with your actual key:
-   ```dart
-   static const String _apiKey = 'sk-...'; // Your API key
+1. Create a `.env` file in the project root.
+2. Add your Hugging Face token:
+   ```env
+   HF_API_KEY=hf_your_token_here
    ```
+3. Keep `.env` out of git. A tracked `.env.example` can be used as a template.
 
-Without an API key, the app uses mock responses for demonstration.
+Without an API key, the app falls back to mock responses so the rest of the app still works.
 
 ## Design System
 
@@ -202,6 +202,8 @@ flutter build ios
 flutter build apk
 ```
 
+For Play Store releases, create `android/key.properties` from `android/key.properties.example` and point `storeFile` at your keystore. Release builds will use that signing config when present.
+
 ### Web
 ```bash
 flutter build web
@@ -238,9 +240,9 @@ Solution: Run `flutter pub run build_runner build`
 - Check iOS Info.plist for document permissions
 
 ### API Connection Issues
-- Verify API key is correct
+- Verify `HF_API_KEY` is set correctly in `.env`
 - Check internet connectivity
-- Review OpenRouter API documentation
+- Review the Hugging Face Inference API documentation
 
 ## License
 

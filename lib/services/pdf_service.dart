@@ -19,10 +19,9 @@ class PdfService {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           build: (pw.Context context) {
-            return pw.SingleChildScrollView(
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
                   // Title
                   pw.Text(
                     title,
@@ -36,7 +35,7 @@ class PdfService {
                   // Metadata
                   pw.Text(
                     'Generated: ${DateTime.now().toString().split('.')[0]}',
-                    style: pw.TextStyle(
+                    style: const pw.TextStyle(
                       fontSize: 10,
                       color: PdfColors.grey,
                     ),
@@ -49,7 +48,6 @@ class PdfService {
                     children: _buildContentWidgets(lines),
                   ),
                 ],
-              ),
             );
           },
         ),

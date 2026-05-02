@@ -64,7 +64,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline,
               size: 64,
               color: Colors.red,
@@ -137,8 +137,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary
-                      .withOpacity(0.2),
+                      color: Color.fromRGBO(
+                        (Theme.of(context).colorScheme.primary.r * 255).round(),
+                        (Theme.of(context).colorScheme.primary.g * 255).round(),
+                        (Theme.of(context).colorScheme.primary.b * 255).round(),
+                        0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -172,8 +175,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary
-                                .withOpacity(0.1),
+                            color: Color.fromRGBO(
+                                (Theme.of(context).colorScheme.primary.r * 255).round(),
+                                (Theme.of(context).colorScheme.primary.g * 255).round(),
+                                (Theme.of(context).colorScheme.primary.b * 255).round(),
+                              0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -338,6 +344,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       await _storageService.deleteHistoryEntry(entry.id);
       _loadHistory();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Entry deleted'),
@@ -355,6 +362,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       await _storageService.clearAllHistory();
       _loadHistory();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('History cleared'),
