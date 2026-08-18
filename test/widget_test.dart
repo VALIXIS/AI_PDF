@@ -1,18 +1,19 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:pdf_ai_toolkit/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('App loads and displays HomeScreen', (WidgetTester tester) async {
     // Build the app and verify it loads.
     await tester.pumpWidget(const PdfAiToolkitApp());
-    expect(find.byType(PdfAiToolkitApp), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    // Verify that the HomeScreen is rendered by looking for its specific text.
+    expect(find.text('What would you like\nto do today?'), findsOneWidget);
+    expect(find.text('PDF AI Toolkit'), findsWidgets);
+    
+    // Verify that tool cards are rendered
+    expect(find.text('All Tools'), findsOneWidget);
+    expect(find.text('Start Scan'), findsOneWidget);
   });
 }
