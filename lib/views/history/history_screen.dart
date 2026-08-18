@@ -377,7 +377,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  void _shareEntry(HistoryEntry entry) {
+  Future<void> _shareEntry(HistoryEntry entry) async {
+    final exists = await _storageService.isEntryFileAccessible(entry);
+    if (!exists) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('File no longer exists on device: ${entry.filePath}'),
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'Remove',
+            textColor: Colors.white,
+            onPressed: () => _deleteEntry(entry),
+          ),
+        ),
+      );
+      return;
+    }
     Share.shareXFiles([XFile(entry.filePath)], text: 'Check out this PDF document: ${entry.title}');
   }
 

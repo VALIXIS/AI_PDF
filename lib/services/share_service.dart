@@ -5,6 +5,19 @@ import 'dart:io';
 
 class ShareService {
   static Future<void> showSaveShareDialog(BuildContext context, String path) async {
+    final file = File(path);
+    if (!await file.exists()) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot share: File no longer exists on device.\nPath: $path'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -28,9 +41,15 @@ class ShareService {
                   
                   // Share Button
                   InkWell(
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(ctx);
-                      Share.shareXFiles([XFile(path)], text: 'Here is my PDF file.');
+                      if (await File(path).exists()) {
+                        Share.shareXFiles([XFile(path)], text: 'Here is my PDF file.');
+                      } else if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('File no longer exists.'), backgroundColor: Colors.red),
+                        );
+                      }
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
@@ -57,7 +76,13 @@ class ShareService {
                   InkWell(
                     onTap: () async {
                       Navigator.pop(ctx);
-                      Share.shareXFiles([XFile(path)], text: 'Save this PDF');
+                      if (await File(path).exists()) {
+                        Share.shareXFiles([XFile(path)], text: 'Save this PDF');
+                      } else if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('File no longer exists.'), backgroundColor: Colors.red),
+                        );
+                      }
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(

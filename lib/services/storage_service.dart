@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:hive/hive.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 
@@ -87,6 +88,50 @@ class StorageService {
     }
   }
 
+  /// Checks whether a history entry's associated file exists on disk
+  Future<bool> isEntryFileAccessible(HistoryEntry entry) async {
+    try {
+      if (entry.filePath.isEmpty) return false;
+      return await File(entry.filePath).exists();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Retrieves history entries filtering out non-existent files if required
+  Future<List<HistoryEntry>> getValidHistoryEntries() async {
+    try {
+      final allEntries = await getHistoryEntriesSortedByDate();
+      final validEntries = <HistoryEntry>[];
+      for (final entry in allEntries) {
+        if (await isEntryFileAccessible(entry)) {
+          validEntries.add(entry);
+        }
+      }
+      return validEntries;
+    } catch (e) {
+      throw Exception('Failed to get valid history entries: $e');
+    }
+  }
+
+  /// Removes stale history records pointing to files that no longer exist
+  Future<int> cleanupMissingEntries() async {
+    try {
+      final entries = _historyBox.values.toList().cast<HistoryEntry>();
+      int removedCount = 0;
+      for (final entry in entries) {
+        final exists = await isEntryFileAccessible(entry);
+        if (!exists) {
+          await _historyBox.delete(entry.id);
+          removedCount++;
+        }
+      }
+      return removedCount;
+    } catch (e) {
+      throw Exception('Failed to cleanup missing history entries: $e');
+    }
+  }
+
   /// Gets the count of history entries
   Future<int> getHistoryCount() async {
     try {
@@ -96,3 +141,4 @@ class StorageService {
     }
   }
 }
+
