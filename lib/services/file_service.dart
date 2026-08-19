@@ -126,7 +126,14 @@ class FileService {
 
   /// Platform-safe path joining
   String joinPaths(String part1, String part2, [String? part3, String? part4]) {
-    return path.join(part1, part2, part3, part4);
+    final parts = [part1, part2, if (part3 != null) part3, if (part4 != null) part4];
+    return path.joinAll(parts);
+  }
+
+  /// Normalizes path for platform safety across platforms
+  String normalizePath(String filePath) {
+    if (filePath.isEmpty) return '';
+    return path.normalize(filePath);
   }
 
   /// Formats bytes to readable format

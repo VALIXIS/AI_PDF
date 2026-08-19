@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 
 class CameraScanScreen extends StatefulWidget {
@@ -60,7 +61,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         ));
       }
       final dir  = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/scan_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final path = FileService().joinPaths(dir.path, 'scan_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await File(path).writeAsBytes(await pdf.save());
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),

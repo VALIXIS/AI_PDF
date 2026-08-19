@@ -73,7 +73,7 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
         ]),
       ));
       final dir  = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final path = FileService().joinPaths(dir.path, 'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await File(path).writeAsBytes(await pdf.save());
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
