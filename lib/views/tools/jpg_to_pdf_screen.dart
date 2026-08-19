@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -10,6 +9,7 @@ import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class JpgToPdfScreen extends StatefulWidget {
   const JpgToPdfScreen({Key? key}) : super(key: key);
@@ -19,24 +19,50 @@ class JpgToPdfScreen extends StatefulWidget {
 
 class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
   final List<File> _images = [];
-  bool _saving = false;
+  bool _isLoading = false;
+  String? _errorMessage;
+  String? _successPath;
   PdfPageFormat _pageFormat = PdfPageFormat.a4;
   bool _fitPage = true;
 
   Future<void> _pickImages() async {
-    final picked = await ImagePicker().pickMultiImage(imageQuality: 90);
-    if (picked.isEmpty) return;
-    setState(() => _images.addAll(picked.map((x) => File(x.path))));
+    try {
+      final picked = await ImagePicker().pickMultiImage(imageQuality: 90);
+      if (!mounted) return;
+      if (picked.isNotEmpty) {
+        setState(() {
+          _images.addAll(picked.map((x) => File(x.path)));
+          _errorMessage = null;
+          _successPath = null;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Failed to pick images: $e';
+      });
+    }
   }
 
   Future<void> _convert() async {
-    if (_images.isEmpty) return;
-    setState(() => _saving = true);
+    if (_images.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please select at least one image.';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _successPath = null;
+    });
+
     try {
       final pdf = pw.Document();
       for (final f in _images) {
         final bytes = await f.readAsBytes();
-        final img   = pw.MemoryImage(bytes);
+        final img = pw.MemoryImage(bytes);
         pdf.addPage(pw.Page(
           pageFormat: _pageFormat,
           margin: _fitPage ? pw.EdgeInsets.zero : const pw.EdgeInsets.all(20),
@@ -45,42 +71,85 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
               : pw.Center(child: pw.Image(img, fit: pw.BoxFit.contain)),
         ));
       }
-      final dir  = await getApplicationDocumentsDirectory();
+
+      final dir = await getApplicationDocumentsDirectory();
       final path = '${dir.path}/images_${DateTime.now().millisecondsSinceEpoch}.pdf';
       await File(path).writeAsBytes(await pdf.save());
+
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Images to PDF (${_images.length})',
-        date: DateTime.now(), filePath: path, toolType: 'jpg_to_pdf',
+        date: DateTime.now(),
+        filePath: path,
+        toolType: 'jpg_to_pdf',
       ));
-      setState(() { _saving = false; _images.clear(); });
+
       if (!mounted) return;
-      if (mounted) { ShareService.showSaveShareDialog(context, path); }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('PDF saved to history!'),
-        backgroundColor: const Color(0xFF16A34A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
+      setState(() {
+        _isLoading = false;
+        _successPath = path;
+      });
+
+      if (mounted) {
+        ShareService.showSaveShareDialog(context, path);
+      }
     } catch (e) {
-      setState(() => _saving = false);
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark  = Theme.of(context).brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = isDark ? kPrimaryDark : kPrimary;
-    final sub     = isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF);
-    final bg      = isDark ? const Color(0xFF14141E) : Colors.white;
-    final border  = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
+    final sub = isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF);
+    final bg = isDark ? const Color(0xFF14141E) : Colors.white;
+    final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
 
     return Scaffold(
       appBar: AppBar(title: const Text('JPG / Images to PDF')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Options
+          // Loading Banner
+          if (_isLoading)
+            ToolLoadingBanner(
+              message: 'Converting ${_images.length} image${_images.length > 1 ? 's' : ''} to PDF...',
+            ),
+
+          // Error Banner
+          if (_errorMessage != null)
+            ToolErrorBanner(
+              message: _errorMessage!,
+              onRetry: _images.isNotEmpty ? _convert : null,
+              onDismiss: () => setState(() => _errorMessage = null),
+            ),
+
+          // Success Card
+          if (_successPath != null)
+            ToolSuccessCard(
+              title: 'PDF Created Successfully!',
+              subtitle: 'Combined ${_images.length} images into PDF.',
+              filePath: _successPath,
+              onShare: () {
+                if (_successPath != null && mounted) {
+                  ShareService.showSaveShareDialog(context, _successPath!);
+                }
+              },
+              onReset: () {
+                setState(() {
+                  _successPath = null;
+                  _images.clear();
+                  _errorMessage = null;
+                });
+              },
+            ),
+
+          // Options Card
           Text('Options', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           Container(
@@ -93,12 +162,12 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                 DropdownButton<PdfPageFormat>(
                   value: _pageFormat,
                   underline: const SizedBox(),
-                  items: [
-                    DropdownMenuItem(value: PdfPageFormat.a4, child: const Text('A4')),
-                    DropdownMenuItem(value: PdfPageFormat.letter, child: const Text('Letter')),
-                    DropdownMenuItem(value: PdfPageFormat.a3, child: const Text('A3')),
+                  items: const [
+                    DropdownMenuItem(value: PdfPageFormat.a4, child: Text('A4')),
+                    DropdownMenuItem(value: PdfPageFormat.letter, child: Text('Letter')),
+                    DropdownMenuItem(value: PdfPageFormat.a3, child: Text('A3')),
                   ],
-                  onChanged: (v) { if (v != null) setState(() => _pageFormat = v); },
+                  onChanged: _isLoading ? null : (v) { if (v != null) setState(() => _pageFormat = v); },
                 ),
               ]),
               const Divider(),
@@ -106,42 +175,52 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                 title: const Text('Fit to page', style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('Scale image to fill page'),
                 value: _fitPage,
-                activeColor: primary,
+                activeThumbColor: primary,
                 contentPadding: EdgeInsets.zero,
-                onChanged: (v) => setState(() => _fitPage = v),
+                onChanged: _isLoading ? null : (v) => setState(() => _fitPage = v),
               ),
             ]),
           ),
           const SizedBox(height: 20),
-          Text('Images', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
-          if (_images.isEmpty)
-            GestureDetector(
-              onTap: _pickImages,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: bg, borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: border, width: 1.5),
+
+          // Images Section Header
+          Row(
+            children: [
+              Text('Images (${_images.length})', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              const Spacer(),
+              if (_images.isNotEmpty && !_isLoading)
+                TextButton(
+                  onPressed: () => setState(() { _images.clear(); _errorMessage = null; }),
+                  child: const Text('Clear all', style: TextStyle(color: Color(0xFFDC2626))),
                 ),
-                child: Column(children: [
-                  Icon(Icons.add_photo_alternate_rounded, size: 48, color: sub.withValues(alpha: 0.5)),
-                  const SizedBox(height: 12),
-                  Text('Tap to select images', style: TextStyle(color: sub, fontWeight: FontWeight.w600)),
-                ]),
-              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Empty state or Grid of selected images
+          if (_images.isEmpty && _successPath == null)
+            ToolEmptyState(
+              icon: Icons.add_photo_alternate_rounded,
+              title: 'No Images Selected',
+              subtitle: 'Select one or more photos from your gallery to create a PDF',
+              actionLabel: 'Select Images',
+              onAction: _isLoading ? null : _pickImages,
             )
-          else
+          else if (_images.isNotEmpty)
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.8),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 0.8,
+              ),
               itemCount: _images.length + 1,
               itemBuilder: (_, i) {
                 if (i == _images.length) {
                   return GestureDetector(
-                    onTap: _pickImages,
+                    onTap: _isLoading ? null : _pickImages,
                     child: Container(
                       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
                       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -157,11 +236,14 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                     clipBehavior: Clip.hardEdge,
                     child: Image.file(_images[i], fit: BoxFit.cover, width: double.infinity, height: double.infinity),
                   ),
-                  Positioned(top: 4, right: 4,
+                  Positioned(
+                    top: 4,
+                    right: 4,
                     child: GestureDetector(
-                      onTap: () => setState(() => _images.removeAt(i)),
+                      onTap: _isLoading ? null : () => setState(() => _images.removeAt(i)),
                       child: Container(
-                        width: 22, height: 22,
+                        width: 22,
+                        height: 22,
                         decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
                         child: const Icon(Icons.close_rounded, color: Colors.white, size: 13),
                       ),
@@ -170,15 +252,19 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                 ]);
               },
             ),
+
           const SizedBox(height: 28),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: (_images.isEmpty || _saving) ? null : _convert,
-              icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.picture_as_pdf_rounded),
+              onPressed: (_images.isEmpty || _isLoading) ? null : _convert,
+              icon: _isLoading
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.picture_as_pdf_rounded),
               label: Text(_images.isEmpty ? 'Select images first' : 'Convert to PDF', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: primary, foregroundColor: Colors.white,
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
