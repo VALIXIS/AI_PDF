@@ -1,9 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/main.dart'
-    show themeNotifier, kPrimary, kPrimaryDark, kCardLight, kCardDark;
+    show themeNotifier, kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/views/ai/ai_screen.dart';
-import 'package:pdf_ai_toolkit/views/history/history_screen.dart';
-import 'package:pdf_ai_toolkit/views/settings/settings_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/merge_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/split_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/text_to_pdf_screen.dart';
@@ -37,16 +36,117 @@ class ToolItem {
 
 const _tools = <ToolItem>[
   // Convert
-  ToolItem(title: 'Images to PDF', subtitle: 'Gallery to document', icon: Icons.image_rounded,             color: Color(0xFF0EA5E9), screen: JpgToPdfScreen(),      category: 'Convert'),
-  ToolItem(title: 'Word/TXT to PDF', subtitle: 'Doc/Text to PDF',  icon: Icons.text_fields_rounded,        color: Color(0xFF10B981), screen: TextToPdfScreen(),     category: 'Convert'),
-  // Organize Tools removed as they were placeholders
-  // Edit
-  ToolItem(title: 'PDF Editor',    subtitle: 'Edit & annotate',    icon: Icons.edit_document,              color: Color(0xFFE03131), screen: PdfEditorScreen(),     category: 'Edit'),
-  // AI
-  ToolItem(title: 'AI to PDF',     subtitle: 'ChatGPT → PDF',      icon: Icons.auto_awesome_rounded,       color: Color(0xFF7C3AED), screen: AiScreen(),            category: 'AI'),
-  ToolItem(title: 'AI Refine',     subtitle: 'Polish with AI',     icon: Icons.auto_fix_high_rounded,      color: Color(0xFF0284C7), screen: AiRefineScreen(),      category: 'AI'),
-];
+  ToolItem(
+    title: 'Images to PDF',
+    subtitle: 'Gallery to document',
+    icon: Icons.image_rounded,
+    color: Color(0xFF0EA5E9),
+    screen: JpgToPdfScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
+    title: 'Word/TXT to PDF',
+    subtitle: 'Doc/Text to PDF',
+    icon: Icons.text_fields_rounded,
+    color: Color(0xFF10B981),
+    screen: TextToPdfScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
+    title: 'PDF to Text',
+    subtitle: 'Extract text from PDF',
+    icon: Icons.text_snippet_rounded,
+    color: Color(0xFF6366F1),
+    screen: PdfToTextScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
+    title: 'Camera Scan',
+    subtitle: 'Scan physical docs',
+    icon: Icons.document_scanner_rounded,
+    color: Color(0xFF059669),
+    screen: CameraScanScreen(),
+    category: 'Convert',
+  ),
 
+  // Organize
+  ToolItem(
+    title: 'Merge PDF',
+    subtitle: 'Combine multiple PDFs',
+    icon: Icons.call_merge_rounded,
+    color: Color(0xFF8B5CF6),
+    screen: MergePdfScreen(),
+    category: 'Organize',
+  ),
+  ToolItem(
+    title: 'Split PDF',
+    subtitle: 'Extract page ranges',
+    icon: Icons.call_split_rounded,
+    color: Color(0xFFEC4899),
+    screen: SplitPdfScreen(),
+    category: 'Organize',
+  ),
+  ToolItem(
+    title: 'Compress PDF',
+    subtitle: 'Reduce file size',
+    icon: Icons.compress_rounded,
+    color: Color(0xFFF59E0B),
+    screen: CompressPdfScreen(),
+    category: 'Organize',
+  ),
+  ToolItem(
+    title: 'Rotate PDF',
+    subtitle: 'Rotate orientation',
+    icon: Icons.rotate_right_rounded,
+    color: Color(0xFF10B981),
+    screen: RotatePdfScreen(),
+    category: 'Organize',
+  ),
+
+  // Edit
+  ToolItem(
+    title: 'PDF Editor',
+    subtitle: 'Edit & annotate',
+    icon: Icons.edit_document,
+    color: Color(0xFFE03131),
+    screen: PdfEditorScreen(),
+    category: 'Edit',
+  ),
+  ToolItem(
+    title: 'Watermark PDF',
+    subtitle: 'Add text & stamps',
+    icon: Icons.branding_watermark_rounded,
+    color: Color(0xFFD97706),
+    screen: WatermarkScreen(),
+    category: 'Edit',
+  ),
+  ToolItem(
+    title: 'Protect PDF',
+    subtitle: 'Set PDF password',
+    icon: Icons.lock_rounded,
+    color: Color(0xFFEF4444),
+    screen: ProtectPdfScreen(),
+    category: 'Edit',
+  ),
+
+  // AI
+  ToolItem(
+    title: 'AI to PDF',
+    subtitle: 'ChatGPT → PDF',
+    icon: Icons.auto_awesome_rounded,
+    color: Color(0xFF7C3AED),
+    screen: AiScreen(),
+    category: 'AI',
+  ),
+  ToolItem(
+    title: 'AI Refine',
+    subtitle: 'Polish with AI',
+    icon: Icons.auto_fix_high_rounded,
+    color: Color(0xFF0284C7),
+    screen: AiRefineScreen(),
+    category: 'AI',
+  ),
+];
 
 // ── Home Screen ───────────────────────────────────────────────────────────
 class HomeScreen extends StatefulWidget {
@@ -60,10 +160,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late final AnimationController _heroAnim;
   late final Animation<double> _heroFade;
   late final Animation<Offset> _heroSlide;
+  Timer? _heroTimer;
   String _category = 'All';
   bool _buttonPressed = false;
 
-  final _categories = ['All', 'Convert', 'Organize', 'Edit', 'AI'];
+  final _categories = const ['All', 'Convert', 'Organize', 'Edit', 'AI'];
 
   @override
   void initState() {
@@ -73,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _heroFade  = CurvedAnimation(parent: _heroAnim, curve: Curves.easeOut);
     _heroSlide = Tween(begin: const Offset(0, 0.08), end: Offset.zero)
         .animate(CurvedAnimation(parent: _heroAnim, curve: Curves.easeOutCubic));
-    Future.delayed(const Duration(milliseconds: 100), () {
+    _heroTimer = Timer(const Duration(milliseconds: 100), () {
       if (mounted) _heroAnim.forward();
     });
   }
@@ -82,23 +183,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _heroTimer?.cancel();
     _inputCtrl.dispose();
     _heroAnim.dispose();
     themeNotifier.removeListener(_rebuild);
     super.dispose();
   }
 
-  void _push(Widget screen) => Navigator.of(context).push(
-    PageRouteBuilder(
-      pageBuilder: (_, a, __) => screen,
-      transitionDuration: const Duration(milliseconds: 280),
-      transitionsBuilder: (_, a, __, child) => SlideTransition(
-        position: Tween(begin: const Offset(1, 0), end: Offset.zero)
-            .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
-        child: child,
-      ),
-    ),
-  );
+  void _push(Widget screen) {
+    if (!mounted) return;
+    try {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          pageBuilder: (_, a, __) => screen,
+          transitionDuration: const Duration(milliseconds: 280),
+          transitionsBuilder: (_, a, __, child) => SlideTransition(
+            position: Tween(begin: const Offset(1, 0), end: Offset.zero)
+                .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+            child: child,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to open screen: $e')),
+        );
+      }
+    }
+  }
 
   List<ToolItem> get _filtered => _category == 'All'
       ? _tools
@@ -131,7 +244,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       color: isDark ? Colors.white : const Color(0xFF111827))),
             ]),
             actions: [
-              // History button removed from top left
               IconButton(
                 icon: const Icon(Icons.settings_rounded),
                 color: isDark ? Colors.white : const Color(0xFF111827),
@@ -187,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 Text('Pro Tips', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: 12),
                 SizedBox(
-                  height: 110,
+                  height: 114,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
@@ -233,7 +345,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       final cat = _categories[i];
                       final sel = _category == cat;
                       return GestureDetector(
-                        onTap: () => setState(() => _category = cat),
+                        key: ValueKey('category_tab_$cat'),
+                        onTap: () {
+                          if (mounted) {
+                            setState(() => _category = cat);
+                          }
+                        },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -254,23 +371,65 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 16),
 
-                // ── Tool grid ─────────────────────────────────────
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.55,
-                  ),
-                  itemCount: _filtered.length,
-                  itemBuilder: (_, i) => _ToolCard(
-                    item: _filtered[i],
-                    isDark: isDark,
-                    onTap: () => _push(_filtered[i].screen),
-                  ),
-                ),
+                // ── Tool grid or Empty State ──────────────────────
+                _filtered.isEmpty
+                    ? Container(
+                        key: const ValueKey('empty_category_state'),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF14141E) : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 44,
+                              color: isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No tools available',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : const Color(0xFF111827),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'No tools found in "$_category"',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : GridView.builder(
+                        key: ValueKey('tool_grid_$_category'),
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 1.55,
+                        ),
+                        itemCount: _filtered.length,
+                        itemBuilder: (_, i) => _ToolCard(
+                          key: ValueKey('tool_card_${_filtered[i].title}'),
+                          item: _filtered[i],
+                          isDark: isDark,
+                          onTap: () => _push(_filtered[i].screen),
+                        ),
+                      ),
               ]),
             ),
           ),
@@ -327,7 +486,6 @@ class _BottomAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -414,10 +572,10 @@ class _HeroCard extends StatelessWidget {
                 color: primary,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                const Text('Generate PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text('Generate PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
               ]),
             ),
           ),
@@ -464,7 +622,7 @@ class _ToolCard extends StatefulWidget {
   final ToolItem item;
   final bool isDark;
   final VoidCallback onTap;
-  const _ToolCard({required this.item, required this.isDark, required this.onTap});
+  const _ToolCard({Key? key, required this.item, required this.isDark, required this.onTap}) : super(key: key);
   @override
   State<_ToolCard> createState() => _ToolCardState();
 }
@@ -510,7 +668,7 @@ class _ToolCardState extends State<_ToolCard> with SingleTickerProviderStateMixi
             const Spacer(),
             Text(widget.item.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
-            Text(widget.item.subtitle, style: TextStyle(fontSize: 11, color: widget.isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)), maxLines: 1),
+            Text(widget.item.subtitle, style: TextStyle(fontSize: 11, color: widget.isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)), maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
         ),
       ),
@@ -532,14 +690,14 @@ class _TipCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 240,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF14141E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(10),
@@ -556,7 +714,7 @@ class _TipCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8B949E) : const Color(0xFF64748B)), maxLines: 2, overflow: TextOverflow.ellipsis),
               ],
             ),
