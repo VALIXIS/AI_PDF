@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 
@@ -34,7 +35,7 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
         rotationAngle: _rotation,
       );
       await StorageService().addHistoryEntry(HistoryEntry(
-        id: AiController().generateId(), title: 'Rotated ${_rotation}°',
+        id: AiController().generateId(), title: 'Rotated $_rotation°',
         date: DateTime.now(), filePath: path, toolType: 'rotate_pdf',
       ));
       setState(() { _saving = false; _pdfFile = null; });
@@ -82,7 +83,7 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
               child: Row(children: [
                 Icon(Icons.picture_as_pdf_rounded, color: _pdfFile != null ? primary : sub, size: 32),
                 const SizedBox(width: 14),
-                Expanded(child: Text(_pdfFile != null ? _pdfFile!.path.split('/').last.split('\\').last : 'Choose PDF file',
+                Expanded(child: Text(_pdfFile != null ? FileService().getFileName(_pdfFile!.path) : 'Choose PDF file',
                     style: TextStyle(fontWeight: FontWeight.w700, color: _pdfFile != null ? primary : sub))),
                 Icon(Icons.chevron_right_rounded, color: sub),
               ]),

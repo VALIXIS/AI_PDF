@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 
 class WatermarkScreen extends StatefulWidget {
@@ -46,7 +47,7 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
           pw.Center(child: pw.Column(mainAxisAlignment: pw.MainAxisAlignment.center, children: [
             pw.Text('Watermark Applied', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 12),
-            pw.Text('Source: ${_pdfFile!.path.split('/').last}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
+            pw.Text('Source: ${FileService().getFileName(_pdfFile!.path)}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
             pw.SizedBox(height: 8),
             pw.Text('Watermark text: "${_textCtrl.text}"', style: const pw.TextStyle(fontSize: 12)),
           ])),
@@ -72,7 +73,7 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
         ]),
       ));
       final dir  = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final path = FileService().joinPaths(dir.path, 'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await File(path).writeAsBytes(await pdf.save());
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
@@ -214,7 +215,7 @@ class _FilePicker extends StatelessWidget {
         Icon(Icons.picture_as_pdf_rounded, color: file != null ? primary : sub, size: 32),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(file != null ? file!.path.split('/').last.split('\\').last : 'Choose PDF file',
+          Text(file != null ? FileService().getFileName(file!.path) : 'Choose PDF file',
               style: TextStyle(fontWeight: FontWeight.w700, color: file != null ? primary : sub)),
           if (file == null) Text('Tap to browse', style: TextStyle(color: sub, fontSize: 12)),
         ])),

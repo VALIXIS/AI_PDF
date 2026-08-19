@@ -4,7 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
-import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class PdfService {
   /// Generates a PDF from formatted text
@@ -60,7 +60,7 @@ class PdfService {
       final output = await getApplicationDocumentsDirectory();
       final fileName =
           'pdf_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File('${output.path}/$fileName');
+      final file = File(path.join(output.path, fileName));
       await file.writeAsBytes(await pdf.save());
 
       return file.path;
@@ -175,7 +175,7 @@ class PdfService {
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName =
           'merged_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File('$dirPath/$fileName');
+      final file = File(path.join(dirPath, fileName));
       await file.writeAsBytes(mergedBytes);
 
       return file.path;
@@ -198,7 +198,7 @@ class PdfService {
       final output = await getApplicationDocumentsDirectory();
       final fileName =
           'split_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File('${output.path}/$fileName');
+      final file = File(path.join(output.path, fileName));
 
       final pdf = pw.Document();
       pdf.addPage(
@@ -241,7 +241,7 @@ class PdfService {
       final output = await getApplicationDocumentsDirectory();
       final fileName =
           'compressed_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File('${output.path}/$fileName');
+      final file = File(path.join(output.path, fileName));
 
       // For now, copy the file
       await File(pdfPath).copy(file.path);
