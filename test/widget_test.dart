@@ -4,6 +4,16 @@ import 'package:pdf_ai_toolkit/main.dart';
 import 'package:pdf_ai_toolkit/views/tools/merge_pdf_screen.dart';
 
 void main() {
+  testWidgets('App loads and displays HomeScreen smoke test', (WidgetTester tester) async {
+    await tester.pumpWidget(const PdfAiToolkitApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('What would you like\nto do today?'), findsOneWidget);
+    expect(find.text('PDF AI Toolkit'), findsWidgets);
+    expect(find.text('All Tools'), findsOneWidget);
+    expect(find.text('Start Scan'), findsOneWidget);
+  });
+
   testWidgets('HomeScreen category filtering and tool navigation test', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
@@ -16,7 +26,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify main app title is visible
-    expect(find.text('PDF AI Toolkit'), findsOneWidget);
+    expect(find.text('PDF AI Toolkit'), findsWidgets);
 
     // Verify all categories exist
     expect(find.text('All'), findsOneWidget);
@@ -101,5 +111,6 @@ void main() {
     expect(find.text('Merge PDF'), findsOneWidget);
     expect(find.text('PDF Editor'), findsOneWidget);
     expect(find.text('AI to PDF'), findsOneWidget);
+  });
   });
 }
