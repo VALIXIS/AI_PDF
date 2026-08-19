@@ -2,13 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 
 class RotatePdfScreen extends StatefulWidget {
   const RotatePdfScreen({Key? key}) : super(key: key);
@@ -31,18 +29,10 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
     if (_pdfFile == null) return;
     setState(() => _saving = true);
     try {
-      final pdf = pw.Document();
-      pdf.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (_) => pw.Center(child: pw.Column(mainAxisAlignment: pw.MainAxisAlignment.center, children: [
-          pw.Text('Rotated $_rotation°', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          pw.Text(_pdfFile!.path.split('/').last, style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-        ])),
-      ));
-      final dir  = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/rotated_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      await File(path).writeAsBytes(await pdf.save());
+      final path = await PdfService().rotatePdf(
+        pdfPath: _pdfFile!.path,
+        rotationAngle: _rotation,
+      );
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(), title: 'Rotated ${_rotation}°',
         date: DateTime.now(), filePath: path, toolType: 'rotate_pdf',
@@ -55,7 +45,16 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
         backgroundColor: const Color(0xFF16A34A), behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ));
-    } catch (e) { setState(() => _saving = false); }
+    } catch (e) {
+      setState(() => _saving = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to rotate PDF: $e'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    }
   }
 
   @override

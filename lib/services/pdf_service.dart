@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:path_provider/path_provider.dart';
 
 class PdfService {
@@ -247,6 +248,81 @@ class PdfService {
       return file.path;
     } catch (e) {
       throw Exception('Failed to compress PDF: $e');
+    }
+  }
+
+  /// Rotates the pages of a PDF by a specified angle (90, 180, 270)
+  Future<String> rotatePdf({
+    required String pdfPath,
+    required int rotationAngle,
+  }) async {
+    try {
+      final file = File(pdfPath);
+      if (!await file.exists()) {
+        throw Exception('Input file does not exist');
+      }
+
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        throw Exception('Input PDF file is empty');
+      }
+
+      // Load existing document
+      final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
+
+      try {
+        for (int i = 0; i < document.pages.count; i++) {
+          final sf.PdfPage page = document.pages[i];
+          
+          // Get current page rotation
+          final currentRotation = page.rotation;
+          
+          // Convert enum to degrees
+          int currentDegrees = 0;
+          switch (currentRotation) {
+            case sf.PdfPageRotateAngle.rotateAngle0:
+              currentDegrees = 0;
+              break;
+            case sf.PdfPageRotateAngle.rotateAngle90:
+              currentDegrees = 90;
+              break;
+            case sf.PdfPageRotateAngle.rotateAngle180:
+              currentDegrees = 180;
+              break;
+            case sf.PdfPageRotateAngle.rotateAngle270:
+              currentDegrees = 270;
+              break;
+          }
+
+          // Calculate new degrees (additive and normalized to 0, 90, 180, 270)
+          final newDegrees = (currentDegrees + rotationAngle) % 360;
+
+          // Set new rotation angle
+          if (newDegrees == 90) {
+            page.rotation = sf.PdfPageRotateAngle.rotateAngle90;
+          } else if (newDegrees == 180) {
+            page.rotation = sf.PdfPageRotateAngle.rotateAngle180;
+          } else if (newDegrees == 270) {
+            page.rotation = sf.PdfPageRotateAngle.rotateAngle270;
+          } else {
+            page.rotation = sf.PdfPageRotateAngle.rotateAngle0;
+          }
+        }
+
+        // Save rotated PDF to file
+        final List<int> outputBytes = await document.save();
+        
+        final output = await getApplicationDocumentsDirectory();
+        final fileName = 'rotated_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final outputFile = File('${output.path}/$fileName');
+        await outputFile.writeAsBytes(outputBytes);
+        
+        return outputFile.path;
+      } finally {
+        document.dispose();
+      }
+    } catch (e) {
+      throw Exception('Failed to rotate PDF: $e');
     }
   }
 }
