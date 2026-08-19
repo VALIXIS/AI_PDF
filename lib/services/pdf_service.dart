@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
+import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 class PdfService {

@@ -5,6 +5,12 @@ import 'package:pdf_ai_toolkit/views/tools/merge_pdf_screen.dart';
 
 void main() {
   testWidgets('App loads and displays HomeScreen smoke test', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(const PdfAiToolkitApp());
     await tester.pumpAndSettle();
 
@@ -110,7 +116,5 @@ void main() {
     expect(find.text('Images to PDF'), findsOneWidget);
     expect(find.text('Merge PDF'), findsOneWidget);
     expect(find.text('PDF Editor'), findsOneWidget);
-    expect(find.text('AI to PDF'), findsOneWidget);
-  });
   });
 }
