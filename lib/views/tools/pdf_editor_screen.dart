@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 
 // ── Annotation types ──────────────────────────────────────────────────────
@@ -154,15 +155,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       }
 
       final dir  = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/edited_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      await File(path).writeAsBytes(await newPdf.save());
+      final savePath = FileService().joinPaths(dir.path, 'edited_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      await File(savePath).writeAsBytes(await newPdf.save());
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
-        title: 'Edited: ${_pdfFile!.path.split('/').last}',
-        date: DateTime.now(), filePath: path, toolType: 'pdf_editor',
+        title: 'Edited: ${FileService().getFileName(_pdfFile!.path)}',
+        date: DateTime.now(), filePath: savePath, toolType: 'pdf_editor',
       ));
       setState(() => _saving = false);
-      if (mounted) { ShareService.showSaveShareDialog(context, path); }
+      if (mounted) { ShareService.showSaveShareDialog(context, savePath); }
       _snack('PDF saved to history!');
     } catch (e) {
       setState(() => _saving = false);
@@ -188,7 +189,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       backgroundColor: isDark ? const Color(0xFF0B0B13) : const Color(0xFFF0F0F5),
       appBar: AppBar(
         title: Text(_pdfFile == null ? 'PDF Editor'
-            : _pdfFile!.path.split('\\').last.split('/').last, overflow: TextOverflow.ellipsis),
+            : FileService().getFileName(_pdfFile!.path), overflow: TextOverflow.ellipsis),
         actions: [
           if (_document != null) ...[
             IconButton(
