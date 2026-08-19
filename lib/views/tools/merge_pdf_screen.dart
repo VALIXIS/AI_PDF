@@ -192,6 +192,13 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
   }
 
   Future<void> _mergePdfs() async {
+    if (_selectedFiles.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please select at least one PDF file to merge.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
