@@ -11,7 +11,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+
 
 // ── Annotation types ──────────────────────────────────────────────────────
 enum AnnotationKind { text, image }
@@ -76,6 +78,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     setState(() { _loading = true; _pdfFile = null; _document = null; _annotations.clear(); });
     try {
       final file = File(result.files.single.path!);
+      if (!await FileService().isFileAccessible(file.path)) {
+        setState(() => _loading = false);
+        _snack('Selected file does not exist or is inaccessible', error: true);
+        return;
+      }
       final doc  = await pdfx.PdfDocument.openFile(file.path);
       setState(() {
         _pdfFile = file; _document = doc;
@@ -114,6 +121,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   Future<void> _savePdf() async {
     if (_pdfFile == null || _document == null) return;
+    if (!await FileService().isFileAccessible(_pdfFile!.path)) {
+      _snack('Original PDF file no longer exists or is inaccessible', error: true);
+      return;
+    }
     setState(() => _saving = true);
     try {
       final newPdf = pw.Document();
@@ -154,11 +165,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       }
 
       final dir  = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/edited_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final path = FileService().joinPaths(dir.path, 'edited_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await File(path).writeAsBytes(await newPdf.save());
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
-        title: 'Edited: ${_pdfFile!.path.split('/').last}',
+        title: 'Edited: ${FileService().getFileName(_pdfFile!.path)}',
         date: DateTime.now(), filePath: path, toolType: 'pdf_editor',
       ));
       setState(() => _saving = false);
@@ -188,7 +199,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       backgroundColor: isDark ? const Color(0xFF0B0B13) : const Color(0xFFF0F0F5),
       appBar: AppBar(
         title: Text(_pdfFile == null ? 'PDF Editor'
-            : _pdfFile!.path.split('\\').last.split('/').last, overflow: TextOverflow.ellipsis),
+            : FileService().getFileName(_pdfFile!.path), overflow: TextOverflow.ellipsis),
+
         actions: [
           if (_document != null) ...[
             IconButton(

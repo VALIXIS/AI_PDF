@@ -15,6 +15,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final StorageService _storageService = StorageService();
   bool _isLoading = true;
   List<HistoryEntry> _historyEntries = [];
+  Set<String> _inaccessibleEntryIds = {};
   String? _errorMessage;
 
   @override
@@ -30,13 +31,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
         title: const Text('History'),
         actions: [
           if (_historyEntries.isNotEmpty)
-            PopupMenuButton(
+            PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'clear') {
                   _showClearConfirmation(context);
+                } else if (value == 'clean_stale') {
+                  _cleanupStaleEntries();
                 }
               },
               itemBuilder: (BuildContext context) => [
+                const PopupMenuItem(
+                  value: 'clean_stale',
+                  child: Row(
+                    children: [
+                      Icon(Icons.cleaning_services_rounded, color: Colors.orange),
+                      SizedBox(width: 12),
+                      Text('Clean Missing Files'),
+                    ],
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'clear',
                   child: Row(
@@ -122,6 +135,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildHistoryCard(BuildContext context, HistoryEntry entry) {
     final dateFormat = DateFormat('MMM dd, yyyy - HH:mm');
     final formattedDate = dateFormat.format(entry.date);
+    final isMissing = _inaccessibleEntryIds.contains(entry.id);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -138,16 +152,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                      color: Color.fromRGBO(
-                        (Theme.of(context).colorScheme.primary.r * 255).round(),
-                        (Theme.of(context).colorScheme.primary.g * 255).round(),
-                        (Theme.of(context).colorScheme.primary.b * 255).round(),
-                        0.2),
+                  color: isMissing
+                      ? const Color.fromRGBO(255, 152, 0, 0.15)
+                      : Color.fromRGBO(
+                          (Theme.of(context).colorScheme.primary.r * 255).round(),
+                          (Theme.of(context).colorScheme.primary.g * 255).round(),
+                          (Theme.of(context).colorScheme.primary.b * 255).round(),
+                          0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  Icons.picture_as_pdf,
-                  color: Theme.of(context).colorScheme.primary,
+                  isMissing ? Icons.warning_amber_rounded : Icons.picture_as_pdf,
+                  color: isMissing ? Colors.orange[800] : Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -162,14 +178,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+
+                      runSpacing: 4,
                       children: [
                         Text(
                           formattedDate,
                           style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: Colors.grey[600]),
                         ),
-                        const SizedBox(width: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -191,12 +210,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ),
                           ),
                         ),
+                        if (isMissing)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'File missing',
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(
+                                color: Colors.orange[800],
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ],
                 ),
               ),
-              PopupMenuButton(
+              PopupMenuButton<String>(
                 onSelected: (value) {
                   if (value == 'delete') {
                     _deleteEntry(entry);
@@ -235,6 +273,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _showEntryOptions(BuildContext context, HistoryEntry entry) {
+    final isMissing = _inaccessibleEntryIds.contains(entry.id);
+
     showBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -252,11 +292,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.folder),
+              leading: Icon(
+                isMissing ? Icons.warning_amber_rounded : Icons.folder,
+                color: isMissing ? Colors.orange[800] : null,
+              ),
               title: const Text('File Path'),
               subtitle: Text(
-                entry.filePath,
-                maxLines: 1,
+                isMissing
+                    ? '${entry.filePath} (File missing or deleted)'
+                    : entry.filePath,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -328,16 +373,48 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       final entries =
           await _storageService.getHistoryEntriesSortedByDate();
-      setState(() {
-        _historyEntries = entries;
-        _isLoading = false;
-        _errorMessage = null;
-      });
+      final inaccessible = <String>{};
+      for (final entry in entries) {
+        if (!await _storageService.isEntryFileAccessible(entry)) {
+          inaccessible.add(entry.id);
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _historyEntries = entries;
+          _inaccessibleEntryIds = inaccessible;
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _cleanupStaleEntries() async {
+    try {
+      final count = await _storageService.cleanupMissingEntries();
+      await _loadHistory();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(count > 0
+              ? 'Removed $count missing history entry(ies).'
+              : 'No missing files found in history.'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
 
@@ -353,6 +430,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -371,13 +449,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
 
-  void _shareEntry(HistoryEntry entry) {
+  Future<void> _shareEntry(HistoryEntry entry) async {
+    final exists = await _storageService.isEntryFileAccessible(entry);
+    if (!exists) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('File no longer exists on device: ${entry.filePath}'),
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'Remove',
+            textColor: Colors.white,
+            onPressed: () => _deleteEntry(entry),
+          ),
+        ),
+      );
+      return;
+    }
     Share.shareXFiles([XFile(entry.filePath)], text: 'Check out this PDF document: ${entry.title}');
   }
 
@@ -400,3 +495,4 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 }
+

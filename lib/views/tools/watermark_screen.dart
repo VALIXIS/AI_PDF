@@ -8,7 +8,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+
 
 class WatermarkScreen extends StatefulWidget {
   const WatermarkScreen({Key? key}) : super(key: key);
@@ -34,7 +36,10 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
   }
 
   Future<void> _apply() async {
-    if (_pdfFile == null) return;
+    if (_pdfFile == null || !await FileService().isFileAccessible(_pdfFile!.path)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected file no longer exists or is inaccessible')));
+      return;
+    }
     setState(() => _saving = true);
     try {
       final pdf = pw.Document();
@@ -46,7 +51,7 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
           pw.Center(child: pw.Column(mainAxisAlignment: pw.MainAxisAlignment.center, children: [
             pw.Text('Watermark Applied', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 12),
-            pw.Text('Source: ${_pdfFile!.path.split('/').last}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
+            pw.Text('Source: ${FileService().getFileName(_pdfFile!.path)}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
             pw.SizedBox(height: 8),
             pw.Text('Watermark text: "${_textCtrl.text}"', style: const pw.TextStyle(fontSize: 12)),
           ])),
@@ -72,7 +77,7 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
         ]),
       ));
       final dir  = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final path = FileService().joinPaths(dir.path, 'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await File(path).writeAsBytes(await pdf.save());
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
@@ -90,6 +95,7 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
       ));
     } catch (e) { setState(() => _saving = false); }
   }
+
 
   @override
   Widget build(BuildContext context) {

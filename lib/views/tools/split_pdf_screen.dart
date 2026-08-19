@@ -241,6 +241,14 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
     });
 
     try {
+      if (_selectedFile == null || !await _fileService.isFileAccessible(_selectedFile!)) {
+        setState(() {
+          _errorMessage = 'Selected file no longer exists or is inaccessible.';
+          _isLoading = false;
+        });
+        return;
+      }
+
       final filePath = await _pdfService.splitPdf(
         pdfPath: _selectedFile!,
         startPage: _startPage,
@@ -275,4 +283,5 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
       });
     }
   }
+
 }

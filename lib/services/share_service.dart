@@ -1,10 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 
 class ShareService {
   static Future<void> showSaveShareDialog(BuildContext context, String path) async {
+    final isAccessible = await FileService().isFileAccessible(path);
+    if (!isAccessible) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot share: File no longer exists or is inaccessible.\nPath: $path'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
@@ -28,9 +40,15 @@ class ShareService {
                   
                   // Share Button
                   InkWell(
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(ctx);
-                      Share.shareXFiles([XFile(path)], text: 'Here is my PDF file.');
+                      if (await FileService().isFileAccessible(path)) {
+                        Share.shareXFiles([XFile(path)], text: 'Here is my PDF file.');
+                      } else if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
+                        );
+                      }
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
@@ -57,7 +75,13 @@ class ShareService {
                   InkWell(
                     onTap: () async {
                       Navigator.pop(ctx);
-                      Share.shareXFiles([XFile(path)], text: 'Save this PDF');
+                      if (await FileService().isFileAccessible(path)) {
+                        Share.shareXFiles([XFile(path)], text: 'Save this PDF');
+                      } else if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
+                        );
+                      }
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
@@ -87,3 +111,4 @@ class ShareService {
     );
   }
 }
+

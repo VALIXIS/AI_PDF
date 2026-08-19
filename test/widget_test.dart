@@ -10,9 +10,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_ai_toolkit/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('App load smoke test', (WidgetTester tester) async {
     // Build the app and verify it loads.
     await tester.pumpWidget(const PdfAiToolkitApp());
+    await tester.pump(const Duration(milliseconds: 200));
     expect(find.byType(PdfAiToolkitApp), findsOneWidget);
   });
 }
+

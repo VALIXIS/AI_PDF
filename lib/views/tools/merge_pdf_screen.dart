@@ -198,6 +198,17 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
     });
 
     try {
+      for (final file in _selectedFiles) {
+        if (!await _fileService.isFileAccessible(file)) {
+          setState(() {
+            _errorMessage =
+                'One or more selected files no longer exist or are inaccessible: ${_fileService.getFileName(file)}';
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
       final filePath = await _pdfService.mergePdfs(_selectedFiles);
 
       final entry = HistoryEntry(
@@ -232,4 +243,5 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
       });
     }
   }
+
 }

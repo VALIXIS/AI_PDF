@@ -222,6 +222,14 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
     });
 
     try {
+      if (_selectedFile == null || !await _fileService.isFileAccessible(_selectedFile!)) {
+        setState(() {
+          _errorMessage = 'Selected file no longer exists or is inaccessible.';
+          _isLoading = false;
+        });
+        return;
+      }
+
       // Simple text extraction (placeholder)
       final info = await _fileService.readPdfInfo(_selectedFile!);
       setState(() {
@@ -242,4 +250,5 @@ Your extracted text would appear here.''';
       });
     }
   }
+
 }
