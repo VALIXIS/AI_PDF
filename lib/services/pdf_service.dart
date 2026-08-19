@@ -326,4 +326,95 @@ class PdfService {
       throw Exception('Failed to rotate PDF: $e');
     }
   }
+
+  /// Applies a visible text watermark to all pages of a PDF
+  Future<String> watermarkPdf({
+    required String pdfPath,
+    required String watermarkText,
+    required double opacity,
+    required double angle, // in radians
+    required Color color,
+  }) async {
+    try {
+      final file = File(pdfPath);
+      if (!await file.exists()) {
+        throw Exception('Input file does not exist');
+      }
+
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        throw Exception('Input PDF file is empty');
+      }
+
+      if (watermarkText.isEmpty) {
+        throw Exception('Watermark text cannot be empty');
+      }
+
+      // Load existing document
+      final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
+
+      try {
+        final double angleInDegrees = angle * 180 / 3.141592653589793;
+        final sf.PdfFont font = sf.PdfStandardFont(
+          sf.PdfFontFamily.helvetica,
+          50,
+          style: sf.PdfFontStyle.bold,
+        );
+
+        final sf.PdfBrush brush = sf.PdfSolidBrush(
+          sf.PdfColor(color.red, color.green, color.blue),
+        );
+
+        for (int i = 0; i < document.pages.count; i++) {
+          final sf.PdfPage page = document.pages[i];
+          final sf.PdfGraphics graphics = page.graphics;
+
+          // Save current graphics state
+          final sf.PdfGraphicsState state = graphics.save();
+
+          // Set transparency/opacity
+          graphics.setTransparency(opacity);
+
+          // Translate origin to the center of the page
+          graphics.translateTransform(page.size.width / 2, page.size.height / 2);
+
+          // Apply rotation in degrees
+          graphics.rotateTransform(angleInDegrees);
+
+          // Measure text size to center it
+          final Size textSize = font.measureString(watermarkText);
+
+          // Draw the text centered around the new origin (0, 0)
+          graphics.drawString(
+            watermarkText,
+            font,
+            brush: brush,
+            bounds: Rect.fromLTWH(
+              -textSize.width / 2,
+              -textSize.height / 2,
+              textSize.width,
+              textSize.height,
+            ),
+          );
+
+          // Restore graphics state
+          graphics.restore(state);
+        }
+
+        // Save watermarked PDF
+        final List<int> outputBytes = await document.save();
+
+        final output = await getApplicationDocumentsDirectory();
+        final fileName = 'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final outputFile = File(path.join(output.path, fileName));
+        await outputFile.writeAsBytes(outputBytes);
+
+        return outputFile.path;
+      } finally {
+        document.dispose();
+      }
+    } catch (e) {
+      throw Exception('Failed to apply watermark: $e');
+    }
+  }
 }
