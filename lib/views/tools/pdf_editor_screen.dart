@@ -72,11 +72,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 
   Future<void> _pickPdf() async {
-    final result = await FilePicker.pickFiles(
-        type: FileType.custom, allowedExtensions: ['pdf']);
-    if (result == null || result.files.single.path == null) return;
-    setState(() { _loading = true; _pdfFile = null; _document = null; _annotations.clear(); });
     try {
+      final result = await FilePicker.pickFiles(
+          type: FileType.custom, allowedExtensions: ['pdf']);
+      if (result == null || result.files.single.path == null) return;
+      setState(() { _loading = true; _pdfFile = null; _document = null; _annotations.clear(); });
       final file = File(result.files.single.path!);
       if (!await FileService().isFileAccessible(file.path)) {
         setState(() => _loading = false);
@@ -89,6 +89,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _pageCount = doc.pagesCount; _currentPage = 0; _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _loading = false);
       _snack('Could not open PDF: $e', error: true);
     }
@@ -108,15 +109,21 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 
   Future<void> _addImage(double rx, double ry) async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    final ann   = Annotation.image(id: UniqueKey().toString(), x: rx, y: ry, imageBytes: bytes);
-    setState(() {
-      _pageAnnotations.add(ann);
-      _selected = ann;
-      _activeToolbar = null;
-    });
+    try {
+      final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      final ann   = Annotation.image(id: UniqueKey().toString(), x: rx, y: ry, imageBytes: bytes);
+      if (!mounted) return;
+      setState(() {
+        _pageAnnotations.add(ann);
+        _selected = ann;
+        _activeToolbar = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _snack('Failed to select image: $e', error: true);
+    }
   }
 
   Future<void> _savePdf() async {
