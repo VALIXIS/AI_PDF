@@ -381,7 +381,6 @@ class PdfService {
     }
   }
 
-<<<<<<< HEAD
   /// Applies a visible text watermark to all pages of a PDF
   Future<String> watermarkPdf({
     required String pdfPath,
