@@ -138,10 +138,6 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-<<<<<<< HEAD
-          GestureDetector(
-            onTap: _pick,
-            child: Container(
           // Loading Banner
           if (_isLoading)
             const ToolLoadingBanner(
@@ -214,8 +210,6 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
                   ),
                   Icon(Icons.chevron_right_rounded, color: sub),
                 ]),
-              ),
-            ),
               ),
             ),
             const SizedBox(height: 24),

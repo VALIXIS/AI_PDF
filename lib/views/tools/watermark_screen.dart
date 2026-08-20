@@ -7,12 +7,8 @@ import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
-<<<<<<< HEAD
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
-
-=======
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
->>>>>>> origin/feature/pdf-tool-ui-states
 
 class WatermarkScreen extends StatefulWidget {
   const WatermarkScreen({Key? key}) : super(key: key);
@@ -56,37 +52,12 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
   }
 
   Future<void> _apply() async {
-<<<<<<< HEAD
     if (_pdfFile == null || !await FileService().isFileAccessible(_pdfFile!.path)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected file no longer exists or is inaccessible')));
-      return;
-    }
-    if (_textCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Watermark text cannot be empty'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      final path = await PdfService().watermarkPdf(
-        pdfPath: _pdfFile!.path,
-        watermarkText: _textCtrl.text,
-        opacity: _opacity,
-        angle: _angle,
-        color: _wColor,
-      );
-=======
-    if (_pdfFile == null) {
       setState(() {
-        _errorMessage = 'Please select a PDF file first.';
+        _errorMessage = 'Selected file no longer exists or is inaccessible.';
       });
       return;
     }
-
     if (_textCtrl.text.trim().isEmpty) {
       setState(() {
         _errorMessage = 'Please enter watermark text.';
@@ -101,44 +72,14 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
     });
 
     try {
-      final pdf = pw.Document();
-      pdf.addPage(pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (_) => [
-          pw.Center(child: pw.Column(mainAxisAlignment: pw.MainAxisAlignment.center, children: [
-            pw.Text('Watermark Applied', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 12),
-            pw.Text('Source: ${_pdfFile!.path.split('/').last.split('\\').last}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-            pw.SizedBox(height: 8),
-            pw.Text('Watermark text: "${_textCtrl.text}"', style: const pw.TextStyle(fontSize: 12)),
-          ])),
-        ],
-      ));
+      final path = await PdfService().watermarkPdf(
+        pdfPath: _pdfFile!.path,
+        watermarkText: _textCtrl.text,
+        opacity: _opacity,
+        angle: _angle,
+        color: _wColor,
+      );
 
-      pdf.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (ctx) => pw.Stack(children: [
-          pw.Positioned.fill(child: pw.Transform.rotate(
-            angle: _angle,
-            child: pw.Center(
-              child: pw.Text(
-                _textCtrl.text,
-                style: pw.TextStyle(
-                  fontSize: 64,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColor(_wColor.r, _wColor.g, _wColor.b, _opacity),
-                ),
-              ),
-            ),
-          )),
-        ]),
-      ));
-
-      final dir = await getApplicationDocumentsDirectory();
-      final path = '${dir.path}/watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      await File(path).writeAsBytes(await pdf.save());
-
->>>>>>> origin/feature/pdf-tool-ui-states
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Watermarked: ${_textCtrl.text}',
@@ -148,24 +89,6 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
       ));
 
       if (!mounted) return;
-<<<<<<< HEAD
-      if (mounted) { ShareService.showSaveShareDialog(context, path); }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Watermark applied and saved!'),
-        backgroundColor: const Color(0xFF16A34A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-    } catch (e) {
-      setState(() => _saving = false);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to apply watermark: $e'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ));
-=======
       setState(() {
         _isLoading = false;
         _successPath = path;
@@ -180,7 +103,6 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
         _errorMessage = e.toString();
         _isLoading = false;
       });
->>>>>>> origin/feature/pdf-tool-ui-states
     }
   }
 
@@ -381,28 +303,6 @@ class _FilePicker extends StatelessWidget {
   const _FilePicker({required this.file, required this.onPick, required this.bg, required this.border, required this.sub, required this.primary});
   @override
   Widget build(BuildContext context) => GestureDetector(
-<<<<<<< HEAD
-    onTap: onPick,
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: file != null ? primary.withValues(alpha: 0.05) : bg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: file != null ? primary.withValues(alpha: 0.3) : border),
-      ),
-      child: Row(children: [
-        Icon(Icons.picture_as_pdf_rounded, color: file != null ? primary : sub, size: 32),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(file != null ? FileService().getFileName(file!.path) : 'Choose PDF file',
-              style: TextStyle(fontWeight: FontWeight.w700, color: file != null ? primary : sub)),
-          if (file == null) Text('Tap to browse', style: TextStyle(color: sub, fontSize: 12)),
-        ])),
-        Icon(Icons.chevron_right_rounded, color: sub),
-      ]),
-    ),
-  );
-=======
         onTap: onPick,
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -415,14 +315,14 @@ class _FilePicker extends StatelessWidget {
             Icon(Icons.picture_as_pdf_rounded, color: file != null ? primary : sub, size: 32),
             const SizedBox(width: 14),
             Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(file != null ? file!.path.split('/').last.split('\\').last : 'Choose PDF file',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: file != null ? primary : sub)),
-              if (file == null) Text('Tap to browse', style: TextStyle(color: sub, fontSize: 12)),
-            ])),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(file != null ? FileService().getFileName(file!.path) : 'Choose PDF file',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: file != null ? primary : sub)),
+                if (file == null) Text('Tap to browse', style: TextStyle(color: sub, fontSize: 12)),
+              ]),
+            ),
             Icon(Icons.chevron_right_rounded, color: sub),
           ]),
         ),
       );
->>>>>>> origin/feature/pdf-tool-ui-states
 }

@@ -82,8 +82,6 @@ class ShareService {
                           const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
                         );
                       }
-                        );
-                      }
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
@@ -113,4 +111,3 @@ class ShareService {
     );
   }
 }
-
