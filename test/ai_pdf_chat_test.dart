@@ -37,7 +37,7 @@ void main() {
         home: ChatWithPdfScreen(),
       ));
 
-      expect(find.text('Chat with PDF'), findsOneWidget);
+      expect(find.text('AI PDF Agent'), findsOneWidget);
       expect(find.byType(ToolEmptyState), findsOneWidget);
       expect(find.text('No PDF Document Selected'), findsOneWidget);
       expect(find.text('Select PDF Document'), findsOneWidget);

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+import 'package:pdf_ai_toolkit/controllers/ai_action_dispatcher.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
@@ -16,12 +17,14 @@ class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime timestamp;
+  final AiActionResult? actionResult;
 
   ChatMessage({
     required this.id,
     required this.text,
     required this.isUser,
     required this.timestamp,
+    this.actionResult,
   });
 }
 
@@ -50,10 +53,11 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
   final List<ChatMessage> _messages = [];
 
   final List<String> _quickPrompts = [
+    'Rotate this PDF 90 degrees',
+    'Add watermark "CONFIDENTIAL"',
+    'Split pages 1 to 2',
     'Summarize this document',
     'List 5 key takeaways',
-    'Extract action items',
-    'Explain the main conclusions',
   ];
 
   @override
@@ -113,7 +117,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
         if (_messages.isEmpty) {
           _messages.add(ChatMessage(
             id: UniqueKey().toString(),
-            text: 'Hello! I am your AI PDF Assistant. I have loaded "${FileService().getFileName(path)}". Ask me any question about this document or tap a quick prompt below!',
+            text: 'Hello! I am your Autonomous AI PDF Agent. I have loaded "${FileService().getFileName(path)}". Ask me questions or command me to edit, rotate, watermark, split, or protect your PDF!',
             isUser: false,
             timestamp: DateTime.now(),
           ));
@@ -156,27 +160,49 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     _scrollToBottom();
 
     try {
-      final answer = await _aiController.askDocumentQuestion(
-        pdfText: _pdfText!,
-        question: text,
+      // 1. Check if user command triggers a PDF tool action
+      final actionResult = await _aiController.processDocumentAction(
+        pdfPath: _pdfFile!.path,
+        command: text,
       );
 
       if (!mounted) return;
-      setState(() {
-        _messages.add(ChatMessage(
-          id: UniqueKey().toString(),
-          text: answer,
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-        _isAiThinking = false;
-      });
+
+      if (actionResult != null && actionResult.isSuccess) {
+        setState(() {
+          _messages.add(ChatMessage(
+            id: UniqueKey().toString(),
+            text: actionResult.message,
+            isUser: false,
+            timestamp: DateTime.now(),
+            actionResult: actionResult,
+          ));
+          _isAiThinking = false;
+        });
+      } else {
+        // 2. Default to Document Q&A / Summarization
+        final answer = await _aiController.askDocumentQuestion(
+          pdfText: _pdfText!,
+          question: text,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _messages.add(ChatMessage(
+            id: UniqueKey().toString(),
+            text: answer,
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+          _isAiThinking = false;
+        });
+      }
 
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'AI Chat error: $e';
+        _errorMessage = 'AI Agent error: $e';
         _isAiThinking = false;
       });
     }
@@ -199,15 +225,18 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
 
     try {
       final buffer = StringBuffer();
-      buffer.writeln('AI PDF CHAT REPORT');
+      buffer.writeln('AI PDF CHAT & ACTION REPORT');
       buffer.writeln('Document: ${_pdfFile != null ? FileService().getFileName(_pdfFile!.path) : "N/A"}');
       buffer.writeln('Date: ${DateTime.now().toLocal()}\n');
       buffer.writeln('=' * 40);
       buffer.writeln();
 
       for (final msg in _messages) {
-        buffer.writeln(msg.isUser ? 'USER QUESTION:' : 'AI ANSWER:');
+        buffer.writeln(msg.isUser ? 'USER QUESTION:' : 'AI AGENT RESPONSE:');
         buffer.writeln(msg.text);
+        if (msg.actionResult?.outputPath != null) {
+          buffer.writeln('OUTPUT PDF: ${msg.actionResult!.outputPath}');
+        }
         buffer.writeln('-' * 30);
       }
 
@@ -250,7 +279,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Chat with PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text('AI PDF Agent', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             Text(
               _pdfFile != null
                   ? FileService().getFileName(_pdfFile!.path)
@@ -279,7 +308,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
           // Loading PDF Banner
           if (_isLoadingPdf)
             const ToolLoadingBanner(
-              message: 'Extracting PDF page text for AI processing...',
+              message: 'Loading PDF document into AI Agent...',
             ),
 
           // Error Banner
@@ -294,9 +323,9 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: ToolEmptyState(
-                icon: Icons.chat_rounded,
+                icon: Icons.auto_awesome_rounded,
                 title: 'No PDF Document Selected',
-                subtitle: 'Select a PDF document to ask questions, summarize pages, or extract insights',
+                subtitle: 'Select a PDF document to edit, rotate, watermark, split, or ask questions',
                 actionLabel: 'Select PDF Document',
                 onAction: _pickPdf,
               ),
@@ -332,7 +361,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'AI Assistant is thinking...',
+                    'AI Agent is executing tool operation...',
                     style: TextStyle(fontSize: 12, color: primary, fontWeight: FontWeight.w500),
                   ),
                 ],
@@ -469,7 +498,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                 Icon(Icons.smart_toy_rounded, size: 16, color: primary),
                 const SizedBox(width: 6),
                 Text(
-                  'AI Document Assistant',
+                  'AI Autonomous Agent',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: primary),
                 ),
                 const Spacer(),
@@ -492,8 +521,68 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
               msg.text,
               style: TextStyle(fontSize: 14, height: 1.4, color: isDark ? Colors.white : Colors.black87),
             ),
+
+            // Render Tool Action Result Card if available
+            if (msg.actionResult != null && msg.actionResult!.isSuccess)
+              _buildActionResultCard(msg.actionResult!, primary, isDark),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildActionResultCard(AiActionResult result, Color primary, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: primary.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.green, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  result.actionTitle ?? 'Action Completed Successfully',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          if (result.outputPath != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => ShareService.showSaveShareDialog(context, result.outputPath!),
+                    icon: const Icon(Icons.download_rounded, size: 16),
+                    label: const Text('Save / Share Output', style: TextStyle(fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _loadPdfFromPath(result.outputPath!),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Load in Chat', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -513,7 +602,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                 enabled: !_isAiThinking,
                 controller: _inputController,
                 decoration: InputDecoration(
-                  hintText: 'Ask anything about your PDF...',
+                  hintText: 'Command AI to rotate, watermark, split, or edit...',
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   border: OutlineInputBorder(
