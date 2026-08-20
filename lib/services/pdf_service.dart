@@ -6,6 +6,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 
 class PdfService {
   /// Generates a PDF from formatted text
@@ -256,6 +257,7 @@ class PdfService {
   Future<String> rotatePdf({
     required String pdfPath,
     required int rotationAngle,
+    String? customOutputPath,
   }) async {
     try {
       final file = File(pdfPath);
@@ -313,9 +315,9 @@ class PdfService {
         // Save rotated PDF to file
         final List<int> outputBytes = await document.save();
         
-        final output = await getApplicationDocumentsDirectory();
+        final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
         final fileName = 'rotated_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final outputFile = File('${output.path}/$fileName');
+        final outputFile = File(path.join(dirPath, fileName));
         await outputFile.writeAsBytes(outputBytes);
         
         return outputFile.path;
@@ -324,6 +326,97 @@ class PdfService {
       }
     } catch (e) {
       throw Exception('Failed to rotate PDF: $e');
+    }
+  }
+
+  /// Non-destructively saves an edited PDF by overlaying text and image annotations
+  /// directly onto the original PDF's vector/graphics layer using Syncfusion.
+  /// Original extractable text, vector graphics, embedded images, page sizes, and rotations
+  /// are preserved without rasterizing unchanged pages into images.
+  Future<String> saveEditedPdf({
+    required String sourcePdfPath,
+    required Map<int, List<Annotation>> annotationsByPage,
+    String? customOutputPath,
+  }) async {
+    final file = File(sourcePdfPath);
+    if (!await file.exists()) {
+      throw Exception('Source PDF file not found: $sourcePdfPath');
+    }
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw Exception('Source PDF file is empty: $sourcePdfPath');
+    }
+
+    sf.PdfDocument? document;
+    try {
+      document = sf.PdfDocument(inputBytes: bytes);
+      final int pageCount = document.pages.count;
+      if (pageCount == 0) {
+        throw Exception('Source PDF contains no pages: $sourcePdfPath');
+      }
+
+      for (final entry in annotationsByPage.entries) {
+        final int pageIndex = entry.key;
+        final List<Annotation> annotations = entry.value;
+
+        if (pageIndex < 0 || pageIndex >= pageCount || annotations.isEmpty) {
+          continue;
+        }
+
+        final sf.PdfPage page = document.pages[pageIndex];
+        final sf.PdfGraphics graphics = page.graphics;
+        final double pageWidth = page.size.width;
+        final double pageHeight = page.size.height;
+
+        for (final ann in annotations) {
+          final double x = ann.x * pageWidth;
+          final double y = ann.y * pageHeight;
+          final double w = ann.width * pageWidth;
+          final double h = ann.height * pageHeight;
+
+          if (ann.kind == AnnotationKind.text) {
+            if (ann.text.isEmpty) continue;
+            final sf.PdfFont font = sf.PdfStandardFont(
+              sf.PdfFontFamily.helvetica,
+              ann.fontSize,
+              style: ann.bold ? sf.PdfFontStyle.bold : sf.PdfFontStyle.regular,
+            );
+            final sf.PdfBrush brush = sf.PdfSolidBrush(
+              sf.PdfColor(
+                (ann.color.r * 255.0).round().clamp(0, 255),
+                (ann.color.g * 255.0).round().clamp(0, 255),
+                (ann.color.b * 255.0).round().clamp(0, 255),
+              ),
+            );
+            final double availableWidth = (pageWidth - x).clamp(0.0, pageWidth);
+            final double availableHeight = (pageHeight - y).clamp(0.0, pageHeight);
+            graphics.drawString(
+              ann.text,
+              font,
+              brush: brush,
+              bounds: Rect.fromLTWH(x, y, availableWidth, availableHeight),
+            );
+          } else if (ann.kind == AnnotationKind.image && ann.imageBytes != null && ann.imageBytes!.isNotEmpty) {
+            final sf.PdfBitmap bitmap = sf.PdfBitmap(ann.imageBytes!);
+            graphics.drawImage(
+              bitmap,
+              Rect.fromLTWH(x, y, w, h),
+            );
+          }
+        }
+      }
+
+      final List<int> outputBytes = await document.save();
+      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName = 'edited_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final outputFile = File(path.join(dirPath, fileName));
+      await outputFile.writeAsBytes(outputBytes);
+
+      return outputFile.path;
+    } catch (e) {
+      throw Exception('Failed to save edited PDF: $e');
+    } finally {
+      document?.dispose();
     }
   }
 }

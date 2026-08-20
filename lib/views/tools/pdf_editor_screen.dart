@@ -1,46 +1,16 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pdfx/pdfx.dart' as pdfx;
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
+import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
-
-// ── Annotation types ──────────────────────────────────────────────────────
-enum AnnotationKind { text, image }
-
-class Annotation {
-  final String id;
-  AnnotationKind kind;
-  double x, y, width, height;
-  String text;
-  double fontSize;
-  Color color;
-  bool bold;
-  Uint8List? imageBytes;
-
-  Annotation.text({
-    required this.id, required this.x, required this.y,
-    this.text = 'Text', this.fontSize = 16, this.color = Colors.black, this.bold = false,
-    this.width = 0.4, this.height = 0.06, this.imageBytes,
-    this.kind = AnnotationKind.text,
-  });
-
-  Annotation.image({
-    required this.id, required this.x, required this.y, required this.imageBytes,
-    this.width = 0.4, this.height = 0.3, this.text = '', this.fontSize = 16,
-    this.color = Colors.black, this.bold = false,
-    this.kind = AnnotationKind.image,
-  });
-}
 
 // ─────────────────────────────────────────────────────────────────────────
 class PdfEditorScreen extends StatefulWidget {
@@ -115,48 +85,16 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   Future<void> _savePdf() async {
     if (_pdfFile == null || _document == null) return;
+    if (!await FileService().isFileAccessible(_pdfFile!.path)) {
+      _snack('Original PDF file no longer exists or is inaccessible', error: true);
+      return;
+    }
     setState(() => _saving = true);
     try {
-      final newPdf = pw.Document();
-      for (int p = 0; p < _pageCount; p++) {
-        final page   = await _document!.getPage(p + 1);
-        final double pw_ = page.width;
-        final double ph  = page.height;
-        final render = await page.render(
-          width: pw_ * 2, height: ph * 2,
-          format: pdfx.PdfPageImageFormat.jpeg,
-        );
-        await page.close();
-        final bgImage = pw.MemoryImage(render!.bytes);
-        final fmt = PdfPageFormat(pw_, ph);
-        final List<Annotation> anns = _annotations[p] ?? [];
-
-        newPdf.addPage(pw.Page(
-          pageFormat: fmt,
-          margin: pw.EdgeInsets.zero,
-          build: (ctx) => pw.Stack(children: [
-            pw.Positioned.fill(child: pw.Image(bgImage, fit: pw.BoxFit.fill)),
-            for (final ann in anns)
-              pw.Positioned(
-                left: ann.x * pw_, top: ann.y * ph,
-                child: ann.kind == AnnotationKind.text
-                    ? pw.Text(ann.text, style: pw.TextStyle(
-                        fontSize: ann.fontSize,
-                        fontWeight: ann.bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-                        color: PdfColor.fromInt(ann.color.toARGB32()),
-                      ))
-                    : pw.SizedBox(
-                        width: ann.width * pw_, height: ann.height * ph,
-                        child: pw.Image(pw.MemoryImage(ann.imageBytes!), fit: pw.BoxFit.contain),
-                      ),
-              ),
-          ]),
-        ));
-      }
-
-      final dir  = await getApplicationDocumentsDirectory();
-      final savePath = FileService().joinPaths(dir.path, 'edited_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      await File(savePath).writeAsBytes(await newPdf.save());
+      final savePath = await PdfService().saveEditedPdf(
+        sourcePdfPath: _pdfFile!.path,
+        annotationsByPage: _annotations,
+      );
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Edited: ${FileService().getFileName(_pdfFile!.path)}',
