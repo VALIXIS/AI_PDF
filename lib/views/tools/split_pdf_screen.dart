@@ -19,10 +19,28 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
   final StorageService _storageService = StorageService();
 
   String? _selectedFile;
+  int? _totalPages;
   int _startPage = 1;
-  int _endPage = 5;
+  int _endPage = 1;
   bool _isLoading = false;
   String? _errorMessage;
+
+  late final TextEditingController _startController;
+  late final TextEditingController _endController;
+
+  @override
+  void initState() {
+    super.initState();
+    _startController = TextEditingController(text: '1');
+    _endController = TextEditingController(text: '1');
+  }
+
+  @override
+  void dispose() {
+    _startController.dispose();
+    _endController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +112,7 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                   Expanded(
                     child: Text(
                       _selectedFile != null
-                          ? _fileService.getFileName(_selectedFile!)
+                          ? '${_fileService.getFileName(_selectedFile!)}${_totalPages != null ? ' ($_totalPages pages)' : ''}'
                           : 'No file selected',
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -123,6 +141,7 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                       ),
                       const SizedBox(height: 4),
                       TextField(
+                        controller: _startController,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: 'Start page',
@@ -132,11 +151,9 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                           contentPadding: const EdgeInsets.all(8),
                         ),
                         onChanged: (value) {
-                          if (value.isNotEmpty) {
-                            setState(() {
-                              _startPage = int.tryParse(value) ?? 1;
-                            });
-                          }
+                          setState(() {
+                            _startPage = int.tryParse(value) ?? 1;
+                          });
                         },
                       ),
                     ],
@@ -153,6 +170,7 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                       ),
                       const SizedBox(height: 4),
                       TextField(
+                        controller: _endController,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
                           hintText: 'End page',
@@ -162,11 +180,9 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                           contentPadding: const EdgeInsets.all(8),
                         ),
                         onChanged: (value) {
-                          if (value.isNotEmpty) {
-                            setState(() {
-                              _endPage = int.tryParse(value) ?? 5;
-                            });
-                          }
+                          setState(() {
+                            _endPage = int.tryParse(value) ?? (_totalPages ?? 1);
+                          });
                         },
                       ),
                     ],
@@ -177,7 +193,9 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
             const SizedBox(height: 20),
 
             Text(
-              'Selected range: Pages $_startPage - $_endPage',
+              _totalPages != null
+                  ? 'Selected range: Pages $_startPage - $_endPage of $_totalPages'
+                  : 'Selected range: Pages $_startPage - $_endPage',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.grey[600],
                   ),
@@ -223,8 +241,22 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
   Future<void> _pickPdf() async {
     try {
       final file = await _fileService.pickPdfFile();
+      if (file == null) return;
+
+      int? pageCount;
+      try {
+        pageCount = await _pdfService.getPdfPageCount(file);
+      } catch (_) {
+        pageCount = null;
+      }
+
       setState(() {
         _selectedFile = file;
+        _totalPages = pageCount;
+        _startPage = 1;
+        _endPage = pageCount ?? 1;
+        _startController.text = '1';
+        _endController.text = '$_endPage';
         _errorMessage = null;
       });
     } catch (e) {
@@ -235,6 +267,34 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
   }
 
   Future<void> _splitPdf() async {
+    if (_selectedFile == null) {
+      setState(() {
+        _errorMessage = 'Please select a PDF file.';
+      });
+      return;
+    }
+
+    if (_startPage < 1) {
+      setState(() {
+        _errorMessage = 'Start page must be at least 1.';
+      });
+      return;
+    }
+
+    if (_totalPages != null && _endPage > _totalPages!) {
+      setState(() {
+        _errorMessage = 'End page ($_endPage) cannot exceed total pages ($_totalPages).';
+      });
+      return;
+    }
+
+    if (_startPage > _endPage) {
+      setState(() {
+        _errorMessage = 'Start page ($_startPage) cannot be greater than end page ($_endPage).';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;

@@ -127,6 +127,27 @@ class PdfService {
     return widgets;
   }
 
+  /// Gets the total page count of a PDF file
+  Future<int> getPdfPageCount(String pdfPath) async {
+    final file = File(pdfPath);
+    if (!await file.exists()) {
+      throw Exception('File not found: $pdfPath');
+    }
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw Exception('File is empty: $pdfPath');
+    }
+    syncfusion.PdfDocument? document;
+    try {
+      document = syncfusion.PdfDocument(inputBytes: bytes);
+      return document.pages.count;
+    } catch (e) {
+      throw Exception('Failed to read PDF page count: $e');
+    } finally {
+      document?.dispose();
+    }
+  }
+
   /// Merges multiple PDF files
   Future<String> mergePdfs(List<String> pdfPaths, {String? customOutputPath}) async {
     if (pdfPaths.isEmpty) {
@@ -134,29 +155,37 @@ class PdfService {
     }
 
     syncfusion.PdfDocument? outputDocument;
+    final List<syncfusion.PdfDocument> openedDocuments = [];
     try {
       outputDocument = syncfusion.PdfDocument();
 
-      for (final path in pdfPaths) {
-        final file = File(path);
+      for (final filePath in pdfPaths) {
+        final file = File(filePath);
         if (!await file.exists()) {
-          throw Exception('File not found: $path');
+          throw Exception('File not found: $filePath');
         }
         final bytes = await file.readAsBytes();
         if (bytes.isEmpty) {
-          throw Exception('File is empty: $path');
+          throw Exception('File is empty: $filePath');
         }
 
         final syncfusion.PdfDocument sourceDocument =
             syncfusion.PdfDocument(inputBytes: bytes);
+        openedDocuments.add(sourceDocument);
 
-        for (int i = 0; i < sourceDocument.pages.count; i++) {
+        final int pageCount = sourceDocument.pages.count;
+        if (pageCount == 0) {
+          throw Exception('Source PDF contains no pages: $filePath');
+        }
+
+        for (int i = 0; i < pageCount; i++) {
           final syncfusion.PdfPage sourcePage = sourceDocument.pages[i];
           final syncfusion.PdfTemplate template = sourcePage.createTemplate();
 
           final syncfusion.PdfSection section = outputDocument.sections!.add();
           section.pageSettings.size = sourcePage.size;
           section.pageSettings.margins.all = 0;
+          section.pageSettings.rotate = sourcePage.rotation;
 
           final syncfusion.PdfPage newPage = section.pages.add();
           newPage.graphics.drawPdfTemplate(
@@ -165,13 +194,9 @@ class PdfService {
             sourcePage.size,
           );
         }
-
-        sourceDocument.dispose();
       }
 
       final List<int> mergedBytes = outputDocument.saveSync();
-      outputDocument.dispose();
-      outputDocument = null;
 
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName =
@@ -181,57 +206,84 @@ class PdfService {
 
       return file.path;
     } catch (e) {
-      outputDocument?.dispose();
       throw Exception('Failed to merge PDFs: $e');
+    } finally {
+      for (final doc in openedDocuments) {
+        doc.dispose();
+      }
+      outputDocument?.dispose();
     }
   }
 
-  /// Splits a PDF by extracting pages
+  /// Splits a PDF by extracting pages in the specified range [startPage] to [endPage] (1-indexed inclusive)
   Future<String> splitPdf({
     required String pdfPath,
     required int startPage,
     required int endPage,
+    String? customOutputPath,
   }) async {
-    try {
-      // This is a placeholder implementation
-      // Full PDF splitting requires pdf manipulation library
+    final file = File(pdfPath);
+    if (!await file.exists()) {
+      throw Exception('File not found: $pdfPath');
+    }
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw Exception('File is empty: $pdfPath');
+    }
 
-      final output = await getApplicationDocumentsDirectory();
+    syncfusion.PdfDocument? sourceDocument;
+    syncfusion.PdfDocument? outputDocument;
+    try {
+      sourceDocument = syncfusion.PdfDocument(inputBytes: bytes);
+      final int totalPages = sourceDocument.pages.count;
+
+      if (totalPages == 0) {
+        throw Exception('Source PDF contains no pages.');
+      }
+      if (startPage < 1) {
+        throw Exception('Start page must be at least 1 (got $startPage).');
+      }
+      if (endPage > totalPages) {
+        throw Exception('End page ($endPage) exceeds total pages in document ($totalPages).');
+      }
+      if (startPage > endPage) {
+        throw Exception('Start page ($startPage) cannot be greater than end page ($endPage).');
+      }
+
+      outputDocument = syncfusion.PdfDocument();
+
+      for (int pageNum = startPage; pageNum <= endPage; pageNum++) {
+        final int pageIndex = pageNum - 1;
+        final syncfusion.PdfPage sourcePage = sourceDocument.pages[pageIndex];
+        final syncfusion.PdfTemplate template = sourcePage.createTemplate();
+
+        final syncfusion.PdfSection section = outputDocument.sections!.add();
+        section.pageSettings.size = sourcePage.size;
+        section.pageSettings.margins.all = 0;
+        section.pageSettings.rotate = sourcePage.rotation;
+
+        final syncfusion.PdfPage newPage = section.pages.add();
+        newPage.graphics.drawPdfTemplate(
+          template,
+          Offset.zero,
+          sourcePage.size,
+        );
+      }
+
+      final List<int> outputBytes = outputDocument.saveSync();
+
+      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName =
           'split_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File(path.join(output.path, fileName));
+      final outputFile = File(path.join(dirPath, fileName));
+      await outputFile.writeAsBytes(outputBytes);
 
-      final pdf = pw.Document();
-      pdf.addPage(
-        pw.Page(
-          build: (pw.Context context) {
-            return pw.Center(
-              child: pw.Column(
-                mainAxisAlignment: pw.MainAxisAlignment.center,
-                children: [
-                  pw.Text(
-                    'Split PDF',
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.SizedBox(height: 16),
-                  pw.Text(
-                    'Pages $startPage - $endPage',
-                    style: const pw.TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-
-      await file.writeAsBytes(await pdf.save());
-      return file.path;
+      return outputFile.path;
     } catch (e) {
       throw Exception('Failed to split PDF: $e');
+    } finally {
+      sourceDocument?.dispose();
+      outputDocument?.dispose();
     }
   }
 
@@ -256,6 +308,7 @@ class PdfService {
   Future<String> rotatePdf({
     required String pdfPath,
     required int rotationAngle,
+    String? customOutputPath,
   }) async {
     try {
       final file = File(pdfPath);
@@ -313,9 +366,9 @@ class PdfService {
         // Save rotated PDF to file
         final List<int> outputBytes = await document.save();
         
-        final output = await getApplicationDocumentsDirectory();
+        final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
         final fileName = 'rotated_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final outputFile = File('${output.path}/$fileName');
+        final outputFile = File(path.join(dirPath, fileName));
         await outputFile.writeAsBytes(outputBytes);
         
         return outputFile.path;
