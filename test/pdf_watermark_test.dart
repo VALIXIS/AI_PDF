@@ -69,10 +69,23 @@ void main() {
       expect(await outputFile.exists(), true);
       expect(await outputFile.length() > 0, true);
 
-      // Verify pages count in output
+      // Verify pages count and text content in output
       final outputBytes = await outputFile.readAsBytes();
       final sf.PdfDocument outputDoc = sf.PdfDocument(inputBytes: outputBytes);
       expect(outputDoc.pages.count, 3);
+
+      final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(outputDoc);
+      final String extractedText = extractor.extractText();
+      
+      // Verify original content is preserved
+      expect(extractedText.contains('Page'), true);
+      expect(extractedText.contains('1'), true);
+      expect(extractedText.contains('2'), true);
+      expect(extractedText.contains('3'), true);
+
+      // Verify watermark is genuinely present
+      expect(extractedText.contains('TEST WATERMARK'), true);
+
       outputDoc.dispose();
 
       // Verify that original input is unchanged (by comparing file hashes or size)

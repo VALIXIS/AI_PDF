@@ -415,7 +415,11 @@ class PdfService {
         );
 
         final sf.PdfBrush brush = sf.PdfSolidBrush(
-          sf.PdfColor(color.red, color.green, color.blue),
+          sf.PdfColor(
+            (color.r * 255).round(),
+            (color.g * 255).round(),
+            (color.b * 255).round(),
+          ),
         );
 
         for (int i = 0; i < document.pages.count; i++) {
