@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:hive/hive.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 
 class StorageService {
   static const String _boxName = 'historyBox';
@@ -35,12 +36,16 @@ class StorageService {
     }
   }
 
-  /// Deletes a history entry
+  /// Deletes a history entry and attempts to safely delete physical file if present
   Future<void> deleteHistoryEntry(String id) async {
     try {
+      final entry = await getHistoryEntry(id);
+      if (entry != null && entry.filePath.isNotEmpty) {
+        await FileService().deleteFile(entry.filePath);
+      }
       await _historyBox.delete(id);
     } catch (e) {
-      throw Exception('Failed to delete history entry: $e');
+      await _historyBox.delete(id);
     }
   }
 
@@ -88,17 +93,17 @@ class StorageService {
     }
   }
 
-  /// Checks whether a history entry's associated file exists on disk
+  /// Checks whether a history entry's associated file exists on disk and is accessible
   Future<bool> isEntryFileAccessible(HistoryEntry entry) async {
     try {
       if (entry.filePath.isEmpty) return false;
-      return await File(entry.filePath).exists();
+      return await FileService().isFileAccessible(entry.filePath);
     } catch (e) {
       return false;
     }
   }
 
-  /// Retrieves history entries filtering out non-existent files if required
+  /// Retrieves history entries filtering out non-existent or inaccessible files
   Future<List<HistoryEntry>> getValidHistoryEntries() async {
     try {
       final allEntries = await getHistoryEntriesSortedByDate();
@@ -110,7 +115,7 @@ class StorageService {
       }
       return validEntries;
     } catch (e) {
-      throw Exception('Failed to get valid history entries: $e');
+      return [];
     }
   }
 
@@ -128,7 +133,7 @@ class StorageService {
       }
       return removedCount;
     } catch (e) {
-      throw Exception('Failed to cleanup missing history entries: $e');
+      return 0;
     }
   }
 

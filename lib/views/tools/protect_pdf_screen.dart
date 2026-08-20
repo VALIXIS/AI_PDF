@@ -11,6 +11,7 @@ import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 
+
 class ProtectPdfScreen extends StatefulWidget {
   const ProtectPdfScreen({Key? key}) : super(key: key);
   @override
@@ -34,7 +35,10 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
   }
 
   Future<void> _protect() async {
-    if (_pdfFile == null) return;
+    if (_pdfFile == null || !await FileService().isFileAccessible(_pdfFile!.path)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected file no longer exists or is inaccessible')));
+      return;
+    }
     if (_passCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a password')));
       return;
@@ -109,6 +113,7 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
               ]),
             ),
           ),
+
           const SizedBox(height: 24),
           Text('Set Password', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),

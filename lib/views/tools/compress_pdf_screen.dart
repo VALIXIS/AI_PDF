@@ -231,6 +231,14 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
     });
 
     try {
+      if (_selectedFile == null || !await _fileService.isFileAccessible(_selectedFile!)) {
+        setState(() {
+          _errorMessage = 'Selected file no longer exists or is inaccessible.';
+          _isLoading = false;
+        });
+        return;
+      }
+
       final filePath = await _pdfService.compressPdf(_selectedFile!);
 
       final entry = HistoryEntry(
@@ -246,7 +254,6 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
         _isLoading = false;
       });
 
-      if (!mounted) return;
       if (!mounted) return;
       if (mounted) { ShareService.showSaveShareDialog(context, filePath); }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -266,4 +273,5 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
       });
     }
   }
+
 }

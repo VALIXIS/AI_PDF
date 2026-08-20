@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 
 class ShareService {
   static Future<void> showSaveShareDialog(BuildContext context, String path) async {
-    final file = File(path);
-    if (!await file.exists()) {
+    final isAccessible = await FileService().isFileAccessible(path);
+    if (!isAccessible) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Cannot share: File no longer exists on device.\nPath: $path'),
+            content: Text('Cannot share: File no longer exists or is inaccessible.\nPath: $path'),
             backgroundColor: Colors.red,
           ),
         );
@@ -43,11 +42,11 @@ class ShareService {
                   InkWell(
                     onTap: () async {
                       Navigator.pop(ctx);
-                      if (await File(path).exists()) {
+                      if (await FileService().isFileAccessible(path)) {
                         Share.shareXFiles([XFile(path)], text: 'Here is my PDF file.');
                       } else if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('File no longer exists.'), backgroundColor: Colors.red),
+                          const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
                         );
                       }
                     },
@@ -76,11 +75,13 @@ class ShareService {
                   InkWell(
                     onTap: () async {
                       Navigator.pop(ctx);
-                      if (await File(path).exists()) {
+                      if (await FileService().isFileAccessible(path)) {
                         Share.shareXFiles([XFile(path)], text: 'Save this PDF');
                       } else if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('File no longer exists.'), backgroundColor: Colors.red),
+                          const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
+                        );
+                      }
                         );
                       }
                     },
@@ -112,3 +113,4 @@ class ShareService {
     );
   }
 }
+

@@ -14,6 +14,7 @@ import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 
+
 // ── Annotation types ──────────────────────────────────────────────────────
 enum AnnotationKind { text, image }
 
@@ -77,6 +78,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     setState(() { _loading = true; _pdfFile = null; _document = null; _annotations.clear(); });
     try {
       final file = File(result.files.single.path!);
+      if (!await FileService().isFileAccessible(file.path)) {
+        setState(() => _loading = false);
+        _snack('Selected file does not exist or is inaccessible', error: true);
+        return;
+      }
       final doc  = await pdfx.PdfDocument.openFile(file.path);
       setState(() {
         _pdfFile = file; _document = doc;
@@ -115,6 +121,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   Future<void> _savePdf() async {
     if (_pdfFile == null || _document == null) return;
+    if (!await FileService().isFileAccessible(_pdfFile!.path)) {
+      _snack('Original PDF file no longer exists or is inaccessible', error: true);
+      return;
+    }
     setState(() => _saving = true);
     try {
       final newPdf = pw.Document();

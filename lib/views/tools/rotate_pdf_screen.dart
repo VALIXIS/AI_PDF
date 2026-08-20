@@ -9,6 +9,7 @@ import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 
+
 class RotatePdfScreen extends StatefulWidget {
   const RotatePdfScreen({Key? key}) : super(key: key);
   @override
@@ -27,7 +28,10 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
   }
 
   Future<void> _rotate() async {
-    if (_pdfFile == null) return;
+    if (_pdfFile == null || !await FileService().isFileAccessible(_pdfFile!.path)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected file no longer exists or is inaccessible')));
+      return;
+    }
     setState(() => _saving = true);
     try {
       final path = await PdfService().rotatePdf(

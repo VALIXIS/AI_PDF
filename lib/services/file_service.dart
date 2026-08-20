@@ -58,9 +58,12 @@ class FileService {
   /// Reads text from a file safely
   Future<String> readTextFile(String filePath) async {
     try {
+      if (filePath.isEmpty) {
+        throw FileSystemException('File path is empty', filePath);
+      }
       final file = File(filePath);
-      if (!await file.exists()) {
-        throw FileSystemException('File does not exist', filePath);
+      if (!await isFileAccessible(filePath)) {
+        throw FileSystemException('File does not exist or is inaccessible', filePath);
       }
       return await file.readAsString();
     } catch (e) {
@@ -71,6 +74,9 @@ class FileService {
   /// Reads a PDF file (extracts metadata) safely
   Future<String> readPdfInfo(String pdfPath) async {
     try {
+      if (pdfPath.isEmpty || !await isFileAccessible(pdfPath)) {
+        return 'PDF Info: ${getFileName(pdfPath)}\nStatus: File missing or deleted';
+      }
       final file = File(pdfPath);
       if (!await file.exists()) {
         return 'PDF Info: ${getFileName(pdfPath)}\nStatus: File missing or deleted';
@@ -78,7 +84,7 @@ class FileService {
       final stat = await file.stat();
       return 'PDF Info: ${file.path}\nSize: ${_formatBytes(stat.size)}\nModified: ${stat.modified}';
     } catch (e) {
-      throw Exception('Failed to read PDF info: $e');
+      return 'PDF Info: ${getFileName(pdfPath)}\nStatus: File missing or deleted';
     }
   }
 
@@ -98,7 +104,6 @@ class FileService {
     try {
       final file = File(filePath);
       if (!await file.exists()) return false;
-      // Attempt to read stat to confirm access permissions
       await file.stat();
       return true;
     } catch (e) {
@@ -143,7 +148,7 @@ class FileService {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 
-  /// Deletes a file safely
+  /// Deletes a file safely without throwing uncaught exceptions
   Future<bool> deleteFile(String filePath) async {
     if (filePath.isEmpty) return false;
     try {
@@ -154,7 +159,7 @@ class FileService {
       }
       return false;
     } catch (e) {
-      throw Exception('Failed to delete file: $e');
+      return false;
     }
   }
 }
