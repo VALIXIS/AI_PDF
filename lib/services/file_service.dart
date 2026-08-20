@@ -162,5 +162,32 @@ class FileService {
       return false;
     }
   }
+
+  /// Automatically sorts and cleans up temporary working files
+  Future<int> cleanupTempResources() async {
+    int deletedCount = 0;
+    try {
+      final tempDir = Directory.systemTemp;
+      if (!await tempDir.exists()) return 0;
+
+      final now = DateTime.now();
+      final entities = await tempDir.list().toList();
+
+      for (final entity in entities) {
+        if (entity is File && entity.path.endsWith('.pdf')) {
+          try {
+            final stat = await entity.stat();
+            final age = now.difference(stat.modified);
+            // Delete temp PDF files older than 24h
+            if (age.inHours >= 24) {
+              await entity.delete();
+              deletedCount++;
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    return deletedCount;
+  }
 }
 

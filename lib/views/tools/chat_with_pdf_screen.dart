@@ -10,6 +10,7 @@ import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/pdf_cache_service.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ChatMessage {
@@ -63,6 +64,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
   @override
   void initState() {
     super.initState();
+    FileService().cleanupTempResources();
     if (widget.initialPdfPath != null) {
       _loadPdfFromPath(widget.initialPdfPath!);
     }
@@ -106,13 +108,12 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     });
 
     try {
-      final infoStr = await FileService().readPdfInfo(path);
-      final count = await _pdfService.getPdfPageCount(path);
+      final cachedData = await PdfCacheService().getPdfData(path);
       if (!mounted) return;
       setState(() {
         _pdfFile = File(path);
-        _pdfText = infoStr;
-        _pageCount = count;
+        _pdfText = cachedData.textContent;
+        _pageCount = cachedData.pageCount;
         _isLoadingPdf = false;
         if (_messages.isEmpty) {
           _messages.add(ChatMessage(
