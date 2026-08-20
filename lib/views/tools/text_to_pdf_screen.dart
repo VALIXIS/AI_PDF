@@ -3,6 +3,7 @@ import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 import 'package:uuid/uuid.dart';
 
 class TextToPdfScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+  String? _successPath;
 
   @override
   Widget build(BuildContext context) {
@@ -39,88 +41,96 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                       fontWeight: FontWeight.bold,
                     ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               Text(
-                'Enter text and generate a formatted PDF',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                'Enter text and generate a formatted PDF document',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Error Message
-              if (_errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: const Color.fromRGBO(255, 0, 0, 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color.fromRGBO(255, 0, 0, 0.3)),
-                    ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline,
-                          color: Colors.red, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
+              // Loading Banner
+              if (_isLoading)
+                const ToolLoadingBanner(
+                  message: 'Generating PDF document from text...',
                 ),
-                const SizedBox(height: 20),
-              ],
 
-              // Title
+              // Error Banner
+              if (_errorMessage != null)
+                ToolErrorBanner(
+                  message: _errorMessage!,
+                  onRetry: (_titleController.text.isNotEmpty && _textController.text.isNotEmpty)
+                      ? _generatePdf
+                      : null,
+                  onDismiss: () => setState(() => _errorMessage = null),
+                ),
+
+              // Success Card
+              if (_successPath != null)
+                ToolSuccessCard(
+                  title: 'PDF Generated Successfully!',
+                  subtitle: 'Formatted PDF document created.',
+                  filePath: _successPath,
+                  onShare: () {
+                    if (_successPath != null && mounted) {
+                      ShareService.showSaveShareDialog(context, _successPath!);
+                    }
+                  },
+                  onReset: () {
+                    setState(() {
+                      _successPath = null;
+                      _titleController.clear();
+                      _textController.clear();
+                      _errorMessage = null;
+                    });
+                  },
+                ),
+
+              // Title Field
               Text(
                 'PDF Title',
-                style: Theme.of(context).textTheme.titleSmall,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               TextField(
+                enabled: !_isLoading,
                 controller: _titleController,
-                decoration: InputDecoration(
-                  hintText: 'Enter PDF title',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
+                decoration: const InputDecoration(
+                  hintText: 'Enter PDF document title...',
+                  isDense: true,
                 ),
+                onChanged: (_) {
+                  if (_errorMessage != null) setState(() => _errorMessage = null);
+                },
               ),
               const SizedBox(height: 20),
 
-              // Content
+              // Content Field
               Text(
                 'Content',
-                style: Theme.of(context).textTheme.titleSmall,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               TextField(
+                enabled: !_isLoading,
                 controller: _textController,
                 maxLines: 10,
                 minLines: 6,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Enter text to convert to PDF...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
                 ),
+                onChanged: (_) {
+                  if (_errorMessage != null) setState(() => _errorMessage = null);
+                },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               Text(
-                'Tip: Use # for headers, • for bullets',
+                'Tip: Use # for headers, • for bullet points',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
                       fontStyle: FontStyle.italic,
                     ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Action Button
               SizedBox(
@@ -129,20 +139,17 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   onPressed: _isLoading ? null : _generatePdf,
                   icon: _isLoading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
+                            color: Colors.white,
                           ),
                         )
                       : const Icon(Icons.picture_as_pdf),
                   label: const Text('Generate PDF'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        Theme.of(context).colorScheme.primary,
-                    foregroundColor:
-                        Theme.of(context).colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
               ),
@@ -154,9 +161,9 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
   }
 
   Future<void> _generatePdf() async {
-    if (_titleController.text.isEmpty || _textController.text.isEmpty) {
+    if (_titleController.text.trim().isEmpty || _textController.text.trim().isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter both title and content';
+        _errorMessage = 'Please enter both a title and content to generate a PDF.';
       });
       return;
     }
@@ -164,39 +171,35 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _successPath = null;
     });
 
     try {
       final filePath = await _pdfService.generatePdfFromText(
-        title: _titleController.text,
-        content: _textController.text,
+        title: _titleController.text.trim(),
+        content: _textController.text.trim(),
       );
 
       final entry = HistoryEntry(
         id: const Uuid().v4(),
-        title: _titleController.text,
+        title: _titleController.text.trim(),
         date: DateTime.now(),
         filePath: filePath,
         toolType: 'text_to_pdf',
       );
       await _storageService.addHistoryEntry(entry);
 
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
+        _successPath = filePath;
       });
 
-      if (!mounted) return;
-      if (mounted) { ShareService.showSaveShareDialog(context, filePath); }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PDF generated successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      _titleController.clear();
-      _textController.clear();
+      if (mounted) {
+        ShareService.showSaveShareDialog(context, filePath);
+      }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
