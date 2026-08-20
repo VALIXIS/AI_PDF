@@ -15,6 +15,7 @@ import 'package:pdf_ai_toolkit/views/tools/watermark_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/jpg_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/rotate_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/protect_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 
 // ── Tool model ────────────────────────────────────────────────────────────
 class ToolItem {
@@ -144,6 +145,14 @@ const _tools = <ToolItem>[
     icon: Icons.auto_fix_high_rounded,
     color: Color(0xFF0284C7),
     screen: AiRefineScreen(),
+    category: 'AI',
+  ),
+  ToolItem(
+    title: 'Chat with PDF',
+    subtitle: 'AI Document Q&A',
+    icon: Icons.chat_rounded,
+    color: Color(0xFF10B981),
+    screen: ChatWithPdfScreen(),
     category: 'AI',
   ),
 ];

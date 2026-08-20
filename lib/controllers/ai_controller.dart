@@ -55,6 +55,24 @@ class AiController {
     return [AiMode.notes, AiMode.summary, AiMode.clean];
   }
 
+  /// Answers a question about a PDF document
+  Future<String> askDocumentQuestion({
+    required String pdfText,
+    required String question,
+  }) async {
+    try {
+      if (question.trim().isEmpty) {
+        throw Exception('Question cannot be empty');
+      }
+      return await _aiService.askPdfQuestion(
+        pdfText: pdfText,
+        question: question.trim(),
+      );
+    } catch (e) {
+      throw Exception('Failed to get answer: $e');
+    }
+  }
+
   /// Generates a unique ID for history entries
   String generateId() {
     return uuid.v4();

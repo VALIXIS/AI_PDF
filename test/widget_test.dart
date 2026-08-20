@@ -109,6 +109,7 @@ void main() {
 
     expect(find.text('AI to PDF'), findsOneWidget);
     expect(find.text('AI Refine'), findsOneWidget);
+    expect(find.text('Chat with PDF'), findsOneWidget);
 
     // 6. Verify All category shows all tools
     final allTab = find.byKey(const ValueKey('category_tab_All'));

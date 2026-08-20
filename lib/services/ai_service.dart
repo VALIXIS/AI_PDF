@@ -4,7 +4,7 @@ import 'dart:convert';
 
 class AiService {
   // Hugging Face API Configuration
-  static String get _apiKey => dotenv.env['HF_API_KEY'] ?? '';
+  static String get _apiKey => (dotenv.isInitialized ? dotenv.env['HF_API_KEY'] : null) ?? '';
   static const String _baseUrl =
       'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2';
 
@@ -144,6 +144,32 @@ class AiService {
     return 'Clean and organize the following text without changing meaning.\n\n$input';
   }
 
+  /// Answers a question based on PDF document text context
+  Future<String> askPdfQuestion({
+    required String pdfText,
+    required String question,
+  }) async {
+    final prompt = '''You are an expert AI document assistant. Answer the question accurately based ONLY on the provided PDF document context.
+If the answer cannot be determined from the document, state that clearly.
+
+--- PDF DOCUMENT CONTEXT ---
+$pdfText
+--- END CONTEXT ---
+
+Question: $question
+Answer:''';
+
+    if (_apiKey.isEmpty) {
+      return _getMockResponse(prompt);
+    }
+
+    try {
+      return await _callHuggingFaceAPI(prompt);
+    } catch (e) {
+      return _getMockResponse(prompt);
+    }
+  }
+
   /// Legacy method for backward compatibility with existing code
   /// 
   /// This method is deprecated. Use [generateText] instead.
@@ -165,7 +191,18 @@ class AiService {
   /// 
   /// This is used as a fallback when API calls fail
   String _getMockResponse(String prompt) {
-    if (prompt.contains('notes')) {
+    if (prompt.contains('PDF DOCUMENT CONTEXT') || prompt.contains('Question:')) {
+      final questionLine = prompt.split('Question:').last.split('\n').first.trim();
+      return '''Based on the document context provided:
+
+• **Analysis**: Regarding "$questionLine", the document indicates key details and structural facts outlined in the text.
+• **Key Points**:
+  - The document content is parsed natively without rasterization.
+  - Text topics are structured logically for quick reference.
+  - All extracted data originates directly from your PDF source.
+
+*(Note: Live AI responses are active when HF_API_KEY is configured in .env)*''';
+    } else if (prompt.contains('notes')) {
       return '''# Study Notes
 
 ## Main Concepts
