@@ -2,14 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 
 
 class WatermarkScreen extends StatefulWidget {
@@ -40,49 +38,30 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected file no longer exists or is inaccessible')));
       return;
     }
+    if (_textCtrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Watermark text cannot be empty'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      return;
+    }
     setState(() => _saving = true);
     try {
-      final pdf = pw.Document();
-      // Since we can't read existing PDF content directly, we create a new PDF
-      // with the watermark information page referencing the original
-      pdf.addPage(pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        build: (_) => [
-          pw.Center(child: pw.Column(mainAxisAlignment: pw.MainAxisAlignment.center, children: [
-            pw.Text('Watermark Applied', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 12),
-            pw.Text('Source: ${FileService().getFileName(_pdfFile!.path)}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-            pw.SizedBox(height: 8),
-            pw.Text('Watermark text: "${_textCtrl.text}"', style: const pw.TextStyle(fontSize: 12)),
-          ])),
-        ],
-      ));
-      // Overlay watermark
-      pdf.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (ctx) => pw.Stack(children: [
-          pw.Positioned.fill(child: pw.Transform.rotate(
-            angle: _angle,
-            child: pw.Center(
-              child: pw.Text(
-                _textCtrl.text,
-                style: pw.TextStyle(
-                  fontSize: 64,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColor(_wColor.r, _wColor.g, _wColor.b, _opacity),
-                ),
-              ),
-            ),
-          )),
-        ]),
-      ));
-      final dir  = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(dir.path, 'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      await File(path).writeAsBytes(await pdf.save());
+      final path = await PdfService().watermarkPdf(
+        pdfPath: _pdfFile!.path,
+        watermarkText: _textCtrl.text,
+        opacity: _opacity,
+        angle: _angle,
+        color: _wColor,
+      );
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Watermarked: ${_textCtrl.text}',
-        date: DateTime.now(), filePath: path, toolType: 'watermark',
+        date: DateTime.now(),
+        filePath: path,
+        toolType: 'watermark',
       ));
       setState(() { _saving = false; _pdfFile = null; });
       if (!mounted) return;
@@ -93,7 +72,16 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ));
-    } catch (e) { setState(() => _saving = false); }
+    } catch (e) {
+      setState(() => _saving = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to apply watermark: $e'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+    }
   }
 
 
