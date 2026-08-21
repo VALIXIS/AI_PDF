@@ -516,16 +516,23 @@ class PdfService {
         final double pageHeight = page.size.height;
 
         for (final ann in annotations) {
-          final double x = ann.x * pageWidth;
-          final double y = ann.y * pageHeight;
-          final double w = ann.width * pageWidth;
-          final double h = ann.height * pageHeight;
+          // Normalize and clamp normalized coordinates
+          final double nx = ann.x.clamp(0.0, 1.0);
+          final double ny = ann.y.clamp(0.0, 1.0);
+          final double nw = ann.width.clamp(0.01, 1.0);
+          final double nh = ann.height.clamp(0.01, 1.0);
+
+          final double x = nx * pageWidth;
+          final double y = ny * pageHeight;
+          final double w = nw * pageWidth;
+          final double h = nh * pageHeight;
 
           if (ann.kind == AnnotationKind.text) {
-            if (ann.text.isEmpty) continue;
+            if (ann.text.trim().isEmpty) continue;
+            final double fontSize = ann.fontSize.clamp(6.0, 144.0);
             final sf.PdfFont font = sf.PdfStandardFont(
               sf.PdfFontFamily.helvetica,
-              ann.fontSize,
+              fontSize,
               style: ann.bold ? sf.PdfFontStyle.bold : sf.PdfFontStyle.regular,
             );
             final sf.PdfBrush brush = sf.PdfSolidBrush(
@@ -535,20 +542,27 @@ class PdfService {
                 (ann.color.b * 255.0).round().clamp(0, 255),
               ),
             );
-            final double availableWidth = (pageWidth - x).clamp(0.0, pageWidth);
-            final double availableHeight = (pageHeight - y).clamp(0.0, pageHeight);
+            final Size textSize = font.measureString(ann.text);
+            final double textW = (w > textSize.width ? w : textSize.width).clamp(textSize.width, pageWidth);
+            final double textH = (h > textSize.height ? h : textSize.height).clamp(textSize.height, pageHeight);
             graphics.drawString(
               ann.text,
               font,
               brush: brush,
-              bounds: Rect.fromLTWH(x, y, availableWidth, availableHeight),
+              bounds: Rect.fromLTWH(x, y, textW, textH),
             );
           } else if (ann.kind == AnnotationKind.image && ann.imageBytes != null && ann.imageBytes!.isNotEmpty) {
-            final sf.PdfBitmap bitmap = sf.PdfBitmap(ann.imageBytes!);
-            graphics.drawImage(
-              bitmap,
-              Rect.fromLTWH(x, y, w, h),
-            );
+            try {
+              final sf.PdfBitmap bitmap = sf.PdfBitmap(ann.imageBytes!);
+              final double drawW = w.clamp(1.0, (pageWidth - x).clamp(1.0, pageWidth));
+              final double drawH = h.clamp(1.0, (pageHeight - y).clamp(1.0, pageHeight));
+              graphics.drawImage(
+                bitmap,
+                Rect.fromLTWH(x, y, drawW, drawH),
+              );
+            } catch (_) {
+              // Corrupted or unsupported image bytes are skipped safely
+            }
           }
         }
       }

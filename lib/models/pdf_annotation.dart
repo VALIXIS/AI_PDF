@@ -42,4 +42,45 @@ class Annotation {
     this.bold = false,
     this.kind = AnnotationKind.image,
   });
+
+  Annotation copyWith({
+    String? id,
+    AnnotationKind? kind,
+    double? x,
+    double? y,
+    double? width,
+    double? height,
+    String? text,
+    double? fontSize,
+    Color? color,
+    bool? bold,
+    Uint8List? imageBytes,
+  }) {
+    final copy = kind == AnnotationKind.image || (kind == null && this.kind == AnnotationKind.image)
+        ? Annotation.image(
+            id: id ?? this.id,
+            x: x ?? this.x,
+            y: y ?? this.y,
+            width: width ?? this.width,
+            height: height ?? this.height,
+            imageBytes: imageBytes ?? this.imageBytes,
+            text: text ?? this.text,
+            fontSize: fontSize ?? this.fontSize,
+            color: color ?? this.color,
+            bold: bold ?? this.bold,
+          )
+        : Annotation.text(
+            id: id ?? this.id,
+            x: x ?? this.x,
+            y: y ?? this.y,
+            width: width ?? this.width,
+            height: height ?? this.height,
+            text: text ?? this.text,
+            fontSize: fontSize ?? this.fontSize,
+            color: color ?? this.color,
+            bold: bold ?? this.bold,
+            imageBytes: imageBytes ?? this.imageBytes,
+          );
+    return copy;
+  }
 }

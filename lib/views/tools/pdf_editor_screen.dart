@@ -46,7 +46,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       final result = await FilePicker.pickFiles(
           type: FileType.custom, allowedExtensions: ['pdf']);
       if (result == null || result.files.single.path == null) return;
-      setState(() { _loading = true; _pdfFile = null; _document = null; _annotations.clear(); });
+      setState(() { _loading = true; _pdfFile = null; _document = null; _annotations.clear(); _selected = null; _activeToolbar = null; });
       final file = File(result.files.single.path!);
       if (!await FileService().isFileAccessible(file.path)) {
         setState(() => _loading = false);
@@ -83,12 +83,16 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
-      final ann   = Annotation.image(id: UniqueKey().toString(), x: rx, y: ry, imageBytes: bytes);
+      if (bytes.isEmpty) {
+        _snack('Selected image is empty', error: true);
+        return;
+      }
+      final ann = Annotation.image(id: UniqueKey().toString(), x: rx, y: ry, imageBytes: bytes);
       if (!mounted) return;
       setState(() {
         _pageAnnotations.add(ann);
         _selected = ann;
-        _activeToolbar = null;
+        _activeToolbar = 'image';
       });
     } catch (e) {
       if (!mounted) return;
@@ -165,13 +169,21 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           ? Column(mainAxisSize: MainAxisSize.min, children: [
               FloatingActionButton.small(
                 heroTag: 'img', backgroundColor: const Color(0xFF8B5CF6),
-                onPressed: () => setState(() => _activeToolbar = 'image'),
+                tooltip: 'Add Image Annotation',
+                onPressed: () => setState(() {
+                  _selected = null;
+                  _activeToolbar = 'image';
+                }),
                 child: const Icon(Icons.image_rounded, color: Colors.white),
               ),
               const SizedBox(height: 8),
               FloatingActionButton.small(
                 heroTag: 'txt', backgroundColor: kPrimary,
-                onPressed: () => setState(() => _activeToolbar = 'text'),
+                tooltip: 'Add Text Annotation',
+                onPressed: () => setState(() {
+                  _selected = null;
+                  _activeToolbar = 'text';
+                }),
                 child: const Icon(Icons.text_fields_rounded, color: Colors.white),
               ),
             ])
@@ -219,6 +231,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             _selected = null; _activeToolbar = null;
           }),
         ),
+      if (_editMode && _activeToolbar == 'image' && _selected?.kind == AnnotationKind.image)
+        _ImageToolbar(
+          annotation: _selected!, primary: primary, isDark: isDark,
+          onChange: () => setState(() {}),
+          onDelete: () => setState(() {
+            _pageAnnotations.remove(_selected);
+            _selected = null; _activeToolbar = null;
+          }),
+        ),
       if (_editMode && _activeToolbar != null && _selected == null)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -254,26 +275,28 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         borderRadius: BorderRadius.circular(12),
         child: LayoutBuilder(builder: (ctx, constraints) {
           return GestureDetector(
-            onTapUp: _editMode && _activeToolbar != null ? (details) {
-              final rx = details.localPosition.dx / constraints.maxWidth;
-              final ry = details.localPosition.dy / constraints.maxHeight;
-              if (_activeToolbar == 'text') { _addText(rx, ry); }
-              else if (_activeToolbar == 'image') {
+            behavior: HitTestBehavior.opaque,
+            onTapUp: _editMode ? (details) {
+              final rx = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 0.9);
+              final ry = (details.localPosition.dy / constraints.maxHeight).clamp(0.0, 0.9);
+              if (_activeToolbar == 'text' && _selected == null) {
+                _addText(rx, ry);
+              } else if (_activeToolbar == 'image' && _selected == null) {
                 _addImage(rx, ry);
-                setState(() => _activeToolbar = null);
+              } else {
+                // Tap on background deselects current annotation
+                setState(() {
+                  _selected = null;
+                  _activeToolbar = null;
+                });
               }
             } : null,
             child: Stack(fit: StackFit.expand, children: [
               IgnorePointer(
                 ignoring: _editMode,
-                child: pdfx.PdfView(
-                  controller: pdfx.PdfController(
-                    document: pdfx.PdfDocument.openFile(_pdfFile!.path),
-                  ),
-                  pageSnapping: true,
-                  scrollDirection: Axis.vertical,
-                  physics: const NeverScrollableScrollPhysics(),
-                  onPageChanged: (_) {},
+                child: _PdfPageViewWidget(
+                  filePath: _pdfFile!.path,
+                  pageIndex: pageIdx,
                 ),
               ),
               ...(_annotations[pageIdx] ?? []).map((ann) => _buildAnn(ann, constraints)),
@@ -286,28 +309,41 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   Widget _buildAnn(Annotation ann, BoxConstraints c) {
     final isSel = _selected?.id == ann.id;
+    final double left = (ann.x * c.maxWidth).clamp(0.0, c.maxWidth);
+    final double top = (ann.y * c.maxHeight).clamp(0.0, c.maxHeight);
+    final double width = (ann.width * c.maxWidth).clamp(20.0, c.maxWidth);
+    final double height = (ann.height * c.maxHeight).clamp(15.0, c.maxHeight);
+
     return Positioned(
-      left: ann.x * c.maxWidth, top: ann.y * c.maxHeight,
-      width: ann.width * c.maxWidth, height: ann.height * c.maxHeight,
+      left: left, top: top,
+      width: width, height: height,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: _editMode ? () => setState(() {
           _selected = ann;
-          _textEditCtrl.text = ann.text;
-          _activeToolbar = ann.kind == AnnotationKind.text ? 'text' : null;
+          if (ann.kind == AnnotationKind.text) {
+            _textEditCtrl.text = ann.text;
+            _activeToolbar = 'text';
+          } else {
+            _activeToolbar = 'image';
+          }
         }) : null,
         onPanUpdate: _editMode ? (details) => setState(() {
-          ann.x += details.delta.dx / c.maxWidth;
-          ann.y += details.delta.dy / c.maxHeight;
+          ann.x = (ann.x + details.delta.dx / c.maxWidth).clamp(0.0, 1.0 - (ann.width.clamp(0.01, 1.0)));
+          ann.y = (ann.y + details.delta.dy / c.maxHeight).clamp(0.0, 1.0 - (ann.height.clamp(0.01, 1.0)));
         }) : null,
         child: Container(
           decoration: isSel && _editMode
-              ? BoxDecoration(border: Border.all(color: kPrimary, width: 1.5),
-                  borderRadius: BorderRadius.circular(4))
+              ? BoxDecoration(border: Border.all(color: kPrimary, width: 2.0),
+                  borderRadius: BorderRadius.circular(4),
+                  color: kPrimary.withValues(alpha: 0.05))
               : null,
           child: ann.kind == AnnotationKind.text
               ? Text(ann.text, style: TextStyle(fontSize: ann.fontSize,
                   fontWeight: ann.bold ? FontWeight.bold : FontWeight.normal, color: ann.color))
-              : Image.memory(ann.imageBytes!, fit: BoxFit.contain),
+              : (ann.imageBytes != null && ann.imageBytes!.isNotEmpty
+                  ? Image.memory(ann.imageBytes!, fit: BoxFit.contain)
+                  : const SizedBox.shrink()),
         ),
       ),
     );
@@ -341,6 +377,64 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 }
 
+// ── PDF Page View Widget with proper controller lifecycle ─────────────────
+class _PdfPageViewWidget extends StatefulWidget {
+  final String filePath;
+  final int pageIndex;
+  const _PdfPageViewWidget({
+    Key? key,
+    required this.filePath,
+    required this.pageIndex,
+  }) : super(key: key);
+
+  @override
+  State<_PdfPageViewWidget> createState() => _PdfPageViewWidgetState();
+}
+
+class _PdfPageViewWidgetState extends State<_PdfPageViewWidget> {
+  pdfx.PdfController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _initController();
+  }
+
+  void _initController() {
+    _controller = pdfx.PdfController(
+      document: pdfx.PdfDocument.openFile(widget.filePath),
+      initialPage: widget.pageIndex + 1,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _PdfPageViewWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.filePath != widget.filePath || oldWidget.pageIndex != widget.pageIndex) {
+      _controller?.dispose();
+      _initController();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_controller == null) return const Center(child: CircularProgressIndicator());
+    return pdfx.PdfView(
+      controller: _controller!,
+      pageSnapping: true,
+      scrollDirection: Axis.vertical,
+      physics: const NeverScrollableScrollPhysics(),
+      onPageChanged: (_) {},
+    );
+  }
+}
+
 // ── Text toolbar ──────────────────────────────────────────────────────────
 class _TextToolbar extends StatelessWidget {
   final Annotation annotation;
@@ -368,14 +462,15 @@ class _TextToolbar extends StatelessWidget {
         Row(children: [
           const Text('Size:', style: TextStyle(fontSize: 12)),
           Expanded(child: Slider(
-            value: annotation.fontSize, min: 8, max: 48, activeColor: primary,
+            value: annotation.fontSize.clamp(8.0, 48.0), min: 8, max: 48, activeColor: primary,
             onChanged: (v) { annotation.fontSize = v; onChange(); },
           )),
           IconButton(
             icon: Icon(Icons.format_bold, color: annotation.bold ? primary : null),
+            tooltip: 'Bold',
             onPressed: () { annotation.bold = !annotation.bold; onChange(); },
           ),
-          for (final c in [Colors.black, Colors.white, Colors.red, Colors.blue, Colors.green])
+          for (final c in [Colors.black, Colors.white, Colors.red, Colors.blue, Colors.green, Colors.amber, Colors.purple, Colors.orange])
             GestureDetector(
               onTap: () { annotation.color = c; onChange(); },
               child: Container(
@@ -389,6 +484,7 @@ class _TextToolbar extends StatelessWidget {
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.delete_rounded, color: Color(0xFFDC2626)),
+            tooltip: 'Delete text annotation',
             onPressed: onDelete,
           ),
         ]),
@@ -396,3 +492,52 @@ class _TextToolbar extends StatelessWidget {
     );
   }
 }
+
+// ── Image toolbar ─────────────────────────────────────────────────────────
+class _ImageToolbar extends StatelessWidget {
+  final Annotation annotation;
+  final Color primary;
+  final bool isDark;
+  final VoidCallback onChange, onDelete;
+  const _ImageToolbar({
+    required this.annotation,
+    required this.primary,
+    required this.isDark,
+    required this.onChange,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? const Color(0xFF14141E) : Colors.white;
+    return Container(
+      color: bg,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(children: [
+        const Icon(Icons.photo_size_select_large_rounded, size: 20),
+        const SizedBox(width: 8),
+        const Text('Size:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        Expanded(
+          child: Slider(
+            value: annotation.width.clamp(0.1, 0.95),
+            min: 0.1,
+            max: 0.95,
+            activeColor: primary,
+            onChanged: (v) {
+              final ratio = annotation.height / (annotation.width > 0 ? annotation.width : 1.0);
+              annotation.width = v;
+              annotation.height = (v * (ratio.isFinite && ratio > 0 ? ratio : 0.75)).clamp(0.05, 0.95);
+              onChange();
+            },
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_rounded, color: Color(0xFFDC2626)),
+          tooltip: 'Delete image annotation',
+          onPressed: onDelete,
+        ),
+      ]),
+    );
+  }
+}
+
