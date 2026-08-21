@@ -242,12 +242,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             expandedHeight: 0,
             backgroundColor: isDark ? const Color(0xFF0B0B13) : const Color(0xFFF7F7F9),
             title: Row(children: [
-              Container(
-                width: 30, height: 30,
-                decoration: BoxDecoration(color: primary, borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 17),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(
+                  'assets/ICON.png',
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.contain,
+                ),
               ),
-              const SizedBox(width: 9),
+              const SizedBox(width: 10),
               Text('PDF AI Toolkit',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
                       color: isDark ? Colors.white : const Color(0xFF111827))),
