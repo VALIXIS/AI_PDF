@@ -187,7 +187,7 @@ class FileService {
     bool overwrite = false,
   }) async {
     if (targetPath.isEmpty) {
-      throw FileSystemException('Target file path cannot be empty');
+      throw const FileSystemException('Target file path cannot be empty');
     }
 
     final finalPath = overwrite ? normalizePath(targetPath) : await getUniqueFilePath(targetPath);

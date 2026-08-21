@@ -93,7 +93,7 @@ void main() {
     });
 
     test('sanitizeFileName removes illegal characters and control chars across platforms', () {
-      final input = '  invalid/file:name*test?.pdf.  ';
+      const input = '  invalid/file:name*test?.pdf.  ';
       final sanitized = fileService.sanitizeFileName(input);
       expect(sanitized, isNot(contains('/')));
       expect(sanitized, isNot(contains(':')));
