@@ -121,10 +121,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 _SettingsTile(
-                  icon: Icons.info_outline_rounded,
-                  iconColor: const Color(0xFF2563EB),
+                  leadingWidget: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      'assets/ICON.png',
+                      width: 38,
+                      height: 38,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                   title: 'PDF AI Toolkit',
-                  subtitle: 'Version 1.0.0',
+                  subtitle: 'Version 1.0.0 (Official Icon Integrated)',
                 ),
                 _SettingsTile(
                   icon: Icons.description_rounded,
@@ -181,22 +188,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 // Reusable settings tile
 // ---------------------------------------------------------------------------
 class _SettingsTile extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
   final Color iconColor;
   final String title;
   final String? subtitle;
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool isLast;
+  final Widget? leadingWidget;
 
   const _SettingsTile({
-    required this.icon,
-    required this.iconColor,
+    this.icon,
+    this.iconColor = const Color(0xFF2563EB),
     required this.title,
     this.subtitle,
     this.trailing,
     this.onTap,
     this.isLast = false,
+    this.leadingWidget,
   });
 
   @override
@@ -214,7 +223,7 @@ class _SettingsTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
+              leadingWidget ?? Container(
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(

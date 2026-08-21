@@ -200,5 +200,39 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    test('Test 8 — Preserves page rotation when merging rotated pages', () async {
+      final normalPdfPath = await createTestPdf(
+        filename: 'normal.pdf',
+        pageCount: 1,
+        textPrefix: 'NormalPage',
+      );
+
+      // Create a PDF and rotate it using PdfService.rotatePdf
+      final service = PdfService();
+      final rotatedPdfPath = await service.rotatePdf(
+        pdfPath: normalPdfPath,
+        rotationAngle: 90,
+        customOutputPath: tempDir.path,
+      );
+
+      final mergedPath = await service.mergePdfs(
+        [normalPdfPath, rotatedPdfPath],
+        customOutputPath: tempDir.path,
+      );
+
+      final loadedDoc = syncfusion.PdfDocument(inputBytes: await File(mergedPath).readAsBytes());
+      expect(loadedDoc.pages.count, equals(2));
+      expect(loadedDoc.pages[0].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle0));
+      expect(loadedDoc.pages[1].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
+      loadedDoc.dispose();
+    });
+
+    test('Test 9 — getPdfPageCount returns correct page count', () async {
+      final path3Pages = await createTestPdf(filename: 'three_pages.pdf', pageCount: 3, textPrefix: 'ThreePages');
+      final service = PdfService();
+      final count = await service.getPdfPageCount(path3Pages);
+      expect(count, equals(3));
+    });
   });
 }

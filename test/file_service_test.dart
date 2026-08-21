@@ -79,14 +79,14 @@ void main() {
       expect(normalized, contains('file.pdf'));
     });
 
-    test('readTextFile throws FileSystemException for missing/invalid path', () async {
+    test('readTextFile throws Exception for missing/invalid path', () async {
       expect(
         () async => await fileService.readTextFile(r'C:\non_existent_dir\missing_text_file.txt'),
         throwsA(isA<Exception>()),
       );
     });
 
-    test('deleteFile returns false for non-existent file', () async {
+    test('deleteFile returns false for non-existent file without throwing uncaught exception', () async {
       final result = await fileService.deleteFile('/invalid/non_existent.pdf');
       expect(result, isFalse);
     });

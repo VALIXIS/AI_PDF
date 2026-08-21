@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class AiRefineScreen extends StatefulWidget {
   const AiRefineScreen({Key? key}) : super(key: key);
@@ -20,6 +21,10 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF14141E) : Colors.white;
+    final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('AI Refine'),
@@ -36,19 +41,31 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                       fontWeight: FontWeight.bold,
                     ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               Text(
-                'Choose a refining mode to improve your text',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                'Choose a refining mode to clean, summarize, or structure your notes',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // Loading Banner
+              if (_isLoading)
+                ToolLoadingBanner(
+                  message: 'Refining text with AI ($_selectedMode mode)...',
+                ),
+
+              // Error Banner
+              if (_errorMessage != null)
+                ToolErrorBanner(
+                  message: _errorMessage!,
+                  onRetry: _inputController.text.isNotEmpty ? _refineText : null,
+                  onDismiss: () => setState(() => _errorMessage = null),
+                ),
 
               // Input Label
               Text(
                 'Your Text',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
               ),
@@ -56,27 +73,27 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
 
               // Input TextField
               TextField(
+                enabled: !_isLoading,
                 controller: _inputController,
                 maxLines: 6,
                 minLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Enter text to refine...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
+                decoration: const InputDecoration(
+                  hintText: 'Enter or paste text to refine with AI...',
                 ),
+                onChanged: (_) {
+                  if (_errorMessage != null) setState(() => _errorMessage = null);
+                },
               ),
               const SizedBox(height: 20),
 
               // Mode Selection Label
               Text(
                 'Refining Mode',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Mode Options
               SegmentedButton<String>(
@@ -84,88 +101,67 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                   ButtonSegment<String>(
                     value: AiMode.clean,
                     label: Text('Clean'),
-                    icon: Icon(Icons.cleaning_services),
+                    icon: Icon(Icons.cleaning_services_rounded),
                   ),
                   ButtonSegment<String>(
                     value: AiMode.summary,
                     label: Text('Summary'),
-                    icon: Icon(Icons.short_text),
+                    icon: Icon(Icons.short_text_rounded),
                   ),
                   ButtonSegment<String>(
                     value: AiMode.notes,
                     label: Text('Notes'),
-                    icon: Icon(Icons.note),
+                    icon: Icon(Icons.note_alt_rounded),
                   ),
                 ],
                 selected: {_selectedMode},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _selectedMode = selection.first;
-                    _refinedText = null;
-                    _errorMessage = null;
-                  });
-                },
+                onSelectionChanged: _isLoading
+                    ? null
+                    : (selection) {
+                        setState(() {
+                          _selectedMode = selection.first;
+                          _refinedText = null;
+                          _errorMessage = null;
+                        });
+                      },
               ),
               const SizedBox(height: 20),
 
-              // Error Message
-              if (_errorMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color.fromRGBO(255, 0, 0, 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color.fromRGBO(255, 0, 0, 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline,
-                          color: Colors.red, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // Loading
-              if (_isLoading) ...[
-                const Center(child: CircularProgressIndicator()),
-                const SizedBox(height: 20),
-              ],
-
               // Result Section
               if (_refinedText != null) ...[
-                Text(
-                  'Refined Text',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                Row(
+                  children: [
+                    Text(
+                      'Refined Text Output',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      tooltip: 'Copy output',
+                      onPressed: _copyOutput,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[300]!),
+                    color: cardBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: border),
                   ),
-                  constraints: const BoxConstraints(maxHeight: 200),
+                  constraints: const BoxConstraints(maxHeight: 220),
                   child: SingleChildScrollView(
                     child: SelectableText(
                       _refinedText!,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
@@ -174,25 +170,19 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                           _inputController.text = _refinedText!;
                           setState(() {
                             _refinedText = null;
+                            _errorMessage = null;
                           });
                         },
-                        icon: const Icon(Icons.refresh),
+                        icon: const Icon(Icons.swap_vert_rounded),
                         label: const Text('Use This Version'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Copied to clipboard!'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        },
+                        onPressed: _copyOutput,
                         icon: const Icon(Icons.copy),
-                        label: const Text('Copy'),
+                        label: const Text('Copy Output'),
                       ),
                     ),
                   ],
@@ -207,20 +197,17 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                   onPressed: _isLoading ? null : _refineText,
                   icon: _isLoading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
+                            color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.edit_note),
-                  label: const Text('Refine Text'),
+                      : const Icon(Icons.auto_fix_high_rounded),
+                  label: const Text('Refine Text with AI'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        Theme.of(context).colorScheme.primary,
-                    foregroundColor:
-                        Theme.of(context).colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
               ),
@@ -232,9 +219,9 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
   }
 
   Future<void> _refineText() async {
-    if (_inputController.text.isEmpty) {
+    if (_inputController.text.trim().isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter text to refine';
+        _errorMessage = 'Please enter text to refine with AI.';
       });
       return;
     }
@@ -246,19 +233,33 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
 
     try {
       final result = await _aiController.processText(
-        input: _inputController.text,
+        input: _inputController.text.trim(),
         mode: _selectedMode,
       );
 
+      if (!mounted) return;
       setState(() {
         _refinedText = result;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  void _copyOutput() {
+    if (_refinedText != null && _refinedText!.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: _refinedText!));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Refined text copied to clipboard!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
