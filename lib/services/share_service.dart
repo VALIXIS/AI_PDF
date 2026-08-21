@@ -42,12 +42,20 @@ class ShareService {
                   InkWell(
                     onTap: () async {
                       Navigator.pop(ctx);
-                      if (await FileService().isFileAccessible(path)) {
-                        Share.shareXFiles([XFile(path)], text: 'Here is my PDF file.');
-                      } else if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
-                        );
+                      try {
+                        if (await FileService().isFileAccessible(path)) {
+                          await Share.shareXFiles([XFile(path)], text: 'Here is my PDF file.');
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Could not share file: $e'), backgroundColor: Colors.red),
+                          );
+                        }
                       }
                     },
                     borderRadius: BorderRadius.circular(16),
@@ -75,12 +83,20 @@ class ShareService {
                   InkWell(
                     onTap: () async {
                       Navigator.pop(ctx);
-                      if (await FileService().isFileAccessible(path)) {
-                        Share.shareXFiles([XFile(path)], text: 'Save this PDF');
-                      } else if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
-                        );
+                      try {
+                        if (await FileService().isFileAccessible(path)) {
+                          await Share.shareXFiles([XFile(path)], text: 'Save this PDF');
+                        } else if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('File no longer exists or is inaccessible.'), backgroundColor: Colors.red),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Could not save file: $e'), backgroundColor: Colors.red),
+                          );
+                        }
                       }
                     },
                     borderRadius: BorderRadius.circular(16),

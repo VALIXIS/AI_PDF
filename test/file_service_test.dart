@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 
@@ -90,5 +91,65 @@ void main() {
       final result = await fileService.deleteFile('/invalid/non_existent.pdf');
       expect(result, isFalse);
     });
+
+    test('sanitizeFileName removes illegal characters and control chars across platforms', () {
+      final input = '  invalid/file:name*test?.pdf.  ';
+      final sanitized = fileService.sanitizeFileName(input);
+      expect(sanitized, isNot(contains('/')));
+      expect(sanitized, isNot(contains(':')));
+      expect(sanitized, isNot(contains('*')));
+      expect(sanitized, isNot(contains('?')));
+      expect(sanitized, equals('invalid_file_name_test_.pdf'));
+    });
+
+    test('getUniqueFilePath creates non-colliding filename when file exists', () async {
+      final tempDir = await Directory.systemTemp.createTemp('unique_path_test_');
+      try {
+        final initialPath = '${tempDir.path}/test_doc.pdf';
+        await File(initialPath).writeAsString('test content');
+
+        final uniquePath = await fileService.getUniqueFilePath(initialPath);
+        expect(uniquePath, isNot(equals(initialPath)));
+        expect(uniquePath, contains('test_doc (1).pdf'));
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('safeWriteBytes performs atomic write and directory creation', () async {
+      final tempDir = await Directory.systemTemp.createTemp('safe_write_test_');
+      try {
+        final targetPath = '${tempDir.path}/nested/dir/atomic_doc.pdf';
+        final savedPath = await fileService.safeWriteBytes(targetPath, [65, 66, 67]);
+
+        expect(await File(savedPath).exists(), isTrue);
+        expect(await File(savedPath).readAsString(), equals('ABC'));
+
+        // Attempting to safeWriteBytes again without overwrite should resolve duplicate filename
+        final secondPath = await fileService.safeWriteBytes(targetPath, [68, 69, 70]);
+        expect(secondPath, isNot(equals(savedPath)));
+        expect(secondPath, contains('atomic_doc (1).pdf'));
+        expect(await File(secondPath).readAsString(), equals('DEF'));
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('safeCopyFile safely duplicates a file', () async {
+      final tempDir = await Directory.systemTemp.createTemp('safe_copy_test_');
+      try {
+        final srcPath = '${tempDir.path}/source.txt';
+        await File(srcPath).writeAsString('Hello Copy');
+
+        final destPath = '${tempDir.path}/destination.txt';
+        final copiedPath = await fileService.safeCopyFile(srcPath, destPath);
+
+        expect(await File(copiedPath).exists(), isTrue);
+        expect(await File(copiedPath).readAsString(), equals('Hello Copy'));
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
   });
 }
+

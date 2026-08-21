@@ -141,6 +141,99 @@ class FileService {
     return path.normalize(filePath);
   }
 
+  /// Sanitizes a file name by removing illegal filename characters
+  /// across Windows, macOS, Linux, Android, and iOS.
+  String sanitizeFileName(String fileName) {
+    if (fileName.isEmpty) return 'untitled';
+    // Replace Windows & POSIX illegal characters: < > : " / \ | ? * and control chars
+    String sanitized = fileName.replaceAll(RegExp(r'[<>"|?*:\/\\]'), '_');
+    // Remove null characters or control characters
+    sanitized = sanitized.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '');
+    // Trim spaces and trailing dots (problematic on Windows)
+    sanitized = sanitized.trim().replaceAll(RegExp(r'\.+$'), '');
+    return sanitized.isEmpty ? 'untitled' : sanitized;
+  }
+
+  /// Generates a non-colliding file path if the target file already exists.
+  /// Example: 'doc.pdf' -> 'doc (1).pdf' -> 'doc (2).pdf'
+  Future<String> getUniqueFilePath(String targetPath) async {
+    if (targetPath.isEmpty) return targetPath;
+    final normalized = normalizePath(targetPath);
+    if (!await File(normalized).exists()) {
+      return normalized;
+    }
+
+    final dir = getDirectoryName(normalized);
+    final ext = getExtension(normalized);
+    final baseWithoutExt = path.basenameWithoutExtension(normalized);
+
+    int counter = 1;
+    while (true) {
+      final newFileName = '$baseWithoutExt ($counter)$ext';
+      final newPath = dir.isEmpty ? newFileName : path.join(dir, newFileName);
+      if (!await File(newPath).exists()) {
+        return newPath;
+      }
+      counter++;
+    }
+  }
+
+  /// Writes bytes atomically to [targetPath] using a temporary file.
+  /// If [overwrite] is false, automatically resolves duplicate filenames.
+  /// If an error occurs during write/rename, cleans up the temporary file.
+  Future<String> safeWriteBytes(
+    String targetPath,
+    List<int> bytes, {
+    bool overwrite = false,
+  }) async {
+    if (targetPath.isEmpty) {
+      throw FileSystemException('Target file path cannot be empty');
+    }
+
+    final finalPath = overwrite ? normalizePath(targetPath) : await getUniqueFilePath(targetPath);
+    final parentDir = Directory(getDirectoryName(finalPath));
+    if (!await parentDir.exists()) {
+      await parentDir.create(recursive: true);
+    }
+
+    final tempPath = '$finalPath.tmp_${DateTime.now().microsecondsSinceEpoch}';
+    final tempFile = File(tempPath);
+
+    try {
+      await tempFile.writeAsBytes(bytes, flush: true);
+      try {
+        await tempFile.rename(finalPath);
+      } catch (_) {
+        // Fallback for cross-device or permission renames
+        await tempFile.copy(finalPath);
+        await tempFile.delete().catchError((_) => tempFile);
+      }
+      return finalPath;
+    } catch (e) {
+      if (await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
+      throw FileSystemException('Failed to write file safely: $e', finalPath);
+    }
+  }
+
+  /// Copies [sourcePath] safely to [targetPath] using a temporary file.
+  /// If [overwrite] is false, automatically resolves duplicate filenames.
+  Future<String> safeCopyFile(
+    String sourcePath,
+    String targetPath, {
+    bool overwrite = false,
+  }) async {
+    if (!await isFileAccessible(sourcePath)) {
+      throw FileSystemException('Source file does not exist or is inaccessible', sourcePath);
+    }
+    final sourceFile = File(sourcePath);
+    final bytes = await sourceFile.readAsBytes();
+    return await safeWriteBytes(targetPath, bytes, overwrite: overwrite);
+  }
+
   /// Formats bytes to readable format
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
@@ -163,31 +256,44 @@ class FileService {
     }
   }
 
-  /// Automatically sorts and cleans up temporary working files
-  Future<int> cleanupTempResources() async {
+  /// Automatically cleans up temporary working files safely across platforms.
+  Future<int> cleanupTempResources([List<String>? extraDirectories]) async {
     int deletedCount = 0;
-    try {
-      final tempDir = Directory.systemTemp;
-      if (!await tempDir.exists()) return 0;
+    final now = DateTime.now();
+    final dirsToCheck = <Directory>[
+      Directory.systemTemp,
+      if (extraDirectories != null)
+        ...extraDirectories.map((d) => Directory(d)),
+    ];
 
-      final now = DateTime.now();
-      final entities = await tempDir.list().toList();
+    for (final dir in dirsToCheck) {
+      try {
+        if (!await dir.exists()) continue;
+        final entities = await dir.list().toList();
 
-      for (final entity in entities) {
-        if (entity is File && entity.path.endsWith('.pdf')) {
-          try {
-            final stat = await entity.stat();
-            final age = now.difference(stat.modified);
-            // Delete temp PDF files older than 24h
-            if (age.inHours >= 24) {
-              await entity.delete();
-              deletedCount++;
+        for (final entity in entities) {
+          if (entity is File) {
+            final lowerPath = entity.path.toLowerCase();
+            final isTempPdf = lowerPath.endsWith('.pdf') && (path.basename(lowerPath).startsWith('tmp_') || path.basename(lowerPath).startsWith('pdf_') || lowerPath.contains('temp'));
+            final isTempFile = lowerPath.contains('.tmp_');
+
+            if (isTempPdf || isTempFile) {
+              try {
+                final stat = await entity.stat();
+                final age = now.difference(stat.modified);
+                // Delete temp PDF or working files older than 1 hour for .tmp_ or 24h for old PDFs
+                if ((isTempFile && age.inMinutes >= 60) || (isTempPdf && age.inHours >= 24)) {
+                  await entity.delete();
+                  deletedCount++;
+                }
+              } catch (_) {}
             }
-          } catch (_) {}
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
     return deletedCount;
   }
 }
+
 

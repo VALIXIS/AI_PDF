@@ -7,6 +7,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 
 class PdfService {
   /// Generates a PDF from formatted text
@@ -62,10 +63,10 @@ class PdfService {
       final output = await getApplicationDocumentsDirectory();
       final fileName =
           'pdf_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File(path.join(output.path, fileName));
-      await file.writeAsBytes(await pdf.save());
+      final targetPath = path.join(output.path, fileName);
+      final pdfBytes = await pdf.save();
 
-      return file.path;
+      return await FileService().safeWriteBytes(targetPath, pdfBytes);
     } catch (e) {
       throw Exception('Failed to generate PDF: $e');
     }
@@ -202,10 +203,8 @@ class PdfService {
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName =
           'merged_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File(path.join(dirPath, fileName));
-      await file.writeAsBytes(mergedBytes);
-
-      return file.path;
+      final targetPath = path.join(dirPath, fileName);
+      return await FileService().safeWriteBytes(targetPath, mergedBytes);
     } catch (e) {
       throw Exception('Failed to merge PDFs: $e');
     } finally {
@@ -276,10 +275,8 @@ class PdfService {
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName =
           'split_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final outputFile = File(path.join(dirPath, fileName));
-      await outputFile.writeAsBytes(outputBytes);
-
-      return outputFile.path;
+      final targetPath = path.join(dirPath, fileName);
+      return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
       throw Exception('Failed to split PDF: $e');
     } finally {
@@ -295,11 +292,8 @@ class PdfService {
       final output = await getApplicationDocumentsDirectory();
       final fileName =
           'compressed_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final file = File(path.join(output.path, fileName));
-
-      // For now, copy the file
-      await File(pdfPath).copy(file.path);
-      return file.path;
+      final targetPath = path.join(output.path, fileName);
+      return await FileService().safeCopyFile(pdfPath, targetPath);
     } catch (e) {
       throw Exception('Failed to compress PDF: $e');
     }
@@ -369,10 +363,9 @@ class PdfService {
         
         final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
         final fileName = 'rotated_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final outputFile = File(path.join(dirPath, fileName));
-        await outputFile.writeAsBytes(outputBytes);
+        final targetPath = path.join(dirPath, fileName);
         
-        return outputFile.path;
+        return await FileService().safeWriteBytes(targetPath, outputBytes);
       } finally {
         document.dispose();
       }
@@ -388,6 +381,7 @@ class PdfService {
     required double opacity,
     required double angle, // in radians
     required Color color,
+    String? customOutputPath,
   }) async {
     try {
       final file = File(pdfPath);
@@ -462,12 +456,11 @@ class PdfService {
         // Save watermarked PDF
         final List<int> outputBytes = await document.save();
 
-        final output = await getApplicationDocumentsDirectory();
+        final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
         final fileName = 'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
-        final outputFile = File(path.join(output.path, fileName));
-        await outputFile.writeAsBytes(outputBytes);
+        final targetPath = path.join(dirPath, fileName);
 
-        return outputFile.path;
+        return await FileService().safeWriteBytes(targetPath, outputBytes);
       } finally {
         document.dispose();
       }
@@ -556,10 +549,9 @@ class PdfService {
       final List<int> outputBytes = await document.save();
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName = 'edited_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final outputFile = File(path.join(dirPath, fileName));
-      await outputFile.writeAsBytes(outputBytes);
+      final targetPath = path.join(dirPath, fileName);
 
-      return outputFile.path;
+      return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
       throw Exception('Failed to save edited PDF: $e');
     } finally {
