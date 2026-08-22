@@ -50,6 +50,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         type: FileType.custom,
         allowedExtensions: ['pdf'],
       );
+      if (result == null || result.files.isEmpty || result.files.single.path == null) return;
       setState(() {
         _loading = true;
         _pdfFile = null;
@@ -551,15 +552,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     final double height = (ann.height * c.maxHeight).clamp(15.0, c.maxHeight);
 
     return Positioned(
-                  fontWeight: ann.bold ? FontWeight.bold : FontWeight.normal, color: ann.color))
-              : (ann.imageBytes != null && ann.imageBytes!.isNotEmpty
-                  ? Image.memory(ann.imageBytes!, fit: BoxFit.contain)
-                  : const SizedBox.shrink()),
-=======
-      left: ann.x * c.maxWidth,
-      top: ann.y * c.maxHeight,
-      width: ann.width * c.maxWidth,
-      height: ann.height * c.maxHeight,
+      left: left,
+      top: top,
+      width: width,
+      height: height,
       child: GestureDetector(
         onTap: _editMode
             ? () => setState(() {
@@ -574,8 +570,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             : null,
         onPanUpdate: _editMode
             ? (details) => setState(() {
-                  ann.x = (ann.x + details.delta.dx / c.maxWidth).clamp(0.0, 1.0 - ann.width);
-                  ann.y = (ann.y + details.delta.dy / c.maxHeight).clamp(0.0, 1.0 - ann.height);
+                  ann.x = (ann.x + details.delta.dx / c.maxWidth).clamp(0.0, 1.0 - (ann.width.clamp(0.01, 1.0)));
+                  ann.y = (ann.y + details.delta.dy / c.maxHeight).clamp(0.0, 1.0 - (ann.height.clamp(0.01, 1.0)));
                 })
             : null,
         child: Container(
@@ -607,7 +603,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                           ),
                         ),
                       )
-                    : Image.memory(ann.imageBytes!, fit: BoxFit.contain),
+                    : (ann.imageBytes != null && ann.imageBytes!.isNotEmpty
+                        ? Image.memory(ann.imageBytes!, fit: BoxFit.contain)
+                        : const SizedBox.shrink()),
               ),
               if (isSel && _editMode)
                 Positioned(
@@ -630,7 +628,6 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 ),
             ],
           ),
->>>>>>> origin/feature/pdf-editor-ui-improvements
         ),
       ),
     );
@@ -870,7 +867,6 @@ class _TextToolbar extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
               ),
             ],
->>>>>>> origin/feature/pdf-editor-ui-improvements
           ),
           const SizedBox(height: 6),
 

@@ -168,6 +168,10 @@ ThemeData get darkTheme => ThemeData(
       borderSide: const BorderSide(color: kPrimaryDark, width: 1.8),
     ),
     hintStyle: const TextStyle(color: Color(0xFF4B5563)),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  ),
+);
+
 // ── Entry point ───────────────────────────────────────────────────────────
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

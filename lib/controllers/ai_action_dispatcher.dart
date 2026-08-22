@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
@@ -10,6 +13,9 @@ enum AiActionType {
   watermark,
   split,
   protect,
+  merge,
+  compress,
+  pdfToText,
   none,
 }
 
@@ -38,13 +44,22 @@ class AiActionDispatcher {
   AiActionType detectActionType(String input) {
     final lower = input.toLowerCase();
 
+    if (lower.contains('merge') || lower.contains('combine') || lower.contains('join pdf')) {
+      return AiActionType.merge;
+    }
+    if (lower.contains('compress') || lower.contains('reduce size') || lower.contains('shrink')) {
+      return AiActionType.compress;
+    }
+    if (lower.contains('extract text') || lower.contains('to text') || lower.contains('convert to txt') || lower.contains('to txt')) {
+      return AiActionType.pdfToText;
+    }
     if (lower.contains('rotate') || lower.contains('turn') || lower.contains('orientation')) {
       return AiActionType.rotate;
     }
     if (lower.contains('watermark') || lower.contains('stamp') || lower.contains('confidential') || lower.contains('draft')) {
       return AiActionType.watermark;
     }
-    if (lower.contains('split') || lower.contains('extract page') || lower.contains('pages from')) {
+    if (lower.contains('split') || lower.contains('extract page') || lower.contains('pages from') || lower.contains('pages 1')) {
       return AiActionType.split;
     }
     if (lower.contains('protect') || lower.contains('password') || lower.contains('encrypt') || lower.contains('lock pdf')) {
@@ -52,6 +67,46 @@ class AiActionDispatcher {
     }
 
     return AiActionType.none;
+  }
+
+  /// Executes a multi-document merge action
+  Future<AiActionResult> executeMultiDocAction({
+    required List<String> pdfPaths,
+    required String command,
+  }) async {
+    if (pdfPaths.length < 2) {
+      return AiActionResult(
+        type: AiActionType.merge,
+        isSuccess: false,
+        message: 'Please attach at least 2 PDF files to merge.',
+      );
+    }
+    try {
+      final outputPath = await _pdfService.mergePdfs(pdfPaths);
+      final title = 'AI Merge (${pdfPaths.length} PDFs)';
+      try {
+        await _storageService.addHistoryEntry(HistoryEntry(
+          id: _uuid.v4(),
+          title: title,
+          date: DateTime.now(),
+          filePath: outputPath,
+          toolType: 'ai_merge',
+        ));
+      } catch (_) {}
+      return AiActionResult(
+        type: AiActionType.merge,
+        isSuccess: true,
+        message: 'Successfully merged ${pdfPaths.length} PDFs into a single document!',
+        outputPath: outputPath,
+        actionTitle: title,
+      );
+    } catch (e) {
+      return AiActionResult(
+        type: AiActionType.merge,
+        isSuccess: false,
+        message: 'Failed to merge PDFs: $e',
+      );
+    }
   }
 
   /// Executes an action command on a loaded PDF file
@@ -71,6 +126,12 @@ class AiActionDispatcher {
         return _handleSplit(pdfPath, lower);
       case AiActionType.protect:
         return _handleProtect(pdfPath, command);
+      case AiActionType.compress:
+        return _handleCompress(pdfPath);
+      case AiActionType.pdfToText:
+        return _handlePdfToText(pdfPath);
+      case AiActionType.merge:
+        return executeMultiDocAction(pdfPaths: [pdfPath], command: command);
       case AiActionType.none:
         return AiActionResult(
           type: AiActionType.none,
@@ -257,6 +318,64 @@ class AiActionDispatcher {
         type: AiActionType.protect,
         isSuccess: false,
         message: 'Failed to protect PDF: $e',
+      );
+    }
+  }
+
+  Future<AiActionResult> _handleCompress(String pdfPath) async {
+    try {
+      final outputPath = await _pdfService.compressPdf(pdfPath);
+      final title = 'AI Compress · ${FileService().getFileName(pdfPath)}';
+      try {
+        await _storageService.addHistoryEntry(HistoryEntry(
+          id: _uuid.v4(),
+          title: title,
+          date: DateTime.now(),
+          filePath: outputPath,
+          toolType: 'ai_compress',
+        ));
+      } catch (_) {}
+      return AiActionResult(
+        type: AiActionType.compress,
+        isSuccess: true,
+        message: 'Successfully compressed PDF document!',
+        outputPath: outputPath,
+        actionTitle: title,
+      );
+    } catch (e) {
+      return AiActionResult(
+        type: AiActionType.compress,
+        isSuccess: false,
+        message: 'Failed to compress PDF: $e',
+      );
+    }
+  }
+
+  Future<AiActionResult> _handlePdfToText(String pdfPath) async {
+    try {
+      final txtPath = await _pdfService.convertPdfToTxt(pdfPath: pdfPath);
+      final title = 'AI Text Extraction · ${FileService().getFileName(pdfPath)}';
+      try {
+        await _storageService.addHistoryEntry(HistoryEntry(
+          id: _uuid.v4(),
+          title: title,
+          date: DateTime.now(),
+          filePath: txtPath,
+          toolType: 'ai_pdf_to_text',
+        ));
+      } catch (_) {}
+      return AiActionResult(
+        type: AiActionType.pdfToText,
+        isSuccess: true,
+        message: 'Successfully extracted text layer from PDF!',
+        outputPath: txtPath,
+        actionTitle: title,
+      );
+    } catch (e) {
+      return AiActionResult(
+        type: AiActionType.pdfToText,
+        isSuccess: false,
+        message: 'Failed to extract text from PDF: $e',
       );
     }
   }

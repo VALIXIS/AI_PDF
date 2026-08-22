@@ -26,6 +26,27 @@ class AiController {
     );
   }
 
+  /// Processes multi-document commands (e.g. merging 2+ PDFs)
+  Future<AiActionResult?> processMultiDocumentAction({
+    required List<String> pdfPaths,
+    required String command,
+  }) async {
+    final type = _actionDispatcher.detectActionType(command);
+    if (type == AiActionType.merge && pdfPaths.length >= 2) {
+      return await _actionDispatcher.executeMultiDocAction(
+        pdfPaths: pdfPaths,
+        command: command,
+      );
+    }
+    if (pdfPaths.isNotEmpty) {
+      return await processDocumentAction(
+        pdfPath: pdfPaths.last,
+        command: command,
+      );
+    }
+    return null;
+  }
+
   /// Processes text with selected AI mode using Hugging Face API
   /// 
   /// Sends text to Hugging Face for processing and returns the generated result.

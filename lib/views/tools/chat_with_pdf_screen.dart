@@ -46,6 +46,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
   final StorageService _storageService = StorageService();
 
   File? _pdfFile;
+  final List<File> _attachedFiles = [];
   String? _pdfText;
   int _pageCount = 1;
   bool _isLoadingPdf = false;
@@ -54,11 +55,13 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
   final List<ChatMessage> _messages = [];
 
   final List<String> _quickPrompts = [
-    'Rotate this PDF 90 degrees',
+    'Merge attached PDFs',
+    'Split pages 1 to 3',
+    'Compress this PDF',
+    'Extract text from PDF',
+    'Rotate 90 degrees',
     'Add watermark "CONFIDENTIAL"',
-    'Split pages 1 to 2',
     'Summarize this document',
-    'List 5 key takeaways',
   ];
 
   @override
@@ -82,9 +85,19 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
+        allowMultiple: true,
       );
-      if (result == null || result.files.single.path == null) return;
-      await _loadPdfFromPath(result.files.single.path!);
+      if (result == null || result.files.isEmpty) return;
+
+      for (final f in result.files) {
+        if (f.path != null && !_attachedFiles.any((file) => file.path == f.path)) {
+          _attachedFiles.add(File(f.path!));
+        }
+      }
+
+      if (_attachedFiles.isNotEmpty) {
+        await _loadPdfFromPath(_attachedFiles.last.path);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -112,13 +125,16 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       if (!mounted) return;
       setState(() {
         _pdfFile = File(path);
+        if (!_attachedFiles.any((file) => file.path == path)) {
+          _attachedFiles.add(File(path));
+        }
         _pdfText = cachedData.textContent;
         _pageCount = cachedData.pageCount;
         _isLoadingPdf = false;
         if (_messages.isEmpty) {
           _messages.add(ChatMessage(
             id: UniqueKey().toString(),
-            text: 'Hello! I am your Autonomous AI PDF Agent. I have loaded "${FileService().getFileName(path)}". Ask me questions or command me to edit, rotate, watermark, split, or protect your PDF!',
+            text: 'Hello! I am your Autonomous AI PDF Agent. I have loaded "${FileService().getFileName(path)}". Ask me questions or command me to merge, split, compress, extract text, rotate, watermark, or protect your PDF!',
             isUser: false,
             timestamp: DateTime.now(),
           ));
@@ -137,9 +153,9 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     final text = (customPrompt ?? _inputController.text).trim();
     if (text.isEmpty) return;
 
-    if (_pdfFile == null || _pdfText == null) {
+    if (_attachedFiles.isEmpty && _pdfFile == null) {
       setState(() {
-        _errorMessage = 'Please select a PDF document first before chatting.';
+        _errorMessage = 'Please select or attach at least one PDF document first.';
       });
       return;
     }
@@ -161,9 +177,12 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     _scrollToBottom();
 
     try {
-      // 1. Check if user command triggers a PDF tool action
-      final actionResult = await _aiController.processDocumentAction(
-        pdfPath: _pdfFile!.path,
+      final pdfPaths = _attachedFiles.map((f) => f.path).toList();
+      if (pdfPaths.isEmpty && _pdfFile != null) pdfPaths.add(_pdfFile!.path);
+
+      // 1. Check if user command triggers a PDF tool action (Merge, Split, Compress, Extract, Rotate, Watermark, Protect)
+      final actionResult = await _aiController.processMultiDocumentAction(
+        pdfPaths: pdfPaths,
         command: text,
       );
 
@@ -183,7 +202,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       } else {
         // 2. Default to Document Q&A / Summarization
         final answer = await _aiController.askDocumentQuestion(
-          pdfText: _pdfText!,
+          pdfText: _pdfText ?? 'Document contents ready.',
           question: text,
         );
 
@@ -382,6 +401,9 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
   }
 
   Widget _buildDocumentHeader(Color primary, Color cardBg, Color border, bool isDark) {
+    final count = _attachedFiles.length;
+    final fileNames = _attachedFiles.map((f) => FileService().getFileName(f.path)).join(', ');
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       padding: const EdgeInsets.all(12),
@@ -398,7 +420,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
               color: primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.picture_as_pdf_rounded, color: primary, size: 24),
+            child: Icon(count > 1 ? Icons.copy_rounded : Icons.picture_as_pdf_rounded, color: primary, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -406,22 +428,23 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  FileService().getFileName(_pdfFile!.path),
+                  count > 1 ? '$count PDFs Attached' : FileService().getFileName(_pdfFile!.path),
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$_pageCount Pages • ${(_pdfFile!.lengthSync() / 1024).toStringAsFixed(1)} KB',
+                  count > 1 ? fileNames : '$_pageCount Pages • ${(_pdfFile!.lengthSync() / 1024).toStringAsFixed(1)} KB',
                   style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           OutlinedButton.icon(
             onPressed: _pickPdf,
-            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
-            label: const Text('Change', style: TextStyle(fontSize: 12)),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: Text(count > 1 ? 'Add PDF' : 'Attach', style: const TextStyle(fontSize: 12)),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             ),

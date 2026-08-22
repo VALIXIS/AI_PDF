@@ -4,8 +4,18 @@ import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 
+import 'package:flutter/services.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  const MethodChannel channel = MethodChannel('plugins.flutter.io/path_provider');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+    channel,
+    (MethodCall methodCall) async {
+      return Directory.systemTemp.path;
+    },
+  );
 
   group('Centralized AppException Suite', () {
     test('PdfServiceException formats code and details correctly', () {

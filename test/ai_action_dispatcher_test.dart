@@ -18,11 +18,14 @@ void main() {
   group('AiActionDispatcher Unit Tests', () {
     final dispatcher = AiActionDispatcher();
 
-    test('detectActionType identifies rotate, watermark, split, and protect intents', () {
+    test('detectActionType identifies rotate, watermark, split, protect, merge, compress, and pdfToText intents', () {
       expect(dispatcher.detectActionType('Rotate this PDF by 90 degrees'), equals(AiActionType.rotate));
       expect(dispatcher.detectActionType('Add a watermark saying DRAFT'), equals(AiActionType.watermark));
       expect(dispatcher.detectActionType('Split pages 1 to 3'), equals(AiActionType.split));
       expect(dispatcher.detectActionType('Protect this PDF with password secret123'), equals(AiActionType.protect));
+      expect(dispatcher.detectActionType('Merge attached PDFs'), equals(AiActionType.merge));
+      expect(dispatcher.detectActionType('Compress this PDF'), equals(AiActionType.compress));
+      expect(dispatcher.detectActionType('Extract text from PDF'), equals(AiActionType.pdfToText));
       expect(dispatcher.detectActionType('What is the summary of page 2?'), equals(AiActionType.none));
     });
 
