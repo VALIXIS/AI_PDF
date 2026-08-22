@@ -473,7 +473,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
       return;
     }
-    Share.shareXFiles([XFile(entry.filePath)], text: 'Check out this PDF document: ${entry.title}');
+    try {
+      await Share.shareXFiles([XFile(entry.filePath)], text: 'Check out this PDF document: ${entry.title}');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not share file: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   String _getToolLabel(String toolType) {
