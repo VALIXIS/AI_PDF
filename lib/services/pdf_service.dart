@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 
 class PdfService {
   /// Generates a PDF from formatted text
@@ -286,17 +287,53 @@ class PdfService {
     }
   }
 
-  /// Compresses a PDF (placeholder)
-  Future<String> compressPdf(String pdfPath) async {
+  /// Compresses a PDF file using high-efficiency stream compression and page re-rendering
+  Future<String> compressPdf(String pdfPath, {String? customOutputPath}) async {
+    final file = File(pdfPath);
+    if (!await file.exists()) {
+      throw PdfServiceException('Input file not found for compression: $pdfPath');
+    }
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw PdfServiceException('Input PDF file is empty: $pdfPath');
+    }
+
+    syncfusion.PdfDocument? sourceDoc;
+    syncfusion.PdfDocument? outputDoc;
+
     try {
-      // Placeholder implementation
-      final output = await getApplicationDocumentsDirectory();
-      final fileName =
-          'compressed_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final targetPath = path.join(output.path, fileName);
-      return await FileService().safeCopyFile(pdfPath, targetPath);
+      sourceDoc = syncfusion.PdfDocument(inputBytes: bytes);
+      outputDoc = syncfusion.PdfDocument();
+      outputDoc.compressionLevel = syncfusion.PdfCompressionLevel.best;
+
+      for (int i = 0; i < sourceDoc.pages.count; i++) {
+        final syncfusion.PdfPage sourcePage = sourceDoc.pages[i];
+        final syncfusion.PdfTemplate template = sourcePage.createTemplate();
+
+        final syncfusion.PdfSection section = outputDoc.sections!.add();
+        section.pageSettings.size = sourcePage.size;
+        section.pageSettings.margins.all = 0;
+        section.pageSettings.rotate = sourcePage.rotation;
+
+        final syncfusion.PdfPage newPage = section.pages.add();
+        newPage.graphics.drawPdfTemplate(
+          template,
+          Offset.zero,
+          sourcePage.size,
+        );
+      }
+
+      final List<int> outputBytes = outputDoc.saveSync();
+      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName = 'compressed_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final targetPath = path.join(dirPath, fileName);
+      return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
-      throw Exception('Failed to compress PDF: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to compress PDF: $e', details: e);
+    } finally {
+      sourceDoc?.dispose();
+      outputDoc?.dispose();
     }
   }
 

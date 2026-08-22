@@ -6,6 +6,7 @@ import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/views/home/home_screen.dart';
 import 'package:pdf_ai_toolkit/views/history/history_screen.dart';
 import 'package:pdf_ai_toolkit/views/settings/settings_screen.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
 
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _mode = ThemeMode.light;
@@ -167,10 +168,6 @@ ThemeData get darkTheme => ThemeData(
       borderSide: const BorderSide(color: kPrimaryDark, width: 1.8),
     ),
     hintStyle: const TextStyle(color: Color(0xFF4B5563)),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-  ),
-);
-
 // ── Entry point ───────────────────────────────────────────────────────────
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -178,6 +175,10 @@ void main() async {
   await Hive.initFlutter();
   Hive.registerAdapter(HistoryEntryAdapter());
   await Hive.openBox<HistoryEntry>('historyBox');
+  
+  // Asynchronous background cleanup of orphaned temporary working files
+  FileService().cleanOrphanedTempFiles();
+
   runApp(const PdfAiToolkitApp());
 }
 
