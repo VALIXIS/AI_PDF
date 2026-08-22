@@ -5,6 +5,7 @@ import 'package:pdf_ai_toolkit/views/tools/merge_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/text_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_text_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/camera_scan_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 void main() {
@@ -251,6 +252,17 @@ void main() {
       expect(find.byType(ToolEmptyState), findsOneWidget);
       expect(find.text('No Scanned Pages Yet'), findsOneWidget);
       expect(find.text('Start Scanning'), findsOneWidget);
+    });
+
+    testWidgets('PdfEditorScreen displays empty state when no PDF file selected', (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: PdfEditorScreen(),
+      ));
+
+      expect(find.byType(ToolEmptyState), findsOneWidget);
+      expect(find.text('Open a PDF to Edit'), findsOneWidget);
+      expect(find.text('Choose PDF File'), findsOneWidget);
+    });
     });
   });
 }
