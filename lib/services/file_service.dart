@@ -294,6 +294,17 @@ class FileService {
     }
     return deletedCount;
   }
+
+  /// Public entrypoint for cleaning up orphaned application temporary files.
+  Future<int> cleanOrphanedTempFiles() async {
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final tempDir = await getTemporaryDirectory();
+      return await cleanupTempResources([docDir.path, tempDir.path]);
+    } catch (_) {
+      return 0;
+    }
+  }
 }
 
 
