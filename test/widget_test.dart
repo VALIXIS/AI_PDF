@@ -4,6 +4,7 @@ import 'package:pdf_ai_toolkit/main.dart';
 import 'package:pdf_ai_toolkit/views/tools/merge_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/text_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_text_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/camera_scan_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 void main() {
@@ -240,6 +241,16 @@ void main() {
 
       expect(find.byType(ToolEmptyState), findsOneWidget);
       expect(find.text('No PDF Selected'), findsOneWidget);
+    });
+
+    testWidgets('CameraScanScreen displays empty state when no scanned pages', (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: CameraScanScreen(),
+      ));
+
+      expect(find.byType(ToolEmptyState), findsOneWidget);
+      expect(find.text('No Scanned Pages Yet'), findsOneWidget);
+      expect(find.text('Start Scanning'), findsOneWidget);
     });
   });
 }
