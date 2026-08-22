@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
+import 'dart:convert';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
@@ -564,6 +565,48 @@ class PdfService {
       throw Exception('Failed to save edited PDF: $e');
     } finally {
       document?.dispose();
+    }
+  }
+
+  /// Extracts text from a PDF document and saves it as a TXT file
+  Future<String> convertPdfToTxt({
+    required String pdfPath,
+    String? customOutputPath,
+  }) async {
+    try {
+      final file = File(pdfPath);
+      if (!await file.exists()) {
+        throw Exception('Input file does not exist');
+      }
+
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        throw Exception('Input PDF file is empty');
+      }
+
+      // Load existing document
+      final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
+      
+      try {
+        final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(document);
+        final String extractedText = extractor.extractText();
+        
+        if (extractedText.trim().isEmpty) {
+          throw Exception('No extractable text found in the PDF. Scanned or image-only PDFs are not supported.');
+        }
+
+        // Save extracted text to a .txt file
+        final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+        final fileName = 'extracted_${DateTime.now().millisecondsSinceEpoch}.txt';
+        final outputFile = File(path.join(dirPath, fileName));
+        await outputFile.writeAsString(extractedText, encoding: utf8);
+
+        return outputFile.path;
+      } finally {
+        document.dispose();
+      }
+    } catch (e) {
+      throw Exception('Failed to extract text: $e');
     }
   }
 }
