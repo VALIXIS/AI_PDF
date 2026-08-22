@@ -10,8 +10,10 @@ void main() {
     final aiService = AiService();
     final aiController = AiController();
 
-    test('askPdfQuestion generates structured answer from PDF context', () async {
-      const pdfContext = 'Project Antigravity is an AI coding assistant designed by Google DeepMind.';
+    test('askPdfQuestion generates structured answer from PDF context',
+        () async {
+      const pdfContext =
+          'Project Antigravity is an AI coding assistant designed by Google DeepMind.';
       const question = 'What is Project Antigravity?';
 
       final answer = await aiService.askPdfQuestion(
@@ -23,16 +25,19 @@ void main() {
       expect(answer, contains('Project Antigravity'));
     });
 
-    test('AiController.askDocumentQuestion validates non-empty question', () async {
+    test('AiController.askDocumentQuestion validates non-empty question',
+        () async {
       expect(
-        () => aiController.askDocumentQuestion(pdfText: 'Sample text', question: '  '),
+        () => aiController.askDocumentQuestion(
+            pdfText: 'Sample text', question: '  '),
         throwsException,
       );
     });
   });
 
   group('ChatWithPdfScreen UI & State Tests', () {
-    testWidgets('ChatWithPdfScreen displays empty state when no PDF selected', (WidgetTester tester) async {
+    testWidgets('ChatWithPdfScreen displays empty state when no PDF selected',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: ChatWithPdfScreen(),
       ));
@@ -43,7 +48,8 @@ void main() {
       expect(find.text('Select PDF Document'), findsOneWidget);
     });
 
-    testWidgets('ChatWithPdfScreen header displays title and change button', (WidgetTester tester) async {
+    testWidgets('ChatWithPdfScreen header displays title and change button',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: ChatWithPdfScreen(),
       ));

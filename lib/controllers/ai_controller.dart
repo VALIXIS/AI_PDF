@@ -48,7 +48,7 @@ class AiController {
   }
 
   /// Processes text with selected AI mode using Hugging Face API
-  /// 
+  ///
   /// Sends text to Hugging Face for processing and returns the generated result.
   /// Validates input and falls back gracefully on errors.
   Future<String> processText({
@@ -91,10 +91,11 @@ class AiController {
     return [AiMode.notes, AiMode.summary, AiMode.clean];
   }
 
-  /// Answers a question about a PDF document
+  /// Answers a question about a PDF document with optional conversation history context
   Future<String> askDocumentQuestion({
     required String pdfText,
     required String question,
+    String? conversationHistory,
   }) async {
     try {
       if (question.trim().isEmpty) {
@@ -103,11 +104,38 @@ class AiController {
       return await _aiService.askPdfQuestion(
         pdfText: pdfText,
         question: question.trim(),
+        conversationHistory: conversationHistory,
       );
     } catch (e) {
       throw Exception('Failed to get answer: $e');
     }
   }
+
+  /// Compares multiple PDF documents and answers user request
+  Future<String> compareDocuments({
+    required List<String> docTexts,
+    required String question,
+    String? conversationHistory,
+  }) async {
+    try {
+      if (question.trim().isEmpty) {
+        throw Exception('Question cannot be empty');
+      }
+      if (docTexts.isEmpty) {
+        throw Exception('Document list cannot be empty');
+      }
+      return await _aiService.compareDocuments(
+        docTexts: docTexts,
+        question: question.trim(),
+        conversationHistory: conversationHistory,
+      );
+    } catch (e) {
+      throw Exception('Failed to compare documents: $e');
+    }
+  }
+
+  /// Active AI provider name
+  String get activeProviderName => _aiService.activeProviderName;
 
   /// Generates a unique ID for history entries
   String generateId() {

@@ -39,7 +39,8 @@ void main() {
         ),
       );
     }
-    final file = File('$tempDirPath/test_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final file = File(
+        '$tempDirPath/test_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file.path;
   }
@@ -73,15 +74,18 @@ void main() {
       final sf.PdfDocument outputDoc = sf.PdfDocument(inputBytes: outputBytes);
       expect(outputDoc.pages.count, 3);
       for (int i = 0; i < 3; i++) {
-        expect(outputDoc.pages[i].rotation, sf.PdfPageRotateAngle.rotateAngle90);
+        expect(
+            outputDoc.pages[i].rotation, sf.PdfPageRotateAngle.rotateAngle90);
       }
       outputDoc.dispose();
 
       // Verify that original input is unchanged
       final inputBytesAfter = await inputFile.readAsBytes();
-      final sf.PdfDocument inputDocAfter = sf.PdfDocument(inputBytes: inputBytesAfter);
+      final sf.PdfDocument inputDocAfter =
+          sf.PdfDocument(inputBytes: inputBytesAfter);
       for (int i = 0; i < 3; i++) {
-        expect(inputDocAfter.pages[i].rotation, sf.PdfPageRotateAngle.rotateAngle0);
+        expect(inputDocAfter.pages[i].rotation,
+            sf.PdfPageRotateAngle.rotateAngle0);
       }
       inputDocAfter.dispose();
 
@@ -94,10 +98,12 @@ void main() {
       final inputPath = await createTestPdf(pageCount: 1);
 
       // Rotate by 90
-      final path90 = await pdfService.rotatePdf(pdfPath: inputPath, rotationAngle: 90);
-      
+      final path90 =
+          await pdfService.rotatePdf(pdfPath: inputPath, rotationAngle: 90);
+
       // Rotate again by 180 (90 + 180 = 270)
-      final path270 = await pdfService.rotatePdf(pdfPath: path90, rotationAngle: 180);
+      final path270 =
+          await pdfService.rotatePdf(pdfPath: path90, rotationAngle: 180);
 
       final file270 = File(path270);
       final bytes270 = await file270.readAsBytes();

@@ -40,14 +40,16 @@ void main() {
         ),
       );
     }
-    final file = File('$tempDirPath/test_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final file = File(
+        '$tempDirPath/test_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file.path;
   }
 
   group('PDF to TXT Conversion Tests', () {
     test('Successfully extracts text from single-page PDF', () async {
-      final inputPath = await createTestPdf(pageTexts: ['Hello World PDF Text']);
+      final inputPath =
+          await createTestPdf(pageTexts: ['Hello World PDF Text']);
       final inputFile = File(inputPath);
       final inputLength = await inputFile.length();
 
@@ -69,7 +71,8 @@ void main() {
       await outputFile.delete();
     });
 
-    test('Successfully extracts text from multi-page PDF preserving sequence', () async {
+    test('Successfully extracts text from multi-page PDF preserving sequence',
+        () async {
       final inputPath = await createTestPdf(pageTexts: [
         'First Page Content Text',
         'Second Page Content Text',
@@ -83,7 +86,7 @@ void main() {
 
       final content = await outputFile.readAsString();
       final normalizedContent = content.replaceAll(RegExp(r'\s+'), ' ').trim();
-      
+
       // Check for content presence
       expect(normalizedContent.contains('First Page Content Text'), true);
       expect(normalizedContent.contains('Second Page Content Text'), true);
@@ -103,8 +106,9 @@ void main() {
     });
 
     test('Successfully extracts Unicode/special characters', () async {
-      final inputPath = await createTestPdf(pageTexts: ['éàüößçñ Unicode Text']);
-      
+      final inputPath =
+          await createTestPdf(pageTexts: ['éàüößçñ Unicode Text']);
+
       final outputPath = await pdfService.convertPdfToTxt(pdfPath: inputPath);
       final outputFile = File(outputPath);
 
@@ -119,7 +123,9 @@ void main() {
       await outputFile.delete();
     });
 
-    test('Throws exception on empty/no-text PDF (simulating scanned/image-only PDF)', () async {
+    test(
+        'Throws exception on empty/no-text PDF (simulating scanned/image-only PDF)',
+        () async {
       // Create a PDF with only an empty page (no text widgets)
       final pdf = pw.Document();
       pdf.addPage(
@@ -130,7 +136,8 @@ void main() {
           },
         ),
       );
-      final inputPath = '$tempDirPath/empty_page_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final inputPath =
+          '$tempDirPath/empty_page_${DateTime.now().millisecondsSinceEpoch}.pdf';
       await File(inputPath).writeAsBytes(await pdf.save());
 
       expect(
@@ -144,13 +151,15 @@ void main() {
 
     test('Throws exception on missing input PDF file', () async {
       expect(
-        () async => await pdfService.convertPdfToTxt(pdfPath: '$tempDirPath/non_existent.pdf'),
+        () async => await pdfService.convertPdfToTxt(
+            pdfPath: '$tempDirPath/non_existent.pdf'),
         throwsA(isA<Exception>()),
       );
     });
 
     test('Throws exception on corrupt PDF file', () async {
-      final corruptFile = File('$tempDirPath/corrupt_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final corruptFile = File(
+          '$tempDirPath/corrupt_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await corruptFile.writeAsString('This is not a PDF file');
 
       expect(
@@ -163,7 +172,8 @@ void main() {
     });
 
     test('Throws exception on empty input PDF file', () async {
-      final emptyFile = File('$tempDirPath/empty_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final emptyFile = File(
+          '$tempDirPath/empty_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await emptyFile.writeAsBytes([]);
 
       expect(

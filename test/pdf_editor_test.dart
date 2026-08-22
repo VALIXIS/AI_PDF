@@ -16,17 +16,137 @@ void main() {
 
   // Valid 1x1 JPEG image bytes
   final Uint8List sampleImageBytes = Uint8List.fromList([
-    0xFF, 0xD8, 0xFF, 0xDB, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06,
-    0x05, 0x08, 0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D,
-    0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12, 0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F,
-    0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20, 0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C,
-    0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29, 0x2C, 0x30, 0x31, 0x34, 0x34, 0x34,
-    0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32, 0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF,
-    0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00,
-    0xFF, 0xC4, 0x00, 0x1F, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01, 0x01, 0x01,
-    0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02,
-    0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0xFF, 0xDA, 0x00,
-    0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0xBF, 0x00, 0xFF, 0xD9,
+    0xFF,
+    0xD8,
+    0xFF,
+    0xDB,
+    0x00,
+    0x43,
+    0x00,
+    0x08,
+    0x06,
+    0x06,
+    0x07,
+    0x06,
+    0x05,
+    0x08,
+    0x07,
+    0x07,
+    0x07,
+    0x09,
+    0x09,
+    0x08,
+    0x0A,
+    0x0C,
+    0x14,
+    0x0D,
+    0x0C,
+    0x0B,
+    0x0B,
+    0x0C,
+    0x19,
+    0x12,
+    0x13,
+    0x0F,
+    0x14,
+    0x1D,
+    0x1A,
+    0x1F,
+    0x1E,
+    0x1D,
+    0x1A,
+    0x1C,
+    0x1C,
+    0x20,
+    0x24,
+    0x2E,
+    0x27,
+    0x20,
+    0x22,
+    0x2C,
+    0x23,
+    0x1C,
+    0x1C,
+    0x28,
+    0x37,
+    0x29,
+    0x2C,
+    0x30,
+    0x31,
+    0x34,
+    0x34,
+    0x34,
+    0x1F,
+    0x27,
+    0x39,
+    0x3D,
+    0x38,
+    0x32,
+    0x3C,
+    0x2E,
+    0x33,
+    0x34,
+    0x32,
+    0xFF,
+    0xC0,
+    0x00,
+    0x0B,
+    0x08,
+    0x00,
+    0x01,
+    0x00,
+    0x01,
+    0x01,
+    0x01,
+    0x11,
+    0x00,
+    0xFF,
+    0xC4,
+    0x00,
+    0x1F,
+    0x00,
+    0x00,
+    0x01,
+    0x05,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x02,
+    0x03,
+    0x04,
+    0x05,
+    0x06,
+    0x07,
+    0x08,
+    0x09,
+    0x0A,
+    0x0B,
+    0xFF,
+    0xDA,
+    0x00,
+    0x08,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    0x3F,
+    0x00,
+    0xBF,
+    0x00,
+    0xFF,
+    0xD9,
   ]);
 
   setUpAll(() async {
@@ -68,7 +188,9 @@ void main() {
   }
 
   group('PDF Editor Non-Destructive Save Tests', () {
-    test('Test 1 — Open and save without edits preserves original content, dimensions, and text', () async {
+    test(
+        'Test 1 — Open and save without edits preserves original content, dimensions, and text',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'no_edits_source.pdf',
         pageCount: 3,
@@ -94,21 +216,26 @@ void main() {
 
       // Verify page dimensions are preserved
       for (int i = 0; i < savedDoc.pages.count; i++) {
-        expect(savedDoc.pages[i].size.width, closeTo(PdfPageFormat.a4.width, 1));
-        expect(savedDoc.pages[i].size.height, closeTo(PdfPageFormat.a4.height, 1));
+        expect(
+            savedDoc.pages[i].size.width, closeTo(PdfPageFormat.a4.width, 1));
+        expect(
+            savedDoc.pages[i].size.height, closeTo(PdfPageFormat.a4.height, 1));
       }
 
       // Verify original selectable text remains extractable across all pages
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
       for (int i = 0; i < 3; i++) {
-        final pageText = extractor.extractText(startPageIndex: i, endPageIndex: i).replaceAll(RegExp(r'\s+'), ' ');
+        final pageText = extractor
+            .extractText(startPageIndex: i, endPageIndex: i)
+            .replaceAll(RegExp(r'\s+'), ' ');
         expect(pageText, contains('OriginalDoc Page${i + 1} Content'));
       }
 
       savedDoc.dispose();
     });
 
-    test('Test 2 — Add text and image editor modifications non-destructively', () async {
+    test('Test 2 — Add text and image editor modifications non-destructively',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'edit_modification_source.pdf',
         pageCount: 1,
@@ -156,7 +283,9 @@ void main() {
       savedDoc.dispose();
     });
 
-    test('Test 3 — Multi-page PDF: editing one page preserves all other unedited pages', () async {
+    test(
+        'Test 3 — Multi-page PDF: editing one page preserves all other unedited pages',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'multipage_selective_edit.pdf',
         pageCount: 4,
@@ -183,46 +312,58 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(4));
 
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
 
       // Page 1 (index 0) - untouched
-      final p1Text = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      final p1Text = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p1Text, contains('MultiDoc Page1 Content'));
       expect(p1Text, isNot(contains('SpecialNoteOnPageTwo')));
 
       // Page 2 (index 1) - contains original text + new text
-      final p2Text = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
+      final p2Text = extractor
+          .extractText(startPageIndex: 1, endPageIndex: 1)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p2Text, contains('MultiDoc Page2 Content'));
       expect(p2Text, contains('SpecialNoteOnPageTwo'));
 
       // Page 3 (index 2) - untouched
-      final p3Text = extractor.extractText(startPageIndex: 2, endPageIndex: 2).replaceAll(RegExp(r'\s+'), ' ');
+      final p3Text = extractor
+          .extractText(startPageIndex: 2, endPageIndex: 2)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p3Text, contains('MultiDoc Page3 Content'));
 
       // Page 4 (index 3) - untouched
-      final p4Text = extractor.extractText(startPageIndex: 3, endPageIndex: 3).replaceAll(RegExp(r'\s+'), ' ');
+      final p4Text = extractor
+          .extractText(startPageIndex: 3, endPageIndex: 3)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p4Text, contains('MultiDoc Page4 Content'));
 
       savedDoc.dispose();
     });
 
-    test('Test 4 — Different page sizes and orientations are preserved', () async {
+    test('Test 4 — Different page sizes and orientations are preserved',
+        () async {
       final pdf = pw.Document();
       // Page 1: Custom portrait (300 x 500)
       pdf.addPage(
         pw.Page(
           pageFormat: const PdfPageFormat(300, 500),
-          build: (pw.Context context) => pw.Center(child: pw.Text('Portrait Page 1')),
+          build: (pw.Context context) =>
+              pw.Center(child: pw.Text('Portrait Page 1')),
         ),
       );
       // Page 2: Custom landscape (600 x 400)
       pdf.addPage(
         pw.Page(
           pageFormat: const PdfPageFormat(600, 400),
-          build: (pw.Context context) => pw.Center(child: pw.Text('Landscape Page 2')),
+          build: (pw.Context context) =>
+              pw.Center(child: pw.Text('Landscape Page 2')),
         ),
       );
 
@@ -230,8 +371,12 @@ void main() {
       await sourceFile.writeAsBytes(await pdf.save());
 
       final annotations = <int, List<Annotation>>{
-        0: [Annotation.text(id: 't1', x: 0.1, y: 0.1, text: 'AnnotatedPortrait')],
-        1: [Annotation.text(id: 't2', x: 0.1, y: 0.1, text: 'AnnotatedLandscape')],
+        0: [
+          Annotation.text(id: 't1', x: 0.1, y: 0.1, text: 'AnnotatedPortrait')
+        ],
+        1: [
+          Annotation.text(id: 't2', x: 0.1, y: 0.1, text: 'AnnotatedLandscape')
+        ],
       };
 
       final service = PdfService();
@@ -241,7 +386,8 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(2));
 
       // Check dimensions
@@ -253,18 +399,23 @@ void main() {
 
       // Check text extraction
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
-      final p1 = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      final p1 = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p1, contains('Portrait Page 1'));
       expect(p1, contains('AnnotatedPortrait'));
 
-      final p2 = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
+      final p2 = extractor
+          .extractText(startPageIndex: 1, endPageIndex: 1)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p2, contains('Landscape Page 2'));
       expect(p2, contains('AnnotatedLandscape'));
 
       savedDoc.dispose();
     });
 
-    test('Test 5 — Preserves page rotation when editing rotated pages', () async {
+    test('Test 5 — Preserves page rotation when editing rotated pages',
+        () async {
       final normalPdfPath = await createTestPdf(
         filename: 'to_rotate.pdf',
         pageCount: 2,
@@ -279,7 +430,10 @@ void main() {
       );
 
       final annotations = <int, List<Annotation>>{
-        0: [Annotation.text(id: 't-rot', x: 0.2, y: 0.2, text: 'EditedRotatedPage')],
+        0: [
+          Annotation.text(
+              id: 't-rot', x: 0.2, y: 0.2, text: 'EditedRotatedPage')
+        ],
       };
 
       final savedPath = await service.saveEditedPdf(
@@ -288,10 +442,13 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(2));
-      expect(savedDoc.pages[0].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
-      expect(savedDoc.pages[1].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
+      expect(savedDoc.pages[0].rotation,
+          equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
+      expect(savedDoc.pages[1].rotation,
+          equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
 
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
       final text = extractor.extractText().replaceAll(RegExp(r'\s+'), ' ');
@@ -301,7 +458,8 @@ void main() {
       savedDoc.dispose();
     });
 
-    test('Test 6 — Annotation coordinate accuracy and multiple annotations', () async {
+    test('Test 6 — Annotation coordinate accuracy and multiple annotations',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'coord_test.pdf',
         pageCount: 1,
@@ -344,7 +502,8 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(1));
 
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
@@ -356,7 +515,9 @@ void main() {
       savedDoc.dispose();
     });
 
-    test('Test 7 — Error handling: non-existent file, empty file, invalid indices', () async {
+    test(
+        'Test 7 — Error handling: non-existent file, empty file, invalid indices',
+        () async {
       final service = PdfService();
 
       // Non-existent file
@@ -397,7 +558,8 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(1));
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
       final text = extractor.extractText().replaceAll(RegExp(r'\s+'), ' ');
@@ -406,7 +568,9 @@ void main() {
       savedDoc.dispose();
     });
 
-    test('Test 8 — Verifies no full-page rasterization or image background substitution', () async {
+    test(
+        'Test 8 — Verifies no full-page rasterization or image background substitution',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'text_only_doc.pdf',
         pageCount: 2,
@@ -414,7 +578,9 @@ void main() {
       );
 
       final annotations = <int, List<Annotation>>{
-        0: [Annotation.text(id: 'txt-1', x: 0.1, y: 0.8, text: 'AddedFooterText')],
+        0: [
+          Annotation.text(id: 'txt-1', x: 0.1, y: 0.8, text: 'AddedFooterText')
+        ],
       };
 
       final service = PdfService();
@@ -424,13 +590,18 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(2));
 
       // Extract and verify exact textual content on both pages
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
-      final p1Text = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
-      final p2Text = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
+      final p1Text = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
+      final p2Text = extractor
+          .extractText(startPageIndex: 1, endPageIndex: 1)
+          .replaceAll(RegExp(r'\s+'), ' ');
 
       expect(p1Text, contains('VectorDocument Page1 Content'));
       expect(p1Text, contains('AddedFooterText'));
@@ -445,7 +616,9 @@ void main() {
       savedDoc.dispose();
     });
 
-    test('Test 9 — Extreme and edge coordinate mapping (0.0, 0.99, negative, > 1.0)', () async {
+    test(
+        'Test 9 — Extreme and edge coordinate mapping (0.0, 0.99, negative, > 1.0)',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'edge_coords_source.pdf',
         pageCount: 1,
@@ -490,7 +663,8 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(1));
 
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
@@ -502,7 +676,9 @@ void main() {
       savedDoc.dispose();
     });
 
-    test('Test 10 — Handles corrupted or invalid image bytes gracefully without crash', () async {
+    test(
+        'Test 10 — Handles corrupted or invalid image bytes gracefully without crash',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'corrupt_img_source.pdf',
         pageCount: 1,
@@ -535,7 +711,8 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(1));
 
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
@@ -546,7 +723,9 @@ void main() {
       savedDoc.dispose();
     });
 
-    test('Test 11 — Multiple annotations on multiple pages with complete page isolation', () async {
+    test(
+        'Test 11 — Multiple annotations on multiple pages with complete page isolation',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'multi_page_isolation.pdf',
         pageCount: 3,
@@ -556,10 +735,18 @@ void main() {
       final annotations = <int, List<Annotation>>{
         0: [
           Annotation.text(id: 'p0-t1', x: 0.1, y: 0.1, text: 'Page0OnlyText'),
-          Annotation.image(id: 'p0-i1', x: 0.4, y: 0.4, imageBytes: sampleImageBytes),
+          Annotation.image(
+              id: 'p0-i1', x: 0.4, y: 0.4, imageBytes: sampleImageBytes),
         ],
         2: [
-          Annotation.text(id: 'p2-t1', x: 0.2, y: 0.2, text: 'Page2OnlyText', bold: true, fontSize: 22, color: Colors.blue),
+          Annotation.text(
+              id: 'p2-t1',
+              x: 0.2,
+              y: 0.2,
+              text: 'Page2OnlyText',
+              bold: true,
+              fontSize: 22,
+              color: Colors.blue),
         ],
       };
 
@@ -570,25 +757,32 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final savedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(savedDoc.pages.count, equals(3));
 
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
 
       // Page 0 has Page0OnlyText
-      final p0 = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      final p0 = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p0, contains('IsolationDoc Page1 Content'));
       expect(p0, contains('Page0OnlyText'));
       expect(p0, isNot(contains('Page2OnlyText')));
 
       // Page 1 is untouched
-      final p1 = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
+      final p1 = extractor
+          .extractText(startPageIndex: 1, endPageIndex: 1)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p1, contains('IsolationDoc Page2 Content'));
       expect(p1, isNot(contains('Page0OnlyText')));
       expect(p1, isNot(contains('Page2OnlyText')));
 
       // Page 2 has Page2OnlyText
-      final p2 = extractor.extractText(startPageIndex: 2, endPageIndex: 2).replaceAll(RegExp(r'\s+'), ' ');
+      final p2 = extractor
+          .extractText(startPageIndex: 2, endPageIndex: 2)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p2, contains('IsolationDoc Page3 Content'));
       expect(p2, contains('Page2OnlyText'));
       expect(p2, isNot(contains('Page0OnlyText')));
@@ -640,7 +834,8 @@ void main() {
       expect(updatedImg.kind, equals(AnnotationKind.image));
     });
 
-    testWidgets('PdfEditorScreen displays empty state when no PDF loaded', (WidgetTester tester) async {
+    testWidgets('PdfEditorScreen displays empty state when no PDF loaded',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: PdfEditorScreen(),
       ));
@@ -652,5 +847,3 @@ void main() {
     });
   });
 }
-
-

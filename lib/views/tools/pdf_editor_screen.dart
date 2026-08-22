@@ -50,7 +50,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         type: FileType.custom,
         allowedExtensions: ['pdf'],
       );
-      if (result == null || result.files.isEmpty || result.files.single.path == null) return;
+      if (result == null ||
+          result.files.isEmpty ||
+          result.files.single.path == null) return;
       setState(() {
         _loading = true;
         _pdfFile = null;
@@ -223,7 +225,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     final primary = isDark ? kPrimaryDark : kPrimary;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0B0B13) : const Color(0xFFF0F0F5),
+      backgroundColor:
+          isDark ? const Color(0xFF0B0B13) : const Color(0xFFF0F0F5),
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,7 +245,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 '${_totalAnnotationsCount > 0 ? ' • $_totalAnnotationsCount edit${_totalAnnotationsCount > 1 ? 's' : ''}' : ''}',
                 style: TextStyle(
                   fontSize: 11,
-                  color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                  color: isDark
+                      ? const Color(0xFF9CA3AF)
+                      : const Color(0xFF6B7280),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -255,7 +260,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 _editMode ? Icons.edit_off_rounded : Icons.edit_rounded,
                 color: _editMode ? primary : null,
               ),
-              tooltip: _editMode ? 'Switch to View Mode' : 'Switch to Edit Mode',
+              tooltip:
+                  _editMode ? 'Switch to View Mode' : 'Switch to Edit Mode',
               onPressed: () => setState(() {
                 _editMode = !_editMode;
                 _selected = null;
@@ -285,7 +291,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           // Loading Banner
           if (_loading || _saving)
             ToolLoadingBanner(
-              message: _loading ? 'Opening PDF document...' : 'Saving edited PDF...',
+              message:
+                  _loading ? 'Opening PDF document...' : 'Saving edited PDF...',
             ),
 
           // Error Banner
@@ -294,7 +301,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ToolErrorBanner(
                 message: _errorMessage!,
-                onRetry: _pdfFile != null ? (_saving ? _savePdf : _pickPdf) : _pickPdf,
+                onRetry: _pdfFile != null
+                    ? (_saving ? _savePdf : _pickPdf)
+                    : _pickPdf,
                 onDismiss: () => setState(() => _errorMessage = null),
               ),
             ),
@@ -327,7 +336,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 ? ToolEmptyState(
                     icon: Icons.edit_document,
                     title: 'Open a PDF to Edit',
-                    subtitle: 'View document pages, add text & image annotations, and export a clean PDF',
+                    subtitle:
+                        'View document pages, add text & image annotations, and export a clean PDF',
                     actionLabel: 'Choose PDF File',
                     onAction: _loading ? null : _pickPdf,
                   )
@@ -335,7 +345,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           ),
         ],
       ),
-      floatingActionButton: _document != null && _editMode && _activeTool == null
+      floatingActionButton: _document != null &&
+              _editMode &&
+              _activeTool == null
           ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -343,7 +355,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   heroTag: 'img_fab',
                   backgroundColor: const Color(0xFF8B5CF6),
                   tooltip: 'Add Image Annotation',
-                  onPressed: _saving ? null : () => setState(() => _activeTool = 'image'),
+                  onPressed: _saving
+                      ? null
+                      : () => setState(() => _activeTool = 'image'),
                   child: const Icon(Icons.image_rounded, color: Colors.white),
                 ),
                 const SizedBox(height: 8),
@@ -351,8 +365,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   heroTag: 'txt_fab',
                   backgroundColor: primary,
                   tooltip: 'Add Text Annotation',
-                  onPressed: _saving ? null : () => setState(() => _activeTool = 'text'),
-                  child: const Icon(Icons.text_fields_rounded, color: Colors.white),
+                  onPressed: _saving
+                      ? null
+                      : () => setState(() => _activeTool = 'text'),
+                  child: const Icon(Icons.text_fields_rounded,
+                      color: Colors.white),
                 ),
               ],
             )
@@ -393,10 +410,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               const SizedBox(width: 8),
               FilterChip(
                 selected: _editMode,
-                avatar: Icon(Icons.edit_rounded, size: 16, color: _editMode ? Colors.white : null),
+                avatar: Icon(Icons.edit_rounded,
+                    size: 16, color: _editMode ? Colors.white : null),
                 label: Text(
                   'Edit Mode',
-                  style: TextStyle(fontSize: 12, color: _editMode ? Colors.white : null),
+                  style: TextStyle(
+                      fontSize: 12, color: _editMode ? Colors.white : null),
                 ),
                 selectedColor: primary,
                 onSelected: (sel) {
@@ -417,15 +436,18 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                     color: _activeTool == 'text' ? primary : null,
                   ),
                   tooltip: 'Text Tool',
-                  onPressed: () => setState(() => _activeTool = _activeTool == 'text' ? null : 'text'),
+                  onPressed: () => setState(() =>
+                      _activeTool = _activeTool == 'text' ? null : 'text'),
                 ),
                 IconButton(
                   icon: Icon(
                     Icons.image_rounded,
-                    color: _activeTool == 'image' ? const Color(0xFF8B5CF6) : null,
+                    color:
+                        _activeTool == 'image' ? const Color(0xFF8B5CF6) : null,
                   ),
                   tooltip: 'Image Tool',
-                  onPressed: () => setState(() => _activeTool = _activeTool == 'image' ? null : 'image'),
+                  onPressed: () => setState(() =>
+                      _activeTool = _activeTool == 'image' ? null : 'image'),
                 ),
               ],
             ],
@@ -444,7 +466,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 Expanded(
                   child: Text(
                     'Tap anywhere on Page ${_currentPage + 1} to place ${_activeTool == 'text' ? 'text' : 'an image'}',
-                    style: TextStyle(color: primary, fontSize: 13, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                        color: primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700),
                   ),
                 ),
                 GestureDetector(
@@ -456,7 +481,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           ),
 
         // Text Annotation Property Panel
-        if (_editMode && _selected != null && _selected!.kind == AnnotationKind.text)
+        if (_editMode &&
+            _selected != null &&
+            _selected!.kind == AnnotationKind.text)
           _TextToolbar(
             annotation: _selected!,
             controller: _textEditCtrl,
@@ -499,19 +526,25 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         child: LayoutBuilder(
           builder: (ctx, constraints) {
             return GestureDetector(
-              onTapUp: _editMode ? (details) {
-                final rx = (details.localPosition.dx / constraints.maxWidth).clamp(0.0, 0.9);
-                final ry = (details.localPosition.dy / constraints.maxHeight).clamp(0.0, 0.9);
-                if (_activeTool == 'text') {
-                  _addText(rx, ry);
-                } else if (_activeTool == 'image') {
-                  _addImage(rx, ry);
-                } else {
-                  setState(() {
-                    _selected = null;
-                  });
-                }
-              } : null,
+              onTapUp: _editMode
+                  ? (details) {
+                      final rx =
+                          (details.localPosition.dx / constraints.maxWidth)
+                              .clamp(0.0, 0.9);
+                      final ry =
+                          (details.localPosition.dy / constraints.maxHeight)
+                              .clamp(0.0, 0.9);
+                      if (_activeTool == 'text') {
+                        _addText(rx, ry);
+                      } else if (_activeTool == 'image') {
+                        _addImage(rx, ry);
+                      } else {
+                        setState(() {
+                          _selected = null;
+                        });
+                      }
+                    }
+                  : null,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -534,7 +567,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                           )
                         : const SizedBox(),
                   ),
-                  ...(_annotations[pageIdx] ?? []).map((ann) => _buildAnnotationWidget(ann, constraints, primary)),
+                  ...(_annotations[pageIdx] ?? []).map((ann) =>
+                      _buildAnnotationWidget(ann, constraints, primary)),
                 ],
               ),
             );
@@ -544,7 +578,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     );
   }
 
-  Widget _buildAnnotationWidget(Annotation ann, BoxConstraints c, Color primary) {
+  Widget _buildAnnotationWidget(
+      Annotation ann, BoxConstraints c, Color primary) {
     final isSel = _selected?.id == ann.id;
     final double left = (ann.x * c.maxWidth).clamp(0.0, c.maxWidth);
     final double top = (ann.y * c.maxHeight).clamp(0.0, c.maxHeight);
@@ -570,8 +605,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             : null,
         onPanUpdate: _editMode
             ? (details) => setState(() {
-                  ann.x = (ann.x + details.delta.dx / c.maxWidth).clamp(0.0, 1.0 - (ann.width.clamp(0.01, 1.0)));
-                  ann.y = (ann.y + details.delta.dy / c.maxHeight).clamp(0.0, 1.0 - (ann.height.clamp(0.01, 1.0)));
+                  ann.x = (ann.x + details.delta.dx / c.maxWidth)
+                      .clamp(0.0, 1.0 - (ann.width.clamp(0.01, 1.0)));
+                  ann.y = (ann.y + details.delta.dy / c.maxHeight)
+                      .clamp(0.0, 1.0 - (ann.height.clamp(0.01, 1.0)));
                 })
             : null,
         child: Container(
@@ -598,7 +635,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                           ann.text,
                           style: TextStyle(
                             fontSize: ann.fontSize,
-                            fontWeight: ann.bold ? FontWeight.bold : FontWeight.normal,
+                            fontWeight:
+                                ann.bold ? FontWeight.bold : FontWeight.normal,
                             color: ann.color,
                           ),
                         ),
@@ -622,7 +660,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                         color: Color(0xFFDC2626),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close_rounded, size: 12, color: Colors.white),
+                      child: const Icon(Icons.close_rounded,
+                          size: 12, color: Colors.white),
                     ),
                   ),
                 ),
@@ -656,7 +695,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 tooltip: 'Previous Page',
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -672,7 +712,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded),
-                onPressed: (_currentPage < _pageCount - 1 && !_saving) ? _nextPage : null,
+                onPressed: (_currentPage < _pageCount - 1 && !_saving)
+                    ? _nextPage
+                    : null,
                 tooltip: 'Next Page',
               ),
             ],
@@ -698,14 +740,16 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.save_rounded, size: 16),
                 label: const Text('Save PDF'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
               ),
             ],
@@ -771,7 +815,8 @@ class _TextToolbar extends StatelessWidget {
               ),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626), size: 20),
+                icon: const Icon(Icons.delete_outline_rounded,
+                    color: Color(0xFFDC2626), size: 20),
                 tooltip: 'Delete Annotation',
                 onPressed: onDelete,
                 visualDensity: VisualDensity.compact,
@@ -796,7 +841,8 @@ class _TextToolbar extends StatelessWidget {
             decoration: InputDecoration(
               hintText: 'Enter annotation text…',
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               suffixIcon: controller.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear_rounded, size: 16),
@@ -817,14 +863,16 @@ class _TextToolbar extends StatelessWidget {
             children: [
               Text(
                 '${annotation.fontSize.toInt()} pt',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                style:
+                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.remove_circle_outline_rounded, size: 18),
                 onPressed: annotation.fontSize > 8
                     ? () {
-                        annotation.fontSize = (annotation.fontSize - 2).clamp(8, 48);
+                        annotation.fontSize =
+                            (annotation.fontSize - 2).clamp(8, 48);
                         onChange();
                       }
                     : null,
@@ -846,7 +894,8 @@ class _TextToolbar extends StatelessWidget {
                 icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
                 onPressed: annotation.fontSize < 48
                     ? () {
-                        annotation.fontSize = (annotation.fontSize + 2).clamp(8, 48);
+                        annotation.fontSize =
+                            (annotation.fontSize + 2).clamp(8, 48);
                         onChange();
                       }
                     : null,
@@ -895,7 +944,9 @@ class _TextToolbar extends StatelessWidget {
                           color: c,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isSelected ? primary : Colors.grey.withValues(alpha: 0.4),
+                            color: isSelected
+                                ? primary
+                                : Colors.grey.withValues(alpha: 0.4),
                             width: isSelected ? 2.5 : 1,
                           ),
                           boxShadow: isSelected
@@ -911,7 +962,9 @@ class _TextToolbar extends StatelessWidget {
                             ? Icon(
                                 Icons.check_rounded,
                                 size: 12,
-                                color: c == Colors.white ? Colors.black : Colors.white,
+                                color: c == Colors.white
+                                    ? Colors.black
+                                    : Colors.white,
                               )
                             : null,
                       ),
@@ -950,7 +1003,8 @@ class _ImageToolbar extends StatelessWidget {
       child: Row(children: [
         const Icon(Icons.photo_size_select_large_rounded, size: 20),
         const SizedBox(width: 8),
-        const Text('Size:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const Text('Size:',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         Expanded(
           child: Slider(
             value: annotation.width.clamp(0.1, 0.95),
@@ -958,9 +1012,12 @@ class _ImageToolbar extends StatelessWidget {
             max: 0.95,
             activeColor: primary,
             onChanged: (v) {
-              final ratio = annotation.height / (annotation.width > 0 ? annotation.width : 1.0);
+              final ratio = annotation.height /
+                  (annotation.width > 0 ? annotation.width : 1.0);
               annotation.width = v;
-              annotation.height = (v * (ratio.isFinite && ratio > 0 ? ratio : 0.75)).clamp(0.05, 0.95);
+              annotation.height =
+                  (v * (ratio.isFinite && ratio > 0 ? ratio : 0.75))
+                      .clamp(0.05, 0.95);
               onChange();
             },
           ),
@@ -974,4 +1031,3 @@ class _ImageToolbar extends StatelessWidget {
     );
   }
 }
-

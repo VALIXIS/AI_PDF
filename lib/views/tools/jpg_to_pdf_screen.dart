@@ -72,8 +72,9 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
               : pw.Center(child: pw.Image(img, fit: pw.BoxFit.contain)),
         ));
       }
-      final dir  = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(dir.path, 'images_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final dir = await getApplicationDocumentsDirectory();
+      final path = FileService().joinPaths(
+          dir.path, 'images_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await File(path).writeAsBytes(await pdf.save());
 
       await StorageService().addHistoryEntry(HistoryEntry(
@@ -118,7 +119,8 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
           // Loading Banner
           if (_isLoading)
             ToolLoadingBanner(
-              message: 'Converting ${_images.length} image${_images.length > 1 ? 's' : ''} to PDF...',
+              message:
+                  'Converting ${_images.length} image${_images.length > 1 ? 's' : ''} to PDF...',
             ),
 
           // Error Banner
@@ -150,34 +152,51 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
             ),
 
           // Options Card
-          Text('Options', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+          Text('Options',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: border)),
+            decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: border)),
             child: Column(children: [
               Row(children: [
-                const Text('Page size', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text('Page size',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 const Spacer(),
                 DropdownButton<PdfPageFormat>(
                   value: _pageFormat,
                   underline: const SizedBox(),
                   items: const [
-                    DropdownMenuItem(value: PdfPageFormat.a4, child: Text('A4')),
-                    DropdownMenuItem(value: PdfPageFormat.letter, child: Text('Letter')),
-                    DropdownMenuItem(value: PdfPageFormat.a3, child: Text('A3')),
+                    DropdownMenuItem(
+                        value: PdfPageFormat.a4, child: Text('A4')),
+                    DropdownMenuItem(
+                        value: PdfPageFormat.letter, child: Text('Letter')),
+                    DropdownMenuItem(
+                        value: PdfPageFormat.a3, child: Text('A3')),
                   ],
-                  onChanged: _isLoading ? null : (v) { if (v != null) setState(() => _pageFormat = v); },
+                  onChanged: _isLoading
+                      ? null
+                      : (v) {
+                          if (v != null) setState(() => _pageFormat = v);
+                        },
                 ),
               ]),
               const Divider(),
               SwitchListTile.adaptive(
-                title: const Text('Fit to page', style: TextStyle(fontWeight: FontWeight.w600)),
+                title: const Text('Fit to page',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 subtitle: const Text('Scale image to fill page'),
                 value: _fitPage,
                 activeThumbColor: primary,
                 contentPadding: EdgeInsets.zero,
-                onChanged: _isLoading ? null : (v) => setState(() => _fitPage = v),
+                onChanged:
+                    _isLoading ? null : (v) => setState(() => _fitPage = v),
               ),
             ]),
           ),
@@ -186,12 +205,20 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
           // Images Section Header
           Row(
             children: [
-              Text('Images (${_images.length})', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              Text('Images (${_images.length})',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
               const Spacer(),
               if (_images.isNotEmpty && !_isLoading)
                 TextButton(
-                  onPressed: () => setState(() { _images.clear(); _errorMessage = null; }),
-                  child: const Text('Clear all', style: TextStyle(color: Color(0xFFDC2626))),
+                  onPressed: () => setState(() {
+                    _images.clear();
+                    _errorMessage = null;
+                  }),
+                  child: const Text('Clear all',
+                      style: TextStyle(color: Color(0xFFDC2626))),
                 ),
             ],
           ),
@@ -202,7 +229,8 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
             ToolEmptyState(
               icon: Icons.add_photo_alternate_rounded,
               title: 'No Images Selected',
-              subtitle: 'Select one or more photos from your gallery to create a PDF',
+              subtitle:
+                  'Select one or more photos from your gallery to create a PDF',
               actionLabel: 'Select Images',
               onAction: _isLoading ? null : _pickImages,
             )
@@ -222,30 +250,45 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                   return GestureDetector(
                     onTap: _isLoading ? null : _pickImages,
                     child: Container(
-                      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.add_rounded, color: sub, size: 28),
-                        Text('Add', style: TextStyle(color: sub, fontSize: 12)),
-                      ]),
+                      decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: border)),
+                      child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_rounded, color: sub, size: 28),
+                            Text('Add',
+                                style: TextStyle(color: sub, fontSize: 12)),
+                          ]),
                     ),
                   );
                 }
                 return Stack(children: [
                   Container(
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: border)),
+                    decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: border)),
                     clipBehavior: Clip.hardEdge,
-                    child: Image.file(_images[i], fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                    child: Image.file(_images[i],
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity),
                   ),
                   Positioned(
                     top: 4,
                     right: 4,
                     child: GestureDetector(
-                      onTap: _isLoading ? null : () => setState(() => _images.removeAt(i)),
+                      onTap: _isLoading
+                          ? null
+                          : () => setState(() => _images.removeAt(i)),
                       child: Container(
                         width: 22,
                         height: 22,
-                        decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
-                        child: const Icon(Icons.close_rounded, color: Colors.white, size: 13),
+                        decoration: const BoxDecoration(
+                            color: Color(0xFFDC2626), shape: BoxShape.circle),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.white, size: 13),
                       ),
                     ),
                   ),
@@ -259,14 +302,22 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
             child: ElevatedButton.icon(
               onPressed: (_images.isEmpty || _isLoading) ? null : _convert,
               icon: _isLoading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.picture_as_pdf_rounded),
-              label: Text(_images.isEmpty ? 'Select images first' : 'Convert to PDF', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              label: Text(
+                  _images.isEmpty ? 'Select images first' : 'Convert to PDF',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),

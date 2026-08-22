@@ -122,7 +122,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                           children: [
                             Text(
                               _fileService.getFileName(_selectedFile!),
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 13.5),
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
@@ -148,7 +149,10 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
               // Page Range Controls
               Text(
                 'Page Range',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
 
@@ -158,7 +162,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Start Page', style: Theme.of(context).textTheme.bodySmall),
+                        Text('Start Page',
+                            style: Theme.of(context).textTheme.bodySmall),
                         const SizedBox(height: 4),
                         TextField(
                           enabled: !_isLoading,
@@ -185,7 +190,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('End Page', style: Theme.of(context).textTheme.bodySmall),
+                        Text('End Page',
+                            style: Theme.of(context).textTheme.bodySmall),
                         const SizedBox(height: 4),
                         TextField(
                           enabled: !_isLoading,
@@ -198,7 +204,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                           onChanged: (value) {
                             if (value.isNotEmpty) {
                               setState(() {
-                                _endPage = int.tryParse(value) ?? (_totalPages ?? 1);
+                                _endPage =
+                                    int.tryParse(value) ?? (_totalPages ?? 1);
                                 _errorMessage = null;
                               });
                             }
@@ -222,7 +229,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                 child: ToolEmptyState(
                   icon: Icons.call_split_rounded,
                   title: 'No PDF Selected',
-                  subtitle: 'Select a PDF document to extract a specific page range',
+                  subtitle:
+                      'Select a PDF document to extract a specific page range',
                   actionLabel: 'Select PDF',
                   onAction: _isLoading ? null : _pickPdf,
                 ),
@@ -239,7 +247,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _isLoading ? null : _pickPdf,
                     icon: const Icon(Icons.folder_open),
-                    label: Text(_selectedFile == null ? 'Select PDF' : 'Change PDF'),
+                    label: Text(
+                        _selectedFile == null ? 'Select PDF' : 'Change PDF'),
                   ),
                 ),
                 if (_selectedFile != null) ...[
@@ -317,14 +326,16 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
 
     if (_totalPages != null && _endPage > _totalPages!) {
       setState(() {
-        _errorMessage = 'End page ($_endPage) cannot exceed total pages ($_totalPages).';
+        _errorMessage =
+            'End page ($_endPage) cannot exceed total pages ($_totalPages).';
       });
       return;
     }
 
     if (_startPage > _endPage) {
       setState(() {
-        _errorMessage = 'Start page ($_startPage) cannot be greater than end page ($_endPage).';
+        _errorMessage =
+            'Start page ($_startPage) cannot be greater than end page ($_endPage).';
       });
       return;
     }
@@ -336,7 +347,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
     });
 
     try {
-      if (_selectedFile == null || !await _fileService.isFileAccessible(_selectedFile!)) {
+      if (_selectedFile == null ||
+          !await _fileService.isFileAccessible(_selectedFile!)) {
         setState(() {
           _errorMessage = 'Selected file no longer exists or is inaccessible.';
           _isLoading = false;
@@ -376,5 +388,4 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
       });
     }
   }
-
 }

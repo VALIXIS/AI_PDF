@@ -17,15 +17,9 @@ class ToolErrorBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final bg = isDark
-        ? const Color(0xFF3B1212)
-        : const Color(0xFFFEE2E2);
-    final border = isDark
-        ? const Color(0xFF7F1D1D)
-        : const Color(0xFFFCA5A5);
-    final textCol = isDark
-        ? const Color(0xFFFCA5A5)
-        : const Color(0xFF991B1B);
+    final bg = isDark ? const Color(0xFF3B1212) : const Color(0xFFFEE2E2);
+    final border = isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFCA5A5);
+    final textCol = isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B);
 
     return Container(
       key: const ValueKey('tool_error_banner'),
@@ -90,7 +84,8 @@ class ToolErrorBanner extends StatelessWidget {
                   ),
                 ),
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -124,15 +119,9 @@ class ToolSuccessCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final bg = isDark
-        ? const Color(0xFF062C19)
-        : const Color(0xFFDCFCE7);
-    final border = isDark
-        ? const Color(0xFF14532D)
-        : const Color(0xFF86EFAC);
-    final textCol = isDark
-        ? const Color(0xFF86EFAC)
-        : const Color(0xFF166534);
+    final bg = isDark ? const Color(0xFF062C19) : const Color(0xFFDCFCE7);
+    final border = isDark ? const Color(0xFF14532D) : const Color(0xFF86EFAC);
+    final textCol = isDark ? const Color(0xFF86EFAC) : const Color(0xFF166534);
 
     String fileName = '';
     if (filePath != null && filePath!.isNotEmpty) {
@@ -159,7 +148,8 @@ class ToolSuccessCard extends StatelessWidget {
                   color: textCol.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.check_circle_rounded, color: textCol, size: 24),
+                child:
+                    Icon(Icons.check_circle_rounded, color: textCol, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -231,7 +221,8 @@ class ToolSuccessCard extends StatelessWidget {
                       foregroundColor: isDark ? Colors.black : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ),
@@ -243,8 +234,10 @@ class ToolSuccessCard extends StatelessWidget {
                   label: Text('New Task', style: TextStyle(color: textCol)),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: textCol.withValues(alpha: 0.5)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
             ],
@@ -276,7 +269,8 @@ class ToolEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subColor = isDark ? const Color(0xFF8B949E) : const Color(0xFF64748B);
-    final borderColor = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
+    final borderColor =
+        isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
     final bgColor = isDark ? const Color(0xFF14141E) : Colors.white;
 
     return Container(
@@ -313,8 +307,10 @@ class ToolEmptyState extends StatelessWidget {
               icon: Icon(icon, size: 18),
               label: Text(actionLabel!),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],

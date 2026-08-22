@@ -44,25 +44,43 @@ class AiActionDispatcher {
   AiActionType detectActionType(String input) {
     final lower = input.toLowerCase();
 
-    if (lower.contains('merge') || lower.contains('combine') || lower.contains('join pdf')) {
+    if (lower.contains('merge') ||
+        lower.contains('combine') ||
+        lower.contains('join pdf')) {
       return AiActionType.merge;
     }
-    if (lower.contains('compress') || lower.contains('reduce size') || lower.contains('shrink')) {
+    if (lower.contains('compress') ||
+        lower.contains('reduce size') ||
+        lower.contains('shrink')) {
       return AiActionType.compress;
     }
-    if (lower.contains('extract text') || lower.contains('to text') || lower.contains('convert to txt') || lower.contains('to txt')) {
+    if (lower.contains('extract text') ||
+        lower.contains('to text') ||
+        lower.contains('convert to txt') ||
+        lower.contains('to txt')) {
       return AiActionType.pdfToText;
     }
-    if (lower.contains('rotate') || lower.contains('turn') || lower.contains('orientation')) {
+    if (lower.contains('rotate') ||
+        lower.contains('turn') ||
+        lower.contains('orientation')) {
       return AiActionType.rotate;
     }
-    if (lower.contains('watermark') || lower.contains('stamp') || lower.contains('confidential') || lower.contains('draft')) {
+    if (lower.contains('watermark') ||
+        lower.contains('stamp') ||
+        lower.contains('confidential') ||
+        lower.contains('draft')) {
       return AiActionType.watermark;
     }
-    if (lower.contains('split') || lower.contains('extract page') || lower.contains('pages from') || lower.contains('pages 1')) {
+    if (lower.contains('split') ||
+        lower.contains('extract page') ||
+        lower.contains('pages from') ||
+        lower.contains('pages 1')) {
       return AiActionType.split;
     }
-    if (lower.contains('protect') || lower.contains('password') || lower.contains('encrypt') || lower.contains('lock pdf')) {
+    if (lower.contains('protect') ||
+        lower.contains('password') ||
+        lower.contains('encrypt') ||
+        lower.contains('lock pdf')) {
       return AiActionType.protect;
     }
 
@@ -96,7 +114,8 @@ class AiActionDispatcher {
       return AiActionResult(
         type: AiActionType.merge,
         isSuccess: true,
-        message: 'Successfully merged ${pdfPaths.length} PDFs into a single document!',
+        message:
+            'Successfully merged ${pdfPaths.length} PDFs into a single document!',
         outputPath: outputPath,
         actionTitle: title,
       );
@@ -152,7 +171,8 @@ class AiActionDispatcher {
         rotationAngle: angle,
       );
 
-      final title = 'AI Rotate ($angle°) · ${FileService().getFileName(pdfPath)}';
+      final title =
+          'AI Rotate ($angle°) · ${FileService().getFileName(pdfPath)}';
       try {
         await _storageService.addHistoryEntry(HistoryEntry(
           id: _uuid.v4(),
@@ -179,14 +199,17 @@ class AiActionDispatcher {
     }
   }
 
-  Future<AiActionResult> _handleWatermark(String pdfPath, String command) async {
+  Future<AiActionResult> _handleWatermark(
+      String pdfPath, String command) async {
     String watermarkText = 'CONFIDENTIAL';
     final lower = command.toLowerCase();
 
     if (lower.contains('watermark')) {
       final parts = command.split(RegExp(r'watermark', caseSensitive: false));
       if (parts.length > 1 && parts.last.trim().isNotEmpty) {
-        final textPart = parts.last.replaceAll(RegExp(r'["' "'" r'saying|text|with]'), '').trim();
+        final textPart = parts.last
+            .replaceAll(RegExp(r'["' "'" r'saying|text|with]'), '')
+            .trim();
         if (textPart.isNotEmpty) watermarkText = textPart.toUpperCase();
       }
     }
@@ -200,7 +223,8 @@ class AiActionDispatcher {
         angle: 0.785398, // 45 degrees in radians
       );
 
-      final title = 'AI Watermark ($watermarkText) · ${FileService().getFileName(pdfPath)}';
+      final title =
+          'AI Watermark ($watermarkText) · ${FileService().getFileName(pdfPath)}';
       try {
         await _storageService.addHistoryEntry(HistoryEntry(
           id: _uuid.v4(),
@@ -214,7 +238,8 @@ class AiActionDispatcher {
       return AiActionResult(
         type: AiActionType.watermark,
         isSuccess: true,
-        message: 'Successfully applied "$watermarkText" watermark to all pages!',
+        message:
+            'Successfully applied "$watermarkText" watermark to all pages!',
         outputPath: outputPath,
         actionTitle: title,
       );
@@ -236,7 +261,10 @@ class AiActionDispatcher {
       endPage = totalPages > 1 ? (totalPages / 2).ceil() : 1;
 
       // Extract numbers if present in prompt (e.g. "pages 1 to 3")
-      final matches = RegExp(r'\b\d+\b').allMatches(lower).map((m) => int.parse(m.group(0)!)).toList();
+      final matches = RegExp(r'\b\d+\b')
+          .allMatches(lower)
+          .map((m) => int.parse(m.group(0)!))
+          .toList();
       if (matches.length >= 2) {
         startPage = matches[0].clamp(1, totalPages);
         endPage = matches[1].clamp(startPage, totalPages);
@@ -251,7 +279,8 @@ class AiActionDispatcher {
         endPage: endPage,
       );
 
-      final title = 'AI Split (Pages $startPage-$endPage) · ${FileService().getFileName(pdfPath)}';
+      final title =
+          'AI Split (Pages $startPage-$endPage) · ${FileService().getFileName(pdfPath)}';
       try {
         await _storageService.addHistoryEntry(HistoryEntry(
           id: _uuid.v4(),
@@ -265,7 +294,8 @@ class AiActionDispatcher {
       return AiActionResult(
         type: AiActionType.split,
         isSuccess: true,
-        message: 'Successfully extracted pages $startPage to $endPage into a new PDF!',
+        message:
+            'Successfully extracted pages $startPage to $endPage into a new PDF!',
         outputPath: outputPath,
         actionTitle: title,
       );
@@ -280,7 +310,8 @@ class AiActionDispatcher {
 
   Future<AiActionResult> _handleProtect(String pdfPath, String command) async {
     String password = 'Protected123!';
-    final matches = RegExp(r'password\s+([^\s]+)', caseSensitive: false).firstMatch(command);
+    final matches = RegExp(r'password\s+([^\s]+)', caseSensitive: false)
+        .firstMatch(command);
     if (matches != null && matches.group(1) != null) {
       password = matches.group(1)!;
     }
@@ -309,7 +340,8 @@ class AiActionDispatcher {
       return AiActionResult(
         type: AiActionType.protect,
         isSuccess: true,
-        message: 'Successfully created protected copy with password "$password"!',
+        message:
+            'Successfully created protected copy with password "$password"!',
         outputPath: outputPath,
         actionTitle: title,
       );
@@ -354,7 +386,8 @@ class AiActionDispatcher {
   Future<AiActionResult> _handlePdfToText(String pdfPath) async {
     try {
       final txtPath = await _pdfService.convertPdfToTxt(pdfPath: pdfPath);
-      final title = 'AI Text Extraction · ${FileService().getFileName(pdfPath)}';
+      final title =
+          'AI Text Extraction · ${FileService().getFileName(pdfPath)}';
       try {
         await _storageService.addHistoryEntry(HistoryEntry(
           id: _uuid.v4(),

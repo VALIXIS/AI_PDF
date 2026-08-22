@@ -34,7 +34,8 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
 
   Future<void> _pick() async {
     try {
-      final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+      final r = await FilePicker.pickFiles(
+          type: FileType.custom, allowedExtensions: ['pdf']);
       if (!mounted) return;
       if (r?.files.single.path != null) {
         setState(() {
@@ -52,7 +53,8 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
   }
 
   Future<void> _apply() async {
-    if (_pdfFile == null || !await FileService().isFileAccessible(_pdfFile!.path)) {
+    if (_pdfFile == null ||
+        !await FileService().isFileAccessible(_pdfFile!.path)) {
       setState(() {
         _errorMessage = 'Selected file no longer exists or is inaccessible.';
       });
@@ -105,7 +107,6 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
       });
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +175,11 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
             ),
             const SizedBox(height: 20),
 
-            Text('Watermark Text', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text('Watermark Text',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             TextField(
               enabled: !_isLoading,
@@ -192,7 +197,10 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
             // Settings Box
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: border)),
+              decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: border)),
               child: Column(children: [
                 _SliderRow(
                   label: 'Opacity',
@@ -200,7 +208,8 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
                   min: 0.05,
                   max: 0.8,
                   primary: primary,
-                  onChanged: _isLoading ? (_) {} : (v) => setState(() => _opacity = v),
+                  onChanged:
+                      _isLoading ? (_) {} : (v) => setState(() => _opacity = v),
                 ),
                 const Divider(),
                 _SliderRow(
@@ -209,15 +218,23 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
                   min: -1.0,
                   max: 1.0,
                   primary: primary,
-                  onChanged: _isLoading ? (_) {} : (v) => setState(() => _angle = v),
+                  onChanged:
+                      _isLoading ? (_) {} : (v) => setState(() => _angle = v),
                 ),
                 const Divider(),
                 Row(children: [
-                  const Text('Color', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Text('Color',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                   const Spacer(),
-                  for (final c in [const Color(0xFFDC2626), const Color(0xFF2563EB), Colors.black, const Color(0xFF059669)])
+                  for (final c in [
+                    const Color(0xFFDC2626),
+                    const Color(0xFF2563EB),
+                    Colors.black,
+                    const Color(0xFF059669)
+                  ])
                     GestureDetector(
-                      onTap: _isLoading ? null : () => setState(() => _wColor = c),
+                      onTap:
+                          _isLoading ? null : () => setState(() => _wColor = c),
                       child: Container(
                         width: 28,
                         height: 28,
@@ -225,7 +242,10 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
                         decoration: BoxDecoration(
                           color: c,
                           shape: BoxShape.circle,
-                          border: Border.all(color: _wColor == c ? primary : Colors.transparent, width: 2.5),
+                          border: Border.all(
+                              color:
+                                  _wColor == c ? primary : Colors.transparent,
+                              width: 2.5),
                         ),
                       ),
                     ),
@@ -238,7 +258,10 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
             Container(
               width: double.infinity,
               height: 140,
-              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: border)),
+              decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: border)),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: Stack(alignment: Alignment.center, children: [
@@ -265,14 +288,20 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
             child: ElevatedButton.icon(
               onPressed: (_pdfFile == null || _isLoading) ? null : _apply,
               icon: _isLoading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.branding_watermark_rounded),
-              label: const Text('Apply Watermark', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              label: const Text('Apply Watermark',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
@@ -287,11 +316,26 @@ class _SliderRow extends StatelessWidget {
   final double value, min, max;
   final Color primary;
   final ValueChanged<double> onChanged;
-  const _SliderRow({required this.label, required this.value, required this.min, required this.max, required this.primary, required this.onChanged});
+  const _SliderRow(
+      {required this.label,
+      required this.value,
+      required this.min,
+      required this.max,
+      required this.primary,
+      required this.onChanged});
   @override
   Widget build(BuildContext context) => Row(children: [
-        SizedBox(width: 60, child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600))),
-        Expanded(child: Slider(value: value, min: min, max: max, activeColor: primary, onChanged: onChanged)),
+        SizedBox(
+            width: 60,
+            child: Text(label,
+                style: const TextStyle(fontWeight: FontWeight.w600))),
+        Expanded(
+            child: Slider(
+                value: value,
+                min: min,
+                max: max,
+                activeColor: primary,
+                onChanged: onChanged)),
         Text(value.toStringAsFixed(2), style: const TextStyle(fontSize: 12)),
       ]);
 }
@@ -300,7 +344,13 @@ class _FilePicker extends StatelessWidget {
   final File? file;
   final VoidCallback onPick;
   final Color bg, border, sub, primary;
-  const _FilePicker({required this.file, required this.onPick, required this.bg, required this.border, required this.sub, required this.primary});
+  const _FilePicker(
+      {required this.file,
+      required this.onPick,
+      required this.bg,
+      required this.border,
+      required this.sub,
+      required this.primary});
   @override
   Widget build(BuildContext context) => GestureDetector(
         onTap: onPick,
@@ -309,17 +359,28 @@ class _FilePicker extends StatelessWidget {
           decoration: BoxDecoration(
             color: file != null ? primary.withValues(alpha: 0.05) : bg,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: file != null ? primary.withValues(alpha: 0.3) : border),
+            border: Border.all(
+                color: file != null ? primary.withValues(alpha: 0.3) : border),
           ),
           child: Row(children: [
-            Icon(Icons.picture_as_pdf_rounded, color: file != null ? primary : sub, size: 32),
+            Icon(Icons.picture_as_pdf_rounded,
+                color: file != null ? primary : sub, size: 32),
             const SizedBox(width: 14),
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(file != null ? FileService().getFileName(file!.path) : 'Choose PDF file',
-                    style: TextStyle(fontWeight: FontWeight.w700, color: file != null ? primary : sub)),
-                if (file == null) Text('Tap to browse', style: TextStyle(color: sub, fontSize: 12)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        file != null
+                            ? FileService().getFileName(file!.path)
+                            : 'Choose PDF file',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: file != null ? primary : sub)),
+                    if (file == null)
+                      Text('Tap to browse',
+                          style: TextStyle(color: sub, fontSize: 12)),
+                  ]),
             ),
             Icon(Icons.chevron_right_rounded, color: sub),
           ]),

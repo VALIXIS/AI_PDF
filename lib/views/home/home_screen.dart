@@ -179,16 +179,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     themeNotifier.addListener(_rebuild);
-    _heroAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _heroFade  = CurvedAnimation(parent: _heroAnim, curve: Curves.easeOut);
-    _heroSlide = Tween(begin: const Offset(0, 0.08), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _heroAnim, curve: Curves.easeOutCubic));
+    _heroAnim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
+    _heroFade = CurvedAnimation(parent: _heroAnim, curve: Curves.easeOut);
+    _heroSlide = Tween(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+        CurvedAnimation(parent: _heroAnim, curve: Curves.easeOutCubic));
     _heroTimer = Timer(const Duration(milliseconds: 100), () {
       if (mounted) _heroAnim.forward();
     });
   }
 
-  void _rebuild() { if (mounted) setState(() {}); }
+  void _rebuild() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -208,7 +211,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           transitionDuration: const Duration(milliseconds: 280),
           transitionsBuilder: (_, a, __, child) => SlideTransition(
             position: Tween(begin: const Offset(1, 0), end: Offset.zero)
-                .animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+                .animate(
+                    CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
             child: child,
           ),
         ),
@@ -240,7 +244,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SliverAppBar(
             pinned: true,
             expandedHeight: 0,
-            backgroundColor: isDark ? const Color(0xFF0B0B13) : const Color(0xFFF7F7F9),
+            backgroundColor:
+                isDark ? const Color(0xFF0B0B13) : const Color(0xFFF7F7F9),
             title: Row(children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
@@ -253,7 +258,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(width: 10),
               Text('PDF AI Toolkit',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
+                  style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
                       color: isDark ? Colors.white : const Color(0xFF111827))),
             ]),
             actions: [
@@ -274,10 +281,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               delegate: SliverChildListDelegate([
                 // Hero title
                 Text('What would you like\nto do today?',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 26, letterSpacing: -0.8)),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontSize: 26, letterSpacing: -0.8)),
                 const SizedBox(height: 4),
-                Text('Paste AI text or pick a tool below', style: TextStyle(color: sub, fontSize: 14)),
+                Text('Paste AI text or pick a tool below',
+                    style: TextStyle(color: sub, fontSize: 14)),
                 const SizedBox(height: 22),
 
                 // ── Hero card ──────────────────────────────────────
@@ -292,7 +302,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       pressed: _buttonPressed,
                       onPressDown: () => setState(() => _buttonPressed = true),
                       onPressUp: () => setState(() => _buttonPressed = false),
-                      onGenerate: () => _push(AiScreen(initialInput: _inputCtrl.text.trim())),
+                      onGenerate: () =>
+                          _push(AiScreen(initialInput: _inputCtrl.text.trim())),
                     ),
                   ),
                 ),
@@ -300,16 +311,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // ── Quick actions ─────────────────────────────────
                 Row(children: [
-                  _QuickBtn(icon: Icons.document_scanner_rounded, label: 'Scan', color: const Color(0xFF059669), onTap: () => _push(const CameraScanScreen())),
+                  _QuickBtn(
+                      icon: Icons.document_scanner_rounded,
+                      label: 'Scan',
+                      color: const Color(0xFF059669),
+                      onTap: () => _push(const CameraScanScreen())),
                   const SizedBox(width: 10),
-                  _QuickBtn(icon: Icons.edit_document,             label: 'Edit PDF', color: kPrimary,              onTap: () => _push(const PdfEditorScreen())),
+                  _QuickBtn(
+                      icon: Icons.edit_document,
+                      label: 'Edit PDF',
+                      color: kPrimary,
+                      onTap: () => _push(const PdfEditorScreen())),
                   const SizedBox(width: 10),
-                  _QuickBtn(icon: Icons.image_rounded,             label: 'Img to PDF', color: const Color(0xFF0EA5E9), onTap: () => _push(const JpgToPdfScreen())),
+                  _QuickBtn(
+                      icon: Icons.image_rounded,
+                      label: 'Img to PDF',
+                      color: const Color(0xFF0EA5E9),
+                      onTap: () => _push(const JpgToPdfScreen())),
                 ]),
                 const SizedBox(height: 28),
 
                 // ── Pro Tips ──────────────────────────────────────
-                Text('Pro Tips', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
+                Text('Pro Tips',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: 12),
                 SizedBox(
                   height: 114,
@@ -319,7 +346,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       _TipCard(
                         title: 'Perfect Scans',
-                        subtitle: 'Use the Camera Scan tool for auto edge-detection.',
+                        subtitle:
+                            'Use the Camera Scan tool for auto edge-detection.',
                         icon: Icons.document_scanner_rounded,
                         color: const Color(0xFF059669),
                         isDark: isDark,
@@ -327,7 +355,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const SizedBox(width: 12),
                       _TipCard(
                         title: 'Annotate Freely',
-                        subtitle: 'Drag and drop text or images right onto any PDF.',
+                        subtitle:
+                            'Drag and drop text or images right onto any PDF.',
                         icon: Icons.edit_document,
                         color: kPrimary,
                         isDark: isDark,
@@ -335,7 +364,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const SizedBox(width: 12),
                       _TipCard(
                         title: 'Convert to Word',
-                        subtitle: 'Extract text from PDFs directly into Word/TXT.',
+                        subtitle:
+                            'Extract text from PDFs directly into Word/TXT.',
                         icon: Icons.text_snippet_rounded,
                         color: const Color(0xFF6366F1),
                         isDark: isDark,
@@ -346,7 +376,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 28),
 
                 // ── Category tabs ─────────────────────────────────
-                Text('All Tools', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
+                Text('All Tools',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: 12),
                 SizedBox(
                   height: 34,
@@ -366,15 +400,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 6),
                           decoration: BoxDecoration(
-                            color: sel ? primary : (isDark ? const Color(0xFF1C1C28) : const Color(0xFFEEEEF4)),
+                            color: sel
+                                ? primary
+                                : (isDark
+                                    ? const Color(0xFF1C1C28)
+                                    : const Color(0xFFEEEEF4)),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(cat,
                               style: TextStyle(
                                 fontSize: 13,
-                                fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                                fontWeight:
+                                    sel ? FontWeight.w700 : FontWeight.w500,
                                 color: sel ? Colors.white : sub,
                               )),
                         ),
@@ -389,12 +429,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ? Container(
                         key: const ValueKey('empty_category_state'),
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 36, horizontal: 20),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF14141E) : Colors.white,
+                          color:
+                              isDark ? const Color(0xFF14141E) : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB),
+                            color: isDark
+                                ? const Color(0xFF1F1F2E)
+                                : const Color(0xFFE5E7EB),
                           ),
                         ),
                         child: Column(
@@ -403,7 +447,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             Icon(
                               Icons.inventory_2_outlined,
                               size: 44,
-                              color: isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF),
+                              color: isDark
+                                  ? const Color(0xFF4B5563)
+                                  : const Color(0xFF9CA3AF),
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -411,7 +457,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF111827),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF111827),
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -419,7 +467,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               'No tools found in "$_category"',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
+                                color: isDark
+                                    ? const Color(0xFF9CA3AF)
+                                    : const Color(0xFF6B7280),
                               ),
                             ),
                           ],
@@ -429,7 +479,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         key: ValueKey('tool_grid_$_category'),
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
@@ -452,7 +503,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF14141E) : Colors.white,
-          border: Border(top: BorderSide(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB))),
+          border: Border(
+              top: BorderSide(
+                  color: isDark
+                      ? const Color(0xFF1F1F2E)
+                      : const Color(0xFFE5E7EB))),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -468,11 +523,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: ElevatedButton.icon(
                 onPressed: () => _push(const CameraScanScreen()),
                 icon: const Icon(Icons.document_scanner_rounded),
-                label: const Text('Start Scan', style: TextStyle(fontWeight: FontWeight.w700)),
+                label: const Text('Start Scan',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                 ),
               ),
             ),
@@ -495,7 +552,11 @@ class _BottomAction extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _BottomAction({required this.icon, required this.label, required this.color, required this.onTap});
+  const _BottomAction(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -513,7 +574,9 @@ class _BottomAction extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 24),
             const SizedBox(height: 4),
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: color)),
           ],
         ),
       ),
@@ -527,29 +590,43 @@ class _HeroCard extends StatelessWidget {
   final Color primary;
   final bool isDark, pressed;
   final VoidCallback onPressDown, onPressUp, onGenerate;
-  const _HeroCard({required this.controller, required this.primary,
-    required this.isDark, required this.pressed,
-    required this.onPressDown, required this.onPressUp, required this.onGenerate});
+  const _HeroCard(
+      {required this.controller,
+      required this.primary,
+      required this.isDark,
+      required this.pressed,
+      required this.onPressDown,
+      required this.onPressUp,
+      required this.onGenerate});
 
   @override
   Widget build(BuildContext context) {
-    final bg     = isDark ? const Color(0xFF14141E) : Colors.white;
+    final bg = isDark ? const Color(0xFF14141E) : Colors.white;
     final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
-    final hint   = isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF);
+    final hint = isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF);
     return Container(
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: border),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06), blurRadius: 24, offset: const Offset(0, 8))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+              blurRadius: 24,
+              offset: const Offset(0, 8))
+        ],
       ),
       padding: const EdgeInsets.all(18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-            child: Text('AI Powered', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
+            decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20)),
+            child: Text('AI Powered',
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
           ),
         ]),
         const SizedBox(height: 12),
@@ -557,7 +634,9 @@ class _HeroCard extends StatelessWidget {
           controller: controller,
           minLines: 4,
           maxLines: 6,
-          style: TextStyle(fontSize: 14, color: isDark ? Colors.white : const Color(0xFF111827)),
+          style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white : const Color(0xFF111827)),
           decoration: InputDecoration(
             hintText: 'Paste your ChatGPT or notes here…',
             hintStyle: TextStyle(color: hint, fontSize: 14),
@@ -573,7 +652,10 @@ class _HeroCard extends StatelessWidget {
         const SizedBox(height: 14),
         GestureDetector(
           onTapDown: (_) => onPressDown(),
-          onTapUp: (_) { onPressUp(); onGenerate(); },
+          onTapUp: (_) {
+            onPressUp();
+            onGenerate();
+          },
           onTapCancel: onPressUp,
           child: AnimatedScale(
             duration: const Duration(milliseconds: 100),
@@ -585,11 +667,18 @@ class _HeroCard extends StatelessWidget {
                 color: primary,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Text('Generate PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-              ]),
+              child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.picture_as_pdf_rounded,
+                        color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Text('Generate PDF',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15)),
+                  ]),
             ),
           ),
         ),
@@ -604,7 +693,11 @@ class _QuickBtn extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _QuickBtn({required this.icon, required this.label, required this.color, required this.onTap});
+  const _QuickBtn(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -622,7 +715,9 @@ class _QuickBtn extends StatelessWidget {
           child: Column(children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(height: 5),
-            Text(label, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
           ]),
         ),
       ),
@@ -635,28 +730,38 @@ class _ToolCard extends StatefulWidget {
   final ToolItem item;
   final bool isDark;
   final VoidCallback onTap;
-  const _ToolCard({Key? key, required this.item, required this.isDark, required this.onTap}) : super(key: key);
+  const _ToolCard(
+      {Key? key, required this.item, required this.isDark, required this.onTap})
+      : super(key: key);
   @override
   State<_ToolCard> createState() => _ToolCardState();
 }
 
-class _ToolCardState extends State<_ToolCard> with SingleTickerProviderStateMixin {
+class _ToolCardState extends State<_ToolCard>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctl;
   late final Animation<double> _scale;
   @override
   void initState() {
     super.initState();
-    _ctl   = AnimationController(vsync: this, duration: const Duration(milliseconds: 100), value: 1);
-    _scale = Tween(begin: 1.0, end: 0.94).animate(CurvedAnimation(parent: _ctl, curve: Curves.easeOut));
+    _ctl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 100), value: 1);
+    _scale = Tween(begin: 1.0, end: 0.94)
+        .animate(CurvedAnimation(parent: _ctl, curve: Curves.easeOut));
   }
+
   @override
-  void dispose() { _ctl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bg     = widget.isDark ? const Color(0xFF14141E) : Colors.white;
-    final border = widget.isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
-    final col    = widget.item.color;
+    final bg = widget.isDark ? const Color(0xFF14141E) : Colors.white;
+    final border =
+        widget.isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
+    final col = widget.item.color;
     return GestureDetector(
       onTap: widget.onTap,
       onTapDown: (_) => _ctl.reverse(),
@@ -664,7 +769,8 @@ class _ToolCardState extends State<_ToolCard> with SingleTickerProviderStateMixi
       onTapCancel: () => _ctl.forward(),
       child: AnimatedBuilder(
         animation: _scale,
-        builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
+        builder: (_, child) =>
+            Transform.scale(scale: _scale.value, child: child),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -672,16 +778,31 @@ class _ToolCardState extends State<_ToolCard> with SingleTickerProviderStateMixi
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: border),
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: col.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                  color: col.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10)),
               child: Icon(widget.item.icon, color: col, size: 19),
             ),
             const Spacer(),
-            Text(widget.item.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(widget.item.title,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
-            Text(widget.item.subtitle, style: TextStyle(fontSize: 11, color: widget.isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(widget.item.subtitle,
+                style: TextStyle(
+                    fontSize: 11,
+                    color: widget.isDark
+                        ? const Color(0xFF6B7280)
+                        : const Color(0xFF9CA3AF)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ]),
         ),
       ),
@@ -697,7 +818,12 @@ class _TipCard extends StatelessWidget {
   final Color color;
   final bool isDark;
 
-  const _TipCard({required this.title, required this.subtitle, required this.icon, required this.color, required this.isDark});
+  const _TipCard(
+      {required this.title,
+      required this.subtitle,
+      required this.icon,
+      required this.color,
+      required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -707,7 +833,8 @@ class _TipCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF14141E) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
+        border: Border.all(
+            color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -726,9 +853,18 @@ class _TipCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? const Color(0xFF8B949E) : const Color(0xFF64748B)), maxLines: 2, overflow: TextOverflow.ellipsis),
+                Text(subtitle,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? const Color(0xFF8B949E)
+                            : const Color(0xFF64748B)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
               ],
             ),
           )

@@ -72,7 +72,9 @@ void main() {
       expect(doc.pages.count, equals(1));
 
       final extractor = syncfusion.PdfTextExtractor(doc);
-      final text = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      final text = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(text, contains('SplitDoc Page3'));
       expect(text, isNot(contains('SplitDoc Page1')));
       expect(text, isNot(contains('SplitDoc Page2')));
@@ -95,13 +97,20 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final doc = syncfusion.PdfDocument(inputBytes: await File(splitPath).readAsBytes());
+      final doc = syncfusion.PdfDocument(
+          inputBytes: await File(splitPath).readAsBytes());
       expect(doc.pages.count, equals(3));
 
       final extractor = syncfusion.PdfTextExtractor(doc);
-      final p1Text = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
-      final p2Text = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
-      final p3Text = extractor.extractText(startPageIndex: 2, endPageIndex: 2).replaceAll(RegExp(r'\s+'), ' ');
+      final p1Text = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
+      final p2Text = extractor
+          .extractText(startPageIndex: 1, endPageIndex: 1)
+          .replaceAll(RegExp(r'\s+'), ' ');
+      final p3Text = extractor
+          .extractText(startPageIndex: 2, endPageIndex: 2)
+          .replaceAll(RegExp(r'\s+'), ' ');
 
       expect(p1Text, contains('RangeDoc Page2'));
       expect(p2Text, contains('RangeDoc Page3'));
@@ -125,19 +134,23 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final doc = syncfusion.PdfDocument(inputBytes: await File(splitPath).readAsBytes());
+      final doc = syncfusion.PdfDocument(
+          inputBytes: await File(splitPath).readAsBytes());
       expect(doc.pages.count, equals(4));
 
       final extractor = syncfusion.PdfTextExtractor(doc);
       for (int i = 0; i < 4; i++) {
-        final text = extractor.extractText(startPageIndex: i, endPageIndex: i).replaceAll(RegExp(r'\s+'), ' ');
+        final text = extractor
+            .extractText(startPageIndex: i, endPageIndex: i)
+            .replaceAll(RegExp(r'\s+'), ' ');
         expect(text, contains('FullDoc Page${i + 1}'));
       }
 
       doc.dispose();
     });
 
-    test('Test 4 — Preserves custom page dimensions without rasterization', () async {
+    test('Test 4 — Preserves custom page dimensions without rasterization',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'source_custom_dim.pdf',
         pageCount: 2,
@@ -153,7 +166,8 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final doc = syncfusion.PdfDocument(inputBytes: await File(splitPath).readAsBytes());
+      final doc = syncfusion.PdfDocument(
+          inputBytes: await File(splitPath).readAsBytes());
       expect(doc.pages.count, equals(2));
       expect(doc.pages[0].size.width, closeTo(320, 5));
       expect(doc.pages[0].size.height, closeTo(480, 5));
@@ -184,14 +198,17 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final doc = syncfusion.PdfDocument(inputBytes: await File(splitPath).readAsBytes());
+      final doc = syncfusion.PdfDocument(
+          inputBytes: await File(splitPath).readAsBytes());
       expect(doc.pages.count, equals(1));
-      expect(doc.pages[0].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle180));
+      expect(doc.pages[0].rotation,
+          equals(syncfusion.PdfPageRotateAngle.rotateAngle180));
 
       doc.dispose();
     });
 
-    test('Test 6 — Start page greater than end page throws exception', () async {
+    test('Test 6 — Start page greater than end page throws exception',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'source_invalid_range.pdf',
         pageCount: 3,
@@ -229,7 +246,8 @@ void main() {
       );
     });
 
-    test('Test 8 — End page beyond total page count throws exception', () async {
+    test('Test 8 — End page beyond total page count throws exception',
+        () async {
       final sourcePath = await createTestPdf(
         filename: 'source_beyond.pdf',
         pageCount: 3,

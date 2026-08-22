@@ -84,7 +84,8 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
                           children: [
                             Text(
                               _fileService.getFileName(_selectedFile!),
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 13.5),
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
@@ -111,7 +112,8 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
                 child: ToolEmptyState(
                   icon: Icons.text_snippet_rounded,
                   title: 'No PDF Selected',
-                  subtitle: 'Select a PDF document from your device to extract text content',
+                  subtitle:
+                      'Select a PDF document from your device to extract text content',
                   actionLabel: 'Select PDF',
                   onAction: _isLoading ? null : _pickPdf,
                 ),
@@ -124,7 +126,10 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
                 children: [
                   Text(
                     'Extracted Text',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const Spacer(),
                   IconButton(
@@ -188,7 +193,8 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _isLoading ? null : _pickPdf,
                       icon: const Icon(Icons.folder_open),
-                      label: Text(_selectedFile == null ? 'Select PDF' : 'Change PDF'),
+                      label: Text(
+                          _selectedFile == null ? 'Select PDF' : 'Change PDF'),
                     ),
                   ),
                   if (_selectedFile != null) ...[
@@ -266,7 +272,8 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
     });
 
     try {
-      if (_selectedFile == null || !await _fileService.isFileAccessible(_selectedFile!)) {
+      if (_selectedFile == null ||
+          !await _fileService.isFileAccessible(_selectedFile!)) {
         setState(() {
           _errorMessage = 'Selected file no longer exists or is inaccessible.';
           _isLoading = false;

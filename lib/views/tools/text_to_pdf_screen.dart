@@ -58,7 +58,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
               if (_errorMessage != null)
                 ToolErrorBanner(
                   message: _errorMessage!,
-                  onRetry: (_titleController.text.isNotEmpty && _textController.text.isNotEmpty)
+                  onRetry: (_titleController.text.isNotEmpty &&
+                          _textController.text.isNotEmpty)
                       ? _generatePdf
                       : null,
                   onDismiss: () => setState(() => _errorMessage = null),
@@ -88,7 +89,10 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
               // Title Field
               Text(
                 'PDF Title',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -99,7 +103,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   isDense: true,
                 ),
                 onChanged: (_) {
-                  if (_errorMessage != null) setState(() => _errorMessage = null);
+                  if (_errorMessage != null)
+                    setState(() => _errorMessage = null);
                 },
               ),
               const SizedBox(height: 20),
@@ -107,7 +112,10 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
               // Content Field
               Text(
                 'Content',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -119,7 +127,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   hintText: 'Enter text to convert to PDF...',
                 ),
                 onChanged: (_) {
-                  if (_errorMessage != null) setState(() => _errorMessage = null);
+                  if (_errorMessage != null)
+                    setState(() => _errorMessage = null);
                 },
               ),
               const SizedBox(height: 8),
@@ -161,9 +170,11 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
   }
 
   Future<void> _generatePdf() async {
-    if (_titleController.text.trim().isEmpty || _textController.text.trim().isEmpty) {
+    if (_titleController.text.trim().isEmpty ||
+        _textController.text.trim().isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter both a title and content to generate a PDF.';
+        _errorMessage =
+            'Please enter both a title and content to generate a PDF.';
       });
       return;
     }

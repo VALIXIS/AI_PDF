@@ -30,32 +30,32 @@ class PdfService {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                  // Title
-                  pw.Text(
-                    title,
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
+                // Title
+                pw.Text(
+                  title,
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
                   ),
-                  pw.SizedBox(height: 12),
+                ),
+                pw.SizedBox(height: 12),
 
-                  // Metadata
-                  pw.Text(
-                    'Generated: ${DateTime.now().toString().split('.')[0]}',
-                    style: const pw.TextStyle(
-                      fontSize: 10,
-                      color: PdfColors.grey,
-                    ),
+                // Metadata
+                pw.Text(
+                  'Generated: ${DateTime.now().toString().split('.')[0]}',
+                  style: const pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey,
                   ),
-                  pw.SizedBox(height: 20),
+                ),
+                pw.SizedBox(height: 20),
 
-                  // Content
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: _buildContentWidgets(lines),
-                  ),
-                ],
+                // Content
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: _buildContentWidgets(lines),
+                ),
+              ],
             );
           },
         ),
@@ -63,8 +63,7 @@ class PdfService {
 
       // Save PDF to file
       final output = await getApplicationDocumentsDirectory();
-      final fileName =
-          'pdf_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName = 'pdf_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(output.path, fileName);
       final pdfBytes = await pdf.save();
 
@@ -153,7 +152,8 @@ class PdfService {
   }
 
   /// Merges multiple PDF files
-  Future<String> mergePdfs(List<String> pdfPaths, {String? customOutputPath}) async {
+  Future<String> mergePdfs(List<String> pdfPaths,
+      {String? customOutputPath}) async {
     if (pdfPaths.isEmpty) {
       throw Exception('No PDF files selected to merge.');
     }
@@ -202,9 +202,9 @@ class PdfService {
 
       final List<int> mergedBytes = outputDocument.saveSync();
 
-      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final fileName =
-          'merged_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName = 'merged_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(dirPath, fileName);
       return await FileService().safeWriteBytes(targetPath, mergedBytes);
     } catch (e) {
@@ -246,10 +246,12 @@ class PdfService {
         throw Exception('Start page must be at least 1 (got $startPage).');
       }
       if (endPage > totalPages) {
-        throw Exception('End page ($endPage) exceeds total pages in document ($totalPages).');
+        throw Exception(
+            'End page ($endPage) exceeds total pages in document ($totalPages).');
       }
       if (startPage > endPage) {
-        throw Exception('Start page ($startPage) cannot be greater than end page ($endPage).');
+        throw Exception(
+            'Start page ($startPage) cannot be greater than end page ($endPage).');
       }
 
       outputDocument = syncfusion.PdfDocument();
@@ -274,9 +276,9 @@ class PdfService {
 
       final List<int> outputBytes = outputDocument.saveSync();
 
-      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final fileName =
-          'split_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName = 'split_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(dirPath, fileName);
       return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
@@ -291,7 +293,8 @@ class PdfService {
   Future<String> compressPdf(String pdfPath, {String? customOutputPath}) async {
     final file = File(pdfPath);
     if (!await file.exists()) {
-      throw PdfServiceException('Input file not found for compression: $pdfPath');
+      throw PdfServiceException(
+          'Input file not found for compression: $pdfPath');
     }
     final bytes = await file.readAsBytes();
     if (bytes.isEmpty) {
@@ -324,8 +327,10 @@ class PdfService {
       }
 
       final List<int> outputBytes = outputDoc.saveSync();
-      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final fileName = 'compressed_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName =
+          'compressed_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(dirPath, fileName);
       return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
@@ -360,10 +365,10 @@ class PdfService {
       try {
         for (int i = 0; i < document.pages.count; i++) {
           final sf.PdfPage page = document.pages[i];
-          
+
           // Get current page rotation
           final currentRotation = page.rotation;
-          
+
           // Convert enum to degrees
           int currentDegrees = 0;
           switch (currentRotation) {
@@ -398,11 +403,12 @@ class PdfService {
 
         // Save rotated PDF to file
         final List<int> outputBytes = await document.save();
-        
-        final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+
+        final String dirPath =
+            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
         final fileName = 'rotated_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final targetPath = path.join(dirPath, fileName);
-        
+
         return await FileService().safeWriteBytes(targetPath, outputBytes);
       } finally {
         document.dispose();
@@ -466,7 +472,8 @@ class PdfService {
           graphics.setTransparency(opacity);
 
           // Translate origin to the center of the page
-          graphics.translateTransform(page.size.width / 2, page.size.height / 2);
+          graphics.translateTransform(
+              page.size.width / 2, page.size.height / 2);
 
           // Apply rotation in degrees
           graphics.rotateTransform(angleInDegrees);
@@ -494,8 +501,10 @@ class PdfService {
         // Save watermarked PDF
         final List<int> outputBytes = await document.save();
 
-        final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final fileName = 'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final String dirPath =
+            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+        final fileName =
+            'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
         final targetPath = path.join(dirPath, fileName);
 
         return await FileService().safeWriteBytes(targetPath, outputBytes);
@@ -574,19 +583,25 @@ class PdfService {
               ),
             );
             final Size textSize = font.measureString(ann.text);
-            final double textW = (w > textSize.width ? w : textSize.width).clamp(textSize.width, pageWidth);
-            final double textH = (h > textSize.height ? h : textSize.height).clamp(textSize.height, pageHeight);
+            final double textW = (w > textSize.width ? w : textSize.width)
+                .clamp(textSize.width, pageWidth);
+            final double textH = (h > textSize.height ? h : textSize.height)
+                .clamp(textSize.height, pageHeight);
             graphics.drawString(
               ann.text,
               font,
               brush: brush,
               bounds: Rect.fromLTWH(x, y, textW, textH),
             );
-          } else if (ann.kind == AnnotationKind.image && ann.imageBytes != null && ann.imageBytes!.isNotEmpty) {
+          } else if (ann.kind == AnnotationKind.image &&
+              ann.imageBytes != null &&
+              ann.imageBytes!.isNotEmpty) {
             try {
               final sf.PdfBitmap bitmap = sf.PdfBitmap(ann.imageBytes!);
-              final double drawW = w.clamp(1.0, (pageWidth - x).clamp(1.0, pageWidth));
-              final double drawH = h.clamp(1.0, (pageHeight - y).clamp(1.0, pageHeight));
+              final double drawW =
+                  w.clamp(1.0, (pageWidth - x).clamp(1.0, pageWidth));
+              final double drawH =
+                  h.clamp(1.0, (pageHeight - y).clamp(1.0, pageHeight));
               graphics.drawImage(
                 bitmap,
                 Rect.fromLTWH(x, y, drawW, drawH),
@@ -599,7 +614,8 @@ class PdfService {
       }
 
       final List<int> outputBytes = await document.save();
-      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName = 'edited_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(dirPath, fileName);
 
@@ -629,18 +645,21 @@ class PdfService {
 
       // Load existing document
       final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
-      
+
       try {
         final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(document);
         final String extractedText = extractor.extractText();
-        
+
         if (extractedText.trim().isEmpty) {
-          throw Exception('No extractable text found in the PDF. Scanned or image-only PDFs are not supported.');
+          throw Exception(
+              'No extractable text found in the PDF. Scanned or image-only PDFs are not supported.');
         }
 
         // Save extracted text to a .txt file
-        final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final fileName = 'extracted_${DateTime.now().millisecondsSinceEpoch}.txt';
+        final String dirPath =
+            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+        final fileName =
+            'extracted_${DateTime.now().millisecondsSinceEpoch}.txt';
         final outputFile = File(path.join(dirPath, fileName));
         await outputFile.writeAsString(extractedText, encoding: utf8);
 

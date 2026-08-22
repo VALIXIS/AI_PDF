@@ -25,7 +25,8 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
 
   Future<void> _pick() async {
     try {
-      final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+      final r = await FilePicker.pickFiles(
+          type: FileType.custom, allowedExtensions: ['pdf']);
       if (!mounted) return;
       if (r?.files.single.path != null) {
         setState(() {
@@ -43,7 +44,8 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
   }
 
   Future<void> _rotate() async {
-    if (_pdfFile == null || !await FileService().isFileAccessible(_pdfFile!.path)) {
+    if (_pdfFile == null ||
+        !await FileService().isFileAccessible(_pdfFile!.path)) {
       setState(() {
         _errorMessage = 'Selected file no longer exists or is inaccessible.';
       });
@@ -155,11 +157,13 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
                       children: [
                         Text(
                           FileService().getFileName(_pdfFile!.path),
-                          style: TextStyle(fontWeight: FontWeight.w700, color: primary),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, color: primary),
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        const Text('Tap to change file', style: TextStyle(fontSize: 12)),
+                        const Text('Tap to change file',
+                            style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -170,14 +174,20 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
             const SizedBox(height: 28),
 
             // Rotation selector
-            Text('Rotation Angle', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text('Rotation Angle',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             Row(
               children: [90, 180, 270].map((deg) {
                 final sel = _rotation == deg;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: _isLoading ? null : () => setState(() => _rotation = deg),
+                    onTap: _isLoading
+                        ? null
+                        : () => setState(() => _rotation = deg),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -188,9 +198,14 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
                         border: Border.all(color: sel ? primary : border),
                       ),
                       child: Column(children: [
-                        Icon(Icons.rotate_right_rounded, color: sel ? Colors.white : sub, size: 28),
+                        Icon(Icons.rotate_right_rounded,
+                            color: sel ? Colors.white : sub, size: 28),
                         const SizedBox(height: 6),
-                        Text('$deg°', style: TextStyle(fontWeight: FontWeight.w800, color: sel ? Colors.white : sub, fontSize: 16)),
+                        Text('$deg°',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: sel ? Colors.white : sub,
+                                fontSize: 16)),
                       ]),
                     ),
                   ),
@@ -217,14 +232,20 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
             child: ElevatedButton.icon(
               onPressed: (_pdfFile == null || _isLoading) ? null : _rotate,
               icon: _isLoading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.rotate_right_rounded),
-              label: const Text('Rotate PDF', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              label: const Text('Rotate PDF',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),

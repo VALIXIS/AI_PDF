@@ -92,7 +92,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     });
 
     try {
-      final photo = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 90);
+      final photo = await ImagePicker()
+          .pickImage(source: ImageSource.camera, imageQuality: 90);
       if (!mounted) return;
       setState(() => _isCapturing = false);
       if (photo != null) {
@@ -136,7 +137,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         ));
       }
       final dir = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(dir.path, 'scan_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final path = FileService().joinPaths(
+          dir.path, 'scan_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await File(path).writeAsBytes(await pdf.save());
 
       await StorageService().addHistoryEntry(HistoryEntry(
@@ -220,7 +222,10 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
             TextButton.icon(
               onPressed: (_isLoading || _isCapturing) ? null : _buildPdf,
               icon: _isLoading
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
                   : Icon(Icons.picture_as_pdf_rounded, color: primary),
               label: Text(
                 'Save PDF (${_pages.length})',
@@ -314,9 +319,11 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                 ? ToolEmptyState(
                     icon: Icons.document_scanner_rounded,
                     title: 'No Scanned Pages Yet',
-                    subtitle: 'Tap "Scan Doc" for auto edge detection, or use Camera / Gallery to import pages',
+                    subtitle:
+                        'Tap "Scan Doc" for auto edge detection, or use Camera / Gallery to import pages',
                     actionLabel: 'Start Scanning',
-                    onAction: (_isLoading || _isCapturing) ? null : _scanDocument,
+                    onAction:
+                        (_isLoading || _isCapturing) ? null : _scanDocument,
                   )
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,17 +336,23 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                             children: [
                               Text(
                                 '${_pages.length} scanned page${_pages.length > 1 ? 's' : ''}',
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700, fontSize: 15),
                               ),
                               const Spacer(),
                               IconButton(
                                 icon: Icon(
-                                  _isReorderMode ? Icons.grid_view_rounded : Icons.reorder_rounded,
+                                  _isReorderMode
+                                      ? Icons.grid_view_rounded
+                                      : Icons.reorder_rounded,
                                   color: primary,
                                   size: 20,
                                 ),
-                                tooltip: _isReorderMode ? 'Switch to Grid View' : 'Reorder Pages',
-                                onPressed: () => setState(() => _isReorderMode = !_isReorderMode),
+                                tooltip: _isReorderMode
+                                    ? 'Switch to Grid View'
+                                    : 'Reorder Pages',
+                                onPressed: () => setState(
+                                    () => _isReorderMode = !_isReorderMode),
                               ),
                               if (!_isLoading && !_isCapturing)
                                 TextButton(
@@ -348,7 +361,9 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                     _errorMessage = null;
                                     _isReorderMode = false;
                                   }),
-                                  child: const Text('Clear all', style: TextStyle(color: Color(0xFFDC2626))),
+                                  child: const Text('Clear all',
+                                      style:
+                                          TextStyle(color: Color(0xFFDC2626))),
                                 ),
                             ],
                           ),
@@ -359,7 +374,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                         Expanded(
                           child: _isReorderMode
                               ? ReorderableListView.builder(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20),
                                   itemCount: _pages.length,
                                   onReorder: (oldIndex, newIndex) {
                                     setState(() {
@@ -375,12 +391,18 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                       margin: const EdgeInsets.only(bottom: 10),
                                       child: ListTile(
                                         leading: ClipRRect(
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: Image.file(page, width: 44, height: 56, fit: BoxFit.cover),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                          child: Image.file(page,
+                                              width: 44,
+                                              height: 56,
+                                              fit: BoxFit.cover),
                                         ),
                                         title: Text(
                                           'Page ${index + 1}',
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14),
                                         ),
                                         subtitle: Text(
                                           FileService().getFileName(page.path),
@@ -392,12 +414,17 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             IconButton(
-                                              icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFDC2626), size: 20),
-                                              onPressed: () => _removePage(index),
+                                              icon: const Icon(
+                                                  Icons.remove_circle_outline,
+                                                  color: Color(0xFFDC2626),
+                                                  size: 20),
+                                              onPressed: () =>
+                                                  _removePage(index),
                                             ),
                                             ReorderableDragStartListener(
                                               index: index,
-                                              child: const Icon(Icons.drag_handle_rounded),
+                                              child: const Icon(
+                                                  Icons.drag_handle_rounded),
                                             ),
                                           ],
                                         ),
@@ -407,8 +434,10 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                   },
                                 )
                               : GridView.builder(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: 3,
                                     crossAxisSpacing: 10,
                                     mainAxisSpacing: 10,
@@ -422,22 +451,34 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                         Container(
                                           decoration: BoxDecoration(
                                             color: bg,
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                             border: Border.all(color: border),
                                           ),
                                           clipBehavior: Clip.hardEdge,
-                                          child: Image.file(_pages[i], fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                                          child: Image.file(_pages[i],
+                                              fit: BoxFit.cover,
+                                              width: double.infinity,
+                                              height: double.infinity),
                                         ),
                                         Positioned(
                                           bottom: 5,
                                           left: 5,
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withValues(alpha: 0.65),
-                                              borderRadius: BorderRadius.circular(6),
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.65),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                             ),
-                                            child: Text('P${i + 1}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                                            child: Text('P${i + 1}',
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                        FontWeight.w800)),
                                           ),
                                         ),
                                         if (!_isLoading && !_isCapturing)
@@ -449,8 +490,13 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                               child: Container(
                                                 width: 22,
                                                 height: 22,
-                                                decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
-                                                child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                                                decoration: const BoxDecoration(
+                                                    color: Color(0xFFDC2626),
+                                                    shape: BoxShape.circle),
+                                                child: const Icon(
+                                                    Icons.close_rounded,
+                                                    color: Colors.white,
+                                                    size: 14),
                                               ),
                                             ),
                                           ),
@@ -468,16 +514,27 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                           child: SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: (_isLoading || _isCapturing) ? null : _buildPdf,
+                              onPressed: (_isLoading || _isCapturing)
+                                  ? null
+                                  : _buildPdf,
                               icon: _isLoading
-                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white))
                                   : const Icon(Icons.picture_as_pdf_rounded),
-                              label: const Text('Save as PDF', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                              label: const Text('Save as PDF',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: primary,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 15),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 15),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
                               ),
                             ),
                           ),
@@ -496,7 +553,11 @@ class _ScanBtn extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback onTap;
-  const _ScanBtn({required this.icon, required this.label, required this.color, required this.onTap});
+  const _ScanBtn(
+      {required this.icon,
+      required this.label,
+      required this.color,
+      required this.onTap});
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -514,7 +575,9 @@ class _ScanBtn extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 26),
               const SizedBox(height: 6),
-              Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700, color: color)),
             ],
           ),
         ),

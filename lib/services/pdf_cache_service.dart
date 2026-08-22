@@ -81,7 +81,7 @@ class PdfCacheService {
     if (_cache.length > _maxCacheEntries) {
       final sortedKeys = _cache.keys.toList()
         ..sort((a, b) => _cache[a]!.cachedAt.compareTo(_cache[b]!.cachedAt));
-      
+
       while (_cache.length > _maxCacheEntries && sortedKeys.isNotEmpty) {
         _cache.remove(sortedKeys.removeAt(0));
       }

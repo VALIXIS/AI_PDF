@@ -67,7 +67,8 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
             if (_successPath != null)
               ToolSuccessCard(
                 title: 'PDF Compressed Successfully!',
-                subtitle: 'Level: ${_compressionLevel.toUpperCase()} compression applied.',
+                subtitle:
+                    'Level: ${_compressionLevel.toUpperCase()} compression applied.',
                 filePath: _successPath,
                 onShare: () {
                   if (_successPath != null && mounted) {
@@ -103,7 +104,8 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
                           children: [
                             Text(
                               _fileService.getFileName(_selectedFile!),
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 13.5),
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
@@ -129,7 +131,10 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
               // Compression Level Options
               Text(
                 'Compression Level',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 10),
               SegmentedButton<String>(
@@ -192,7 +197,8 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _isLoading ? null : _pickPdf,
                     icon: const Icon(Icons.folder_open),
-                    label: Text(_selectedFile == null ? 'Select PDF' : 'Change PDF'),
+                    label: Text(
+                        _selectedFile == null ? 'Select PDF' : 'Change PDF'),
                   ),
                 ),
                 if (_selectedFile != null) ...[
@@ -256,7 +262,8 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
     });
 
     try {
-      if (_selectedFile == null || !await _fileService.isFileAccessible(_selectedFile!)) {
+      if (_selectedFile == null ||
+          !await _fileService.isFileAccessible(_selectedFile!)) {
         setState(() {
           _errorMessage = 'Selected file no longer exists or is inaccessible.';
           _isLoading = false;
@@ -268,7 +275,8 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
 
       final entry = HistoryEntry(
         id: const Uuid().v4(),
-        title: 'Compressed PDF - ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+        title:
+            'Compressed PDF - ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
         date: DateTime.now(),
         filePath: filePath,
         toolType: 'compress_pdf',
@@ -292,5 +300,4 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
       });
     }
   }
-
 }

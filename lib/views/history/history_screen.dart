@@ -44,7 +44,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   value: 'clean_stale',
                   child: Row(
                     children: [
-                      Icon(Icons.cleaning_services_rounded, color: Colors.orange),
+                      Icon(Icons.cleaning_services_rounded,
+                          color: Colors.orange),
                       SizedBox(width: 12),
                       Text('Clean Missing Files'),
                     ],
@@ -155,15 +156,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   color: isMissing
                       ? const Color.fromRGBO(255, 152, 0, 0.15)
                       : Color.fromRGBO(
-                          (Theme.of(context).colorScheme.primary.r * 255).round(),
-                          (Theme.of(context).colorScheme.primary.g * 255).round(),
-                          (Theme.of(context).colorScheme.primary.b * 255).round(),
+                          (Theme.of(context).colorScheme.primary.r * 255)
+                              .round(),
+                          (Theme.of(context).colorScheme.primary.g * 255)
+                              .round(),
+                          (Theme.of(context).colorScheme.primary.b * 255)
+                              .round(),
                           0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  isMissing ? Icons.warning_amber_rounded : Icons.picture_as_pdf,
-                  color: isMissing ? Colors.orange[800] : Theme.of(context).colorScheme.primary,
+                  isMissing
+                      ? Icons.warning_amber_rounded
+                      : Icons.picture_as_pdf,
+                  color: isMissing
+                      ? Colors.orange[800]
+                      : Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -181,12 +189,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Wrap(
                       crossAxisAlignment: WrapCrossAlignment.center,
                       spacing: 8,
-
                       runSpacing: 4,
                       children: [
                         Text(
                           formattedDate,
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(color: Colors.grey[600]),
                         ),
                         Container(
@@ -196,18 +205,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: Color.fromRGBO(
-                                (Theme.of(context).colorScheme.primary.r * 255).round(),
-                                (Theme.of(context).colorScheme.primary.g * 255).round(),
-                                (Theme.of(context).colorScheme.primary.b * 255).round(),
-                              0.1),
+                                (Theme.of(context).colorScheme.primary.r * 255)
+                                    .round(),
+                                (Theme.of(context).colorScheme.primary.g * 255)
+                                    .round(),
+                                (Theme.of(context).colorScheme.primary.b * 255)
+                                    .round(),
+                                0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             _getToolLabel(entry.toolType),
-                            style: Theme.of(context).textTheme.labelSmall
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
                                 ?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                           ),
                         ),
                         if (isMissing)
@@ -222,11 +236,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ),
                             child: Text(
                               'File missing',
-                              style: Theme.of(context).textTheme.labelSmall
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
                                   ?.copyWith(
-                                color: Colors.orange[800],
-                                fontWeight: FontWeight.bold,
-                              ),
+                                    color: Colors.orange[800],
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
                           ),
                       ],
@@ -309,8 +325,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               leading: const Icon(Icons.calendar_today),
               title: const Text('Created'),
               subtitle: Text(
-                DateFormat('EEEE, MMMM d, yyyy - HH:mm:ss')
-                    .format(entry.date),
+                DateFormat('EEEE, MMMM d, yyyy - HH:mm:ss').format(entry.date),
               ),
             ),
             const SizedBox(height: 16),
@@ -350,8 +365,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Clear History'),
-        content: const Text(
-            'Are you sure you want to delete all history entries?'),
+        content:
+            const Text('Are you sure you want to delete all history entries?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -371,8 +386,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _loadHistory() async {
     try {
-      final entries =
-          await _storageService.getHistoryEntriesSortedByDate();
+      final entries = await _storageService.getHistoryEntriesSortedByDate();
       final inaccessible = <String>{};
       for (final entry in entries) {
         if (!await _storageService.isEntryFileAccessible(entry)) {
@@ -474,11 +488,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return;
     }
     try {
-      await Share.shareXFiles([XFile(entry.filePath)], text: 'Check out this PDF document: ${entry.title}');
+      await Share.shareXFiles([XFile(entry.filePath)],
+          text: 'Check out this PDF document: ${entry.title}');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not share file: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Could not share file: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -502,4 +519,3 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 }
-

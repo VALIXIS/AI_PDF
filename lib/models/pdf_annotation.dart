@@ -56,7 +56,8 @@ class Annotation {
     bool? bold,
     Uint8List? imageBytes,
   }) {
-    final copy = kind == AnnotationKind.image || (kind == null && this.kind == AnnotationKind.image)
+    final copy = kind == AnnotationKind.image ||
+            (kind == null && this.kind == AnnotationKind.image)
         ? Annotation.image(
             id: id ?? this.id,
             x: x ?? this.x,

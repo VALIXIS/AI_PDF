@@ -9,8 +9,10 @@ import 'package:flutter/services.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const MethodChannel channel = MethodChannel('plugins.flutter.io/path_provider');
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+  const MethodChannel channel =
+      MethodChannel('plugins.flutter.io/path_provider');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
     channel,
     (MethodCall methodCall) async {
       return Directory.systemTemp.path;
@@ -19,7 +21,8 @@ void main() {
 
   group('Centralized AppException Suite', () {
     test('PdfServiceException formats code and details correctly', () {
-      final exc = PdfServiceException('PDF rendering failed', code: 'RENDER_ERR', details: 'Null stream');
+      final exc = PdfServiceException('PDF rendering failed',
+          code: 'RENDER_ERR', details: 'Null stream');
       expect(exc.message, equals('PDF rendering failed'));
       expect(exc.code, equals('RENDER_ERR'));
       expect(exc.details, equals('Null stream'));
@@ -40,13 +43,15 @@ void main() {
   });
 
   group('Temp File Cleanup & Compression Engine Tests', () {
-    test('cleanOrphanedTempFiles runs safely without throwing exceptions', () async {
+    test('cleanOrphanedTempFiles runs safely without throwing exceptions',
+        () async {
       final deleted = await FileService().cleanOrphanedTempFiles();
       expect(deleted, isA<int>());
       expect(deleted, greaterThanOrEqualTo(0));
     });
 
-    test('compressPdf throws PdfServiceException on non-existent file', () async {
+    test('compressPdf throws PdfServiceException on non-existent file',
+        () async {
       expect(
         () => PdfService().compressPdf('/tmp/non_existent_file_12345.pdf'),
         throwsA(isA<PdfServiceException>()),
@@ -57,7 +62,7 @@ void main() {
       final tempDir = Directory.systemTemp.createTempSync('pdf_compress_test_');
       try {
         final samplePdfPath = '${tempDir.path}/sample.pdf';
-        
+
         // Generate valid PDF using generatePdfFromText
         final generatedPath = await PdfService().generatePdfFromText(
           title: 'Compression Architecture Test',

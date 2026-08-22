@@ -12,7 +12,6 @@ import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
-
 class ProtectPdfScreen extends StatefulWidget {
   const ProtectPdfScreen({Key? key}) : super(key: key);
   @override
@@ -37,7 +36,8 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
 
   Future<void> _pick() async {
     try {
-      final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+      final r = await FilePicker.pickFiles(
+          type: FileType.custom, allowedExtensions: ['pdf']);
       if (!mounted) return;
       if (r?.files.single.path != null) {
         setState(() {
@@ -55,7 +55,8 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
   }
 
   Future<void> _protect() async {
-    if (_pdfFile == null || !await FileService().isFileAccessible(_pdfFile!.path)) {
+    if (_pdfFile == null ||
+        !await FileService().isFileAccessible(_pdfFile!.path)) {
       setState(() {
         _errorMessage = 'Selected file no longer exists or is inaccessible.';
       });
@@ -85,18 +86,29 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
       final pdf = pw.Document();
       pdf.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
-        build: (_) => pw.Center(child: pw.Column(mainAxisAlignment: pw.MainAxisAlignment.center, children: [
-          pw.Icon(const pw.IconData(0xe897), size: 64, color: PdfColors.red),
-          pw.SizedBox(height: 16),
-          pw.Text('Password Protected', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          pw.Text('Source: ${FileService().getFileName(_pdfFile!.path)}', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-          pw.SizedBox(height: 4),
-          pw.Text('Password set successfully', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-        ])),
+        build: (_) => pw.Center(
+            child: pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+              pw.Icon(const pw.IconData(0xe897),
+                  size: 64, color: PdfColors.red),
+              pw.SizedBox(height: 16),
+              pw.Text('Password Protected',
+                  style: pw.TextStyle(
+                      fontSize: 24, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              pw.Text('Source: ${FileService().getFileName(_pdfFile!.path)}',
+                  style:
+                      const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
+              pw.SizedBox(height: 4),
+              pw.Text('Password set successfully',
+                  style:
+                      const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
+            ])),
       ));
-      final dir  = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(dir.path, 'protected_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final dir = await getApplicationDocumentsDirectory();
+      final path = FileService().joinPaths(
+          dir.path, 'protected_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await File(path).writeAsBytes(await pdf.save());
 
       await StorageService().addHistoryEntry(HistoryEntry(
@@ -148,7 +160,9 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
           if (_errorMessage != null)
             ToolErrorBanner(
               message: _errorMessage!,
-              onRetry: (_pdfFile != null && _passCtrl.text.isNotEmpty) ? _protect : null,
+              onRetry: (_pdfFile != null && _passCtrl.text.isNotEmpty)
+                  ? _protect
+                  : null,
               onDismiss: () => setState(() => _errorMessage = null),
             ),
 
@@ -177,7 +191,8 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
             ToolEmptyState(
               icon: Icons.lock_rounded,
               title: 'No PDF Selected',
-              subtitle: 'Select a PDF document to secure with password protection',
+              subtitle:
+                  'Select a PDF document to secure with password protection',
               actionLabel: 'Select PDF',
               onAction: _isLoading ? null : _pick,
             )
@@ -200,11 +215,13 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
                       children: [
                         Text(
                           FileService().getFileName(_pdfFile!.path),
-                          style: TextStyle(fontWeight: FontWeight.w700, color: primary),
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, color: primary),
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
-                        const Text('Tap to change file', style: TextStyle(fontSize: 12)),
+                        const Text('Tap to change file',
+                            style: TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -215,7 +232,11 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
             const SizedBox(height: 24),
 
             // Password fields
-            Text('Set Password', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text('Set Password',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 10),
             TextField(
               enabled: !_isLoading,
@@ -225,7 +246,9 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
                 hintText: 'Enter password',
                 isDense: true,
                 suffixIcon: IconButton(
-                  icon: Icon(_showPass ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                  icon: Icon(_showPass
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded),
                   onPressed: () => setState(() => _showPass = !_showPass),
                 ),
               ),
@@ -248,7 +271,8 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
             ),
             const SizedBox(height: 10),
             Row(children: [
-              const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF9CA3AF)),
+              const Icon(Icons.info_outline_rounded,
+                  size: 14, color: Color(0xFF9CA3AF)),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -265,14 +289,20 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
             child: ElevatedButton.icon(
               onPressed: (_pdfFile == null || _isLoading) ? null : _protect,
               icon: _isLoading
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.lock_rounded),
-              label: const Text('Protect PDF', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              label: const Text('Protect PDF',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),

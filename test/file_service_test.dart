@@ -12,7 +12,8 @@ void main() {
     });
 
     test('getFileName handles Windows-style paths correctly', () {
-      final name = fileService.getFileName(r'C:\Users\test\Documents\document.pdf');
+      final name =
+          fileService.getFileName(r'C:\Users\test\Documents\document.pdf');
       expect(name, 'document.pdf');
     });
 
@@ -39,13 +40,18 @@ void main() {
       expect(joined, contains('file.pdf'));
     });
 
-    test('fileExists returns false for non-existent file path without crashing', () async {
-      final exists = await fileService.fileExists('/invalid/non_existent_file.pdf');
+    test('fileExists returns false for non-existent file path without crashing',
+        () async {
+      final exists =
+          await fileService.fileExists('/invalid/non_existent_file.pdf');
       expect(exists, isFalse);
     });
 
-    test('isFileAccessible returns false for non-existent path without throwing', () async {
-      final accessible = await fileService.isFileAccessible('/invalid/non_existent_file.pdf');
+    test(
+        'isFileAccessible returns false for non-existent path without throwing',
+        () async {
+      final accessible =
+          await fileService.isFileAccessible('/invalid/non_existent_file.pdf');
       expect(accessible, isFalse);
     });
 
@@ -56,43 +62,53 @@ void main() {
     });
 
     test('getFileName handles paths with spaces and nested directories', () {
-      final nameWin = fileService.getFileName(r'C:\Users\test user\My Documents\nested\my resume final.pdf');
+      final nameWin = fileService.getFileName(
+          r'C:\Users\test user\My Documents\nested\my resume final.pdf');
       expect(nameWin, 'my resume final.pdf');
 
-      final nameUnix = fileService.getFileName('/home/user/my documents/nested/my report 2026.pdf');
+      final nameUnix = fileService
+          .getFileName('/home/user/my documents/nested/my report 2026.pdf');
       expect(nameUnix, 'my report 2026.pdf');
     });
 
     test('getDirectoryName handles nested Windows paths and spaces', () {
-      final dirWin = fileService.getDirectoryName(r'C:\Program Files\App Data\sub dir\file name.pdf');
+      final dirWin = fileService
+          .getDirectoryName(r'C:\Program Files\App Data\sub dir\file name.pdf');
       expect(dirWin, r'C:\Program Files\App Data\sub dir');
     });
 
     test('joinPaths handles spaces, nested directories and optional parts', () {
-      final joined = fileService.joinPaths(r'C:\Base Dir', 'Sub Dir', 'Nested Folder', 'my document.pdf');
+      final joined = fileService.joinPaths(
+          r'C:\Base Dir', 'Sub Dir', 'Nested Folder', 'my document.pdf');
       expect(joined, contains('my document.pdf'));
       expect(joined, contains('Nested Folder'));
     });
 
     test('normalizePath cleans redundant separators and relative paths', () {
-      final normalized = fileService.normalizePath(r'C:\Users\test\..\test\Documents\.\file.pdf');
+      final normalized = fileService
+          .normalizePath(r'C:\Users\test\..\test\Documents\.\file.pdf');
       expect(normalized, isNotEmpty);
       expect(normalized, contains('file.pdf'));
     });
 
     test('readTextFile throws Exception for missing/invalid path', () async {
       expect(
-        () async => await fileService.readTextFile(r'C:\non_existent_dir\missing_text_file.txt'),
+        () async => await fileService
+            .readTextFile(r'C:\non_existent_dir\missing_text_file.txt'),
         throwsA(isA<Exception>()),
       );
     });
 
-    test('deleteFile returns false for non-existent file without throwing uncaught exception', () async {
+    test(
+        'deleteFile returns false for non-existent file without throwing uncaught exception',
+        () async {
       final result = await fileService.deleteFile('/invalid/non_existent.pdf');
       expect(result, isFalse);
     });
 
-    test('sanitizeFileName removes illegal characters and control chars across platforms', () {
+    test(
+        'sanitizeFileName removes illegal characters and control chars across platforms',
+        () {
       const input = '  invalid/file:name*test?.pdf.  ';
       final sanitized = fileService.sanitizeFileName(input);
       expect(sanitized, isNot(contains('/')));
@@ -102,8 +118,10 @@ void main() {
       expect(sanitized, equals('invalid_file_name_test_.pdf'));
     });
 
-    test('getUniqueFilePath creates non-colliding filename when file exists', () async {
-      final tempDir = await Directory.systemTemp.createTemp('unique_path_test_');
+    test('getUniqueFilePath creates non-colliding filename when file exists',
+        () async {
+      final tempDir =
+          await Directory.systemTemp.createTemp('unique_path_test_');
       try {
         final initialPath = '${tempDir.path}/test_doc.pdf';
         await File(initialPath).writeAsString('test content');
@@ -116,17 +134,20 @@ void main() {
       }
     });
 
-    test('safeWriteBytes performs atomic write and directory creation', () async {
+    test('safeWriteBytes performs atomic write and directory creation',
+        () async {
       final tempDir = await Directory.systemTemp.createTemp('safe_write_test_');
       try {
         final targetPath = '${tempDir.path}/nested/dir/atomic_doc.pdf';
-        final savedPath = await fileService.safeWriteBytes(targetPath, [65, 66, 67]);
+        final savedPath =
+            await fileService.safeWriteBytes(targetPath, [65, 66, 67]);
 
         expect(await File(savedPath).exists(), isTrue);
         expect(await File(savedPath).readAsString(), equals('ABC'));
 
         // Attempting to safeWriteBytes again without overwrite should resolve duplicate filename
-        final secondPath = await fileService.safeWriteBytes(targetPath, [68, 69, 70]);
+        final secondPath =
+            await fileService.safeWriteBytes(targetPath, [68, 69, 70]);
         expect(secondPath, isNot(equals(savedPath)));
         expect(secondPath, contains('atomic_doc (1).pdf'));
         expect(await File(secondPath).readAsString(), equals('DEF'));
@@ -152,4 +173,3 @@ void main() {
     });
   });
 }
-

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
-import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary, kPrimaryDark;
+import 'package:pdf_ai_toolkit/main.dart'
+    show themeNotifier, kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -58,7 +59,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF14141E) : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF1F1F2E)
+                      : const Color(0xFFE5E7EB)),
             ),
             child: _SettingsTile(
               icon: Icons.dark_mode_rounded,
@@ -82,7 +86,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF14141E) : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF1F1F2E)
+                      : const Color(0xFFE5E7EB)),
             ),
             child: Column(
               children: [
@@ -90,7 +97,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.history_rounded,
                   iconColor: const Color(0xFF06B6D4),
                   title: 'History',
-                  subtitle: '$_historyCount saved file${_historyCount == 1 ? '' : 's'}',
+                  subtitle:
+                      '$_historyCount saved file${_historyCount == 1 ? '' : 's'}',
                   trailing: Icon(
                     Icons.chevron_right_rounded,
                     color: subtitleColor,
@@ -116,7 +124,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF14141E) : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF1F1F2E)
+                      : const Color(0xFFE5E7EB)),
             ),
             child: Column(
               children: [
@@ -175,8 +186,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
             },
-            child: const Text('Clear',
-                style: TextStyle(color: Color(0xFFEF4444))),
+            child:
+                const Text('Clear', style: TextStyle(color: Color(0xFFEF4444))),
           ),
         ],
       ),
@@ -212,58 +223,64 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: isLast ? null : BoxDecoration(
-            border: Border(bottom: BorderSide(color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB))),
-          ),
-          child: Row(
-            children: [
-              leadingWidget ?? Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 20, color: iconColor),
-              ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style:
-                        Theme.of(context).textTheme.titleSmall?.copyWith(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: isLast
+                ? null
+                : BoxDecoration(
+                    border: Border(
+                        bottom: BorderSide(
+                            color: isDark
+                                ? const Color(0xFF1F1F2E)
+                                : const Color(0xFFE5E7EB))),
+                  ),
+            child: Row(
+              children: [
+                leadingWidget ??
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, size: 20, color: iconColor),
+                    ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: isDark
+                                        ? const Color(0xFF8B949E)
+                                        : const Color(0xFF64748B),
+                                  ),
+                        ),
+                      ]
+                    ],
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: isDark
-                                    ? const Color(0xFF8B949E)
-                                    : const Color(0xFF64748B),
-                              ),
-                    ),
-                  ]
-                ],
-              ),
+                ),
+                if (trailing != null) trailing!,
+              ],
             ),
-            if (trailing != null) trailing!,
-          ],
-        ),
-      ),
-    ));
+          ),
+        ));
   }
 }
 

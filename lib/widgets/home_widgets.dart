@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kCardLight, kCardDark, kTextLight;
+import 'package:pdf_ai_toolkit/main.dart'
+    show kPrimary, kCardLight, kCardDark, kTextLight;
 
 /// Hero input section – large text field + Generate PDF button.
 class HeroInputWidget extends StatefulWidget {
@@ -23,12 +24,10 @@ class _HeroInputWidgetState extends State<HeroInputWidget> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? kCardDark : kCardLight;
-    final borderColor = isDark
-        ? const Color(0xFF30363D)
-        : const Color(0xFFE2E8F0);
-    final subtitleColor = isDark
-        ? const Color(0xFF8B949E)
-        : const Color(0xFF64748B);
+    final borderColor =
+        isDark ? const Color(0xFF30363D) : const Color(0xFFE2E8F0);
+    final subtitleColor =
+        isDark ? const Color(0xFF8B949E) : const Color(0xFF64748B);
 
     return Container(
       width: double.infinity,
@@ -71,9 +70,7 @@ class _HeroInputWidgetState extends State<HeroInputWidget> {
           // Divider
           Divider(
             height: 1,
-            color: isDark
-                ? const Color(0xFF30363D)
-                : const Color(0xFFE2E8F0),
+            color: isDark ? const Color(0xFF30363D) : const Color(0xFFE2E8F0),
           ),
           const SizedBox(height: 16),
 
@@ -125,13 +122,11 @@ class _HeroInputWidgetState extends State<HeroInputWidget> {
                         const SizedBox(width: 8),
                         Text(
                           'Generate PDF',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                         ),
                       ],
                     ),
@@ -179,8 +174,8 @@ class _ToolCardWidgetState extends State<ToolCardWidget>
       reverseDuration: const Duration(milliseconds: 110),
       value: 1.0,
     );
-    _scale =
-        Tween(begin: 1.0, end: 0.95).animate(CurvedAnimation(parent: _ctl, curve: Curves.easeOut));
+    _scale = Tween(begin: 1.0, end: 0.95)
+        .animate(CurvedAnimation(parent: _ctl, curve: Curves.easeOut));
   }
 
   @override
@@ -196,11 +191,10 @@ class _ToolCardWidgetState extends State<ToolCardWidget>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? kCardDark : kCardLight;
-    final borderColor = isDark
-        ? const Color(0xFF30363D)
-        : const Color(0xFFE2E8F0);
-    final iconColor = widget.iconColor ??
-        (isDark ? const Color(0xFF60A5FA) : kPrimary);
+    final borderColor =
+        isDark ? const Color(0xFF30363D) : const Color(0xFFE2E8F0);
+    final iconColor =
+        widget.iconColor ?? (isDark ? const Color(0xFF60A5FA) : kPrimary);
     final titleColor = isDark ? Colors.white : kTextLight;
 
     return GestureDetector(
@@ -254,9 +248,8 @@ class _ToolCardWidgetState extends State<ToolCardWidget>
               Icon(
                 Icons.chevron_right_rounded,
                 size: 18,
-                color: isDark
-                    ? const Color(0xFF4B5563)
-                    : const Color(0xFFCBD5E1),
+                color:
+                    isDark ? const Color(0xFF4B5563) : const Color(0xFFCBD5E1),
               ),
             ],
           ),

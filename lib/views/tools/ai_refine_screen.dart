@@ -58,7 +58,8 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
               if (_errorMessage != null)
                 ToolErrorBanner(
                   message: _errorMessage!,
-                  onRetry: _inputController.text.isNotEmpty ? _refineText : null,
+                  onRetry:
+                      _inputController.text.isNotEmpty ? _refineText : null,
                   onDismiss: () => setState(() => _errorMessage = null),
                 ),
 
@@ -81,7 +82,8 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                   hintText: 'Enter or paste text to refine with AI...',
                 ),
                 onChanged: (_) {
-                  if (_errorMessage != null) setState(() => _errorMessage = null);
+                  if (_errorMessage != null)
+                    setState(() => _errorMessage = null);
                 },
               ),
               const SizedBox(height: 20),

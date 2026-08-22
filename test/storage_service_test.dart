@@ -6,7 +6,9 @@ void main() {
   group('StorageService Missing-File & Accessibility Tests', () {
     final storageService = StorageService();
 
-    test('isEntryFileAccessible returns false when entry filePath points to non-existent file', () async {
+    test(
+        'isEntryFileAccessible returns false when entry filePath points to non-existent file',
+        () async {
       final entry = HistoryEntry(
         id: 'test_1',
         title: 'Non Existent PDF',

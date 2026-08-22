@@ -9,7 +9,8 @@ import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 void main() {
-  testWidgets('App loads and displays HomeScreen smoke test', (WidgetTester tester) async {
+  testWidgets('App loads and displays HomeScreen smoke test',
+      (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
 
@@ -25,7 +26,8 @@ void main() {
     expect(find.text('Start Scan'), findsOneWidget);
   });
 
-  testWidgets('HomeScreen category filtering and tool navigation test', (WidgetTester tester) async {
+  testWidgets('HomeScreen category filtering and tool navigation test',
+      (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
 
@@ -125,7 +127,8 @@ void main() {
   });
 
   group('Tool State Widgets Unit Tests', () {
-    testWidgets('ToolErrorBanner displays message and handles retry/dismiss', (WidgetTester tester) async {
+    testWidgets('ToolErrorBanner displays message and handles retry/dismiss',
+        (WidgetTester tester) async {
       bool retried = false;
       bool dismissed = false;
 
@@ -149,7 +152,8 @@ void main() {
       expect(dismissed, isTrue);
     });
 
-    testWidgets('ToolSuccessCard displays success info and handles actions', (WidgetTester tester) async {
+    testWidgets('ToolSuccessCard displays success info and handles actions',
+        (WidgetTester tester) async {
       bool shared = false;
       bool reset = false;
 
@@ -175,7 +179,8 @@ void main() {
       expect(reset, isTrue);
     });
 
-    testWidgets('ToolEmptyState displays title and handles action button', (WidgetTester tester) async {
+    testWidgets('ToolEmptyState displays title and handles action button',
+        (WidgetTester tester) async {
       bool actionTapped = false;
 
       await tester.pumpWidget(MaterialApp(
@@ -197,7 +202,8 @@ void main() {
       expect(actionTapped, isTrue);
     });
 
-    testWidgets('ToolLoadingBanner displays loading status message', (WidgetTester tester) async {
+    testWidgets('ToolLoadingBanner displays loading status message',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: Scaffold(
           body: ToolLoadingBanner(
@@ -213,7 +219,9 @@ void main() {
   });
 
   group('Core PDF Tool Screens State Tests', () {
-    testWidgets('TextToPdfScreen shows error banner when submitting empty fields', (WidgetTester tester) async {
+    testWidgets(
+        'TextToPdfScreen shows error banner when submitting empty fields',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: TextToPdfScreen(),
       ));
@@ -223,10 +231,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ToolErrorBanner), findsOneWidget);
-      expect(find.text('Please enter both a title and content to generate a PDF.'), findsOneWidget);
+      expect(
+          find.text('Please enter both a title and content to generate a PDF.'),
+          findsOneWidget);
     });
 
-    testWidgets('MergePdfScreen displays empty state when no files selected', (WidgetTester tester) async {
+    testWidgets('MergePdfScreen displays empty state when no files selected',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: MergePdfScreen(),
       ));
@@ -235,7 +246,8 @@ void main() {
       expect(find.text('No PDFs Selected'), findsOneWidget);
     });
 
-    testWidgets('PdfToTextScreen displays empty state when no file selected', (WidgetTester tester) async {
+    testWidgets('PdfToTextScreen displays empty state when no file selected',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: PdfToTextScreen(),
       ));
@@ -244,7 +256,8 @@ void main() {
       expect(find.text('No PDF Selected'), findsOneWidget);
     });
 
-    testWidgets('CameraScanScreen displays empty state when no scanned pages', (WidgetTester tester) async {
+    testWidgets('CameraScanScreen displays empty state when no scanned pages',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: CameraScanScreen(),
       ));
@@ -254,7 +267,9 @@ void main() {
       expect(find.text('Start Scanning'), findsOneWidget);
     });
 
-    testWidgets('PdfEditorScreen displays empty state when no PDF file selected', (WidgetTester tester) async {
+    testWidgets(
+        'PdfEditorScreen displays empty state when no PDF file selected',
+        (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: PdfEditorScreen(),
       ));

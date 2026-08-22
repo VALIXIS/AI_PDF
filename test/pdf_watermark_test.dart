@@ -40,13 +40,15 @@ void main() {
         ),
       );
     }
-    final file = File('$tempDirPath/test_watermark_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final file = File(
+        '$tempDirPath/test_watermark_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file.path;
   }
 
   group('PDF Watermarking Tests', () {
-    test('Successfully applies text watermark to all pages of a multi-page PDF', () async {
+    test('Successfully applies text watermark to all pages of a multi-page PDF',
+        () async {
       final inputPath = await createTestPdf(pageCount: 3);
       final inputFile = File(inputPath);
 
@@ -76,7 +78,7 @@ void main() {
 
       final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(outputDoc);
       final String extractedText = extractor.extractText();
-      
+
       // Verify original content is preserved
       expect(extractedText.contains('Page'), true);
       expect(extractedText.contains('1'), true);

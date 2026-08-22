@@ -31,8 +31,7 @@ class _AiScreenState extends State<AiScreen> {
   @override
   void initState() {
     super.initState();
-    _inputController =
-        TextEditingController(text: widget.initialInput ?? '');
+    _inputController = TextEditingController(text: widget.initialInput ?? '');
   }
 
   @override
@@ -92,7 +91,9 @@ class _AiScreenState extends State<AiScreen> {
         toolType: 'ai_to_pdf',
       );
       await _storageService.addHistoryEntry(entry);
-      if (mounted) { ShareService.showSaveShareDialog(context, filePath); }
+      if (mounted) {
+        ShareService.showSaveShareDialog(context, filePath);
+      }
       setState(() {
         _isGenerating = false;
         _previewText = null;
@@ -116,8 +117,7 @@ class _AiScreenState extends State<AiScreen> {
     }
   }
 
-  void _showError(String msg) =>
-      setState(() => _errorMessage = msg);
+  void _showError(String msg) => setState(() => _errorMessage = msg);
 
   // -----------------------------------------------------------------------
   // Build
@@ -192,8 +192,8 @@ class _AiScreenState extends State<AiScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   );
                 }).toList(),
               ),
@@ -265,7 +265,9 @@ class _AiScreenState extends State<AiScreen> {
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(color: const Color(0xFFDC2626)),
                         ),
                       ),
@@ -312,16 +314,14 @@ class _AiScreenState extends State<AiScreen> {
                   children: [
                     Text(
                       'Preview',
-                      style:
-                          Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     const Spacer(),
                     TextButton.icon(
                       onPressed: () {
-                        Clipboard.setData(
-                            ClipboardData(text: _previewText!));
+                        Clipboard.setData(ClipboardData(text: _previewText!));
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: const Text('Copied to clipboard'),
@@ -396,10 +396,8 @@ class _AiScreenState extends State<AiScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kPrimary,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            kPrimary.withOpacity(0.35),
-                        disabledForegroundColor:
-                            Colors.white.withOpacity(0.6),
+                        disabledBackgroundColor: kPrimary.withOpacity(0.35),
+                        disabledForegroundColor: Colors.white.withOpacity(0.6),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -416,4 +414,3 @@ class _AiScreenState extends State<AiScreen> {
     );
   }
 }
-

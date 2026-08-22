@@ -49,9 +49,13 @@ void main() {
   }
 
   group('Syncfusion API Verification & PDF Merge Tests', () {
-    test('Verify Syncfusion createTemplate and drawPdfTemplate API operates natively', () async {
-      final pathA = await createTestPdf(filename: 'docA.pdf', pageCount: 2, textPrefix: 'DocA');
-      final pathB = await createTestPdf(filename: 'docB.pdf', pageCount: 3, textPrefix: 'DocB');
+    test(
+        'Verify Syncfusion createTemplate and drawPdfTemplate API operates natively',
+        () async {
+      final pathA = await createTestPdf(
+          filename: 'docA.pdf', pageCount: 2, textPrefix: 'DocA');
+      final pathB = await createTestPdf(
+          filename: 'docB.pdf', pageCount: 3, textPrefix: 'DocB');
 
       final bytesA = await File(pathA).readAsBytes();
       final bytesB = await File(pathB).readAsBytes();
@@ -65,7 +69,10 @@ void main() {
           final sec = destDoc.sections!.add();
           sec.pageSettings.size = p.size;
           sec.pageSettings.margins.all = 0;
-          sec.pages.add().graphics.drawPdfTemplate(template, Offset.zero, p.size);
+          sec.pages
+              .add()
+              .graphics
+              .drawPdfTemplate(template, Offset.zero, p.size);
         }
         src.dispose();
       }
@@ -83,11 +90,14 @@ void main() {
     });
 
     test('Test 1 — Merge two PDFs (2 pages + 3 pages = 5 pages)', () async {
-      final pathA = await createTestPdf(filename: 'a.pdf', pageCount: 2, textPrefix: 'DocA');
-      final pathB = await createTestPdf(filename: 'b.pdf', pageCount: 3, textPrefix: 'DocB');
+      final pathA = await createTestPdf(
+          filename: 'a.pdf', pageCount: 2, textPrefix: 'DocA');
+      final pathB = await createTestPdf(
+          filename: 'b.pdf', pageCount: 3, textPrefix: 'DocB');
 
       final service = PdfService();
-      final mergedPath = await service.mergePdfs([pathA, pathB], customOutputPath: tempDir.path);
+      final mergedPath = await service
+          .mergePdfs([pathA, pathB], customOutputPath: tempDir.path);
 
       final file = File(mergedPath);
       expect(await file.exists(), isTrue);
@@ -98,45 +108,63 @@ void main() {
       expect(loadedDoc.pages.count, equals(5));
 
       final extractor = syncfusion.PdfTextExtractor(loadedDoc);
-      final p1Text = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      final p1Text = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p1Text, contains('DocA Page1'));
 
-      final p3Text = extractor.extractText(startPageIndex: 2, endPageIndex: 2).replaceAll(RegExp(r'\s+'), ' ');
+      final p3Text = extractor
+          .extractText(startPageIndex: 2, endPageIndex: 2)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p3Text, contains('DocB Page1'));
 
       loadedDoc.dispose();
     });
 
     test('Test 2 — Merge multiple PDFs (3 PDFs preserving order)', () async {
-      final pathA = await createTestPdf(filename: 'm1.pdf', pageCount: 1, textPrefix: 'Part1');
-      final pathB = await createTestPdf(filename: 'm2.pdf', pageCount: 2, textPrefix: 'Part2');
-      final pathC = await createTestPdf(filename: 'm3.pdf', pageCount: 4, textPrefix: 'Part3');
+      final pathA = await createTestPdf(
+          filename: 'm1.pdf', pageCount: 1, textPrefix: 'Part1');
+      final pathB = await createTestPdf(
+          filename: 'm2.pdf', pageCount: 2, textPrefix: 'Part2');
+      final pathC = await createTestPdf(
+          filename: 'm3.pdf', pageCount: 4, textPrefix: 'Part3');
 
       final service = PdfService();
-      final mergedPath = await service.mergePdfs([pathA, pathB, pathC], customOutputPath: tempDir.path);
+      final mergedPath = await service
+          .mergePdfs([pathA, pathB, pathC], customOutputPath: tempDir.path);
 
-      final loadedDoc = syncfusion.PdfDocument(inputBytes: await File(mergedPath).readAsBytes());
+      final loadedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(mergedPath).readAsBytes());
       expect(loadedDoc.pages.count, equals(7));
 
       final extractor = syncfusion.PdfTextExtractor(loadedDoc);
-      final p1Text = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      final p1Text = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p1Text, contains('Part1 Page1'));
 
-      final p2Text = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
+      final p2Text = extractor
+          .extractText(startPageIndex: 1, endPageIndex: 1)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p2Text, contains('Part2 Page1'));
 
-      final p4Text = extractor.extractText(startPageIndex: 3, endPageIndex: 3).replaceAll(RegExp(r'\s+'), ' ');
+      final p4Text = extractor
+          .extractText(startPageIndex: 3, endPageIndex: 3)
+          .replaceAll(RegExp(r'\s+'), ' ');
       expect(p4Text, contains('Part3 Page1'));
 
       loadedDoc.dispose();
     });
 
     test('Test 3 — Single PDF file handling', () async {
-      final pathA = await createTestPdf(filename: 'single.pdf', pageCount: 3, textPrefix: 'Single');
+      final pathA = await createTestPdf(
+          filename: 'single.pdf', pageCount: 3, textPrefix: 'Single');
       final service = PdfService();
-      final mergedPath = await service.mergePdfs([pathA], customOutputPath: tempDir.path);
+      final mergedPath =
+          await service.mergePdfs([pathA], customOutputPath: tempDir.path);
 
-      final loadedDoc = syncfusion.PdfDocument(inputBytes: await File(mergedPath).readAsBytes());
+      final loadedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(mergedPath).readAsBytes());
       expect(loadedDoc.pages.count, equals(3));
       loadedDoc.dispose();
     });
@@ -158,9 +186,11 @@ void main() {
       );
 
       final service = PdfService();
-      final mergedPath = await service.mergePdfs([pathPortrait, pathLandscape], customOutputPath: tempDir.path);
+      final mergedPath = await service.mergePdfs([pathPortrait, pathLandscape],
+          customOutputPath: tempDir.path);
 
-      final loadedDoc = syncfusion.PdfDocument(inputBytes: await File(mergedPath).readAsBytes());
+      final loadedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(mergedPath).readAsBytes());
       expect(loadedDoc.pages.count, equals(2));
 
       final p1 = loadedDoc.pages[0];
@@ -176,11 +206,13 @@ void main() {
 
     test('Test 5 — Invalid / corrupted input fails safely', () async {
       final invalidFile = File('${tempDir.path}/corrupted.pdf');
-      await invalidFile.writeAsString('This is not a PDF document format content');
+      await invalidFile
+          .writeAsString('This is not a PDF document format content');
 
       final service = PdfService();
       expect(
-        () async => await service.mergePdfs([invalidFile.path], customOutputPath: tempDir.path),
+        () async => await service
+            .mergePdfs([invalidFile.path], customOutputPath: tempDir.path),
         throwsA(isA<Exception>()),
       );
     });
@@ -196,12 +228,15 @@ void main() {
     test('Test 7 — Non-existent file throws exception', () async {
       final service = PdfService();
       expect(
-        () async => await service.mergePdfs(['${tempDir.path}/does_not_exist.pdf'], customOutputPath: tempDir.path),
+        () async => await service.mergePdfs(
+            ['${tempDir.path}/does_not_exist.pdf'],
+            customOutputPath: tempDir.path),
         throwsA(isA<Exception>()),
       );
     });
 
-    test('Test 8 — Preserves page rotation when merging rotated pages', () async {
+    test('Test 8 — Preserves page rotation when merging rotated pages',
+        () async {
       final normalPdfPath = await createTestPdf(
         filename: 'normal.pdf',
         pageCount: 1,
@@ -221,15 +256,19 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final loadedDoc = syncfusion.PdfDocument(inputBytes: await File(mergedPath).readAsBytes());
+      final loadedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(mergedPath).readAsBytes());
       expect(loadedDoc.pages.count, equals(2));
-      expect(loadedDoc.pages[0].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle0));
-      expect(loadedDoc.pages[1].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
+      expect(loadedDoc.pages[0].rotation,
+          equals(syncfusion.PdfPageRotateAngle.rotateAngle0));
+      expect(loadedDoc.pages[1].rotation,
+          equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
       loadedDoc.dispose();
     });
 
     test('Test 9 — getPdfPageCount returns correct page count', () async {
-      final path3Pages = await createTestPdf(filename: 'three_pages.pdf', pageCount: 3, textPrefix: 'ThreePages');
+      final path3Pages = await createTestPdf(
+          filename: 'three_pages.pdf', pageCount: 3, textPrefix: 'ThreePages');
       final service = PdfService();
       final count = await service.getPdfPageCount(path3Pages);
       expect(count, equals(3));

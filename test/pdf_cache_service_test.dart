@@ -8,8 +8,10 @@ import 'package:pdf/widgets.dart' as pw;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const MethodChannel channel = MethodChannel('plugins.flutter.io/path_provider');
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+  const MethodChannel channel =
+      MethodChannel('plugins.flutter.io/path_provider');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
     channel,
     (MethodCall methodCall) async {
       return Directory.systemTemp.path;
@@ -20,12 +22,14 @@ void main() {
     final cacheService = PdfCacheService();
     final fileService = FileService();
 
-    test('getPdfData caches PDF content in memory for fast retrieval', () async {
+    test('getPdfData caches PDF content in memory for fast retrieval',
+        () async {
       final tempDir = Directory.systemTemp.createTempSync();
       final pdfFile = File('${tempDir.path}/cache_test.pdf');
 
       final pdf = pw.Document();
-      pdf.addPage(pw.Page(build: (pw.Context context) => pw.Text('Cache Test Content')));
+      pdf.addPage(pw.Page(
+          build: (pw.Context context) => pw.Text('Cache Test Content')));
       await pdfFile.writeAsBytes(await pdf.save());
 
       // 1. Initial fetch (cache miss)
@@ -41,7 +45,8 @@ void main() {
       tempDir.deleteSync(recursive: true);
     });
 
-    test('cleanupTempResources runs safely without throwing exceptions', () async {
+    test('cleanupTempResources runs safely without throwing exceptions',
+        () async {
       final deleted = await fileService.cleanupTempResources();
       expect(deleted, greaterThanOrEqualTo(0));
     });

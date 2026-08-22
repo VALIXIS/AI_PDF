@@ -64,7 +64,8 @@ class FileService {
       }
       final file = File(filePath);
       if (!await isFileAccessible(filePath)) {
-        throw FileSystemException('File does not exist or is inaccessible', filePath);
+        throw FileSystemException(
+            'File does not exist or is inaccessible', filePath);
       }
       return await file.readAsString();
     } catch (e) {
@@ -132,7 +133,12 @@ class FileService {
 
   /// Platform-safe path joining
   String joinPaths(String part1, String part2, [String? part3, String? part4]) {
-    final parts = [part1, part2, if (part3 != null) part3, if (part4 != null) part4];
+    final parts = [
+      part1,
+      part2,
+      if (part3 != null) part3,
+      if (part4 != null) part4
+    ];
     return path.joinAll(parts);
   }
 
@@ -191,7 +197,9 @@ class FileService {
       throw const FileSystemException('Target file path cannot be empty');
     }
 
-    final finalPath = overwrite ? normalizePath(targetPath) : await getUniqueFilePath(targetPath);
+    final finalPath = overwrite
+        ? normalizePath(targetPath)
+        : await getUniqueFilePath(targetPath);
     final parentDir = Directory(getDirectoryName(finalPath));
     if (!await parentDir.exists()) {
       await parentDir.create(recursive: true);
@@ -228,7 +236,8 @@ class FileService {
     bool overwrite = false,
   }) async {
     if (!await isFileAccessible(sourcePath)) {
-      throw FileSystemException('Source file does not exist or is inaccessible', sourcePath);
+      throw FileSystemException(
+          'Source file does not exist or is inaccessible', sourcePath);
     }
     final sourceFile = File(sourcePath);
     final bytes = await sourceFile.readAsBytes();
@@ -275,7 +284,10 @@ class FileService {
         for (final entity in entities) {
           if (entity is File) {
             final lowerPath = entity.path.toLowerCase();
-            final isTempPdf = lowerPath.endsWith('.pdf') && (path.basename(lowerPath).startsWith('tmp_') || path.basename(lowerPath).startsWith('pdf_') || lowerPath.contains('temp'));
+            final isTempPdf = lowerPath.endsWith('.pdf') &&
+                (path.basename(lowerPath).startsWith('tmp_') ||
+                    path.basename(lowerPath).startsWith('pdf_') ||
+                    lowerPath.contains('temp'));
             final isTempFile = lowerPath.contains('.tmp_');
 
             if (isTempPdf || isTempFile) {
@@ -283,7 +295,8 @@ class FileService {
                 final stat = await entity.stat();
                 final age = now.difference(stat.modified);
                 // Delete temp PDF or working files older than 1 hour for .tmp_ or 24h for old PDFs
-                if ((isTempFile && age.inMinutes >= 60) || (isTempPdf && age.inHours >= 24)) {
+                if ((isTempFile && age.inMinutes >= 60) ||
+                    (isTempPdf && age.inHours >= 24)) {
                   await entity.delete();
                   deletedCount++;
                 }
@@ -307,5 +320,3 @@ class FileService {
     }
   }
 }
-
-

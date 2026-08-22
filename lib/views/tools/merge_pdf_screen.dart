@@ -121,7 +121,8 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
                         title: Text(
                           _fileService.getFileName(_selectedFiles[index]),
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                         trailing: IconButton(
                           icon: const Icon(Icons.close, size: 18),
@@ -144,7 +145,8 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
                 child: ToolEmptyState(
                   icon: Icons.picture_as_pdf_outlined,
                   title: 'No PDFs Selected',
-                  subtitle: 'Select two or more PDF files to combine into a single document',
+                  subtitle:
+                      'Select two or more PDF files to combine into a single document',
                   actionLabel: 'Add PDFs',
                   onAction: _isLoading ? null : _pickPdfs,
                 ),
@@ -181,7 +183,9 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
                               ),
                             )
                           : const Icon(Icons.merge_type),
-                      label: Text(_selectedFiles.length < 2 ? 'Select 2+ PDFs' : 'Merge'),
+                      label: Text(_selectedFiles.length < 2
+                          ? 'Select 2+ PDFs'
+                          : 'Merge'),
                     ),
                   ),
                 ],
@@ -242,7 +246,8 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
 
       final entry = HistoryEntry(
         id: const Uuid().v4(),
-        title: 'Merged PDF - ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+        title:
+            'Merged PDF - ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
         date: DateTime.now(),
         filePath: filePath,
         toolType: 'merge_pdf',
@@ -266,5 +271,4 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
       });
     }
   }
-
 }
