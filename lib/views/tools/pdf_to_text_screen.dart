@@ -1,7 +1,14 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/services/pdf_service.dart';
+import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/models/history_entry.dart';
+import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 
 class PdfToTextScreen extends StatefulWidget {
   const PdfToTextScreen({Key? key}) : super(key: key);
@@ -17,6 +24,7 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
   String? _extractedText;
   bool _isLoading = false;
   String? _errorMessage;
+  String? _txtPath;
 
   @override
   Widget build(BuildContext context) {
@@ -148,13 +156,24 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _copyToClipboard,
-                  icon: const Icon(Icons.copy),
-                  label: const Text('Copy to Clipboard'),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _copyToClipboard,
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copy Text'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _shareTxtFile,
+                      icon: const Icon(Icons.share_rounded),
+                      label: const Text('Share TXT File'),
+                    ),
+                  ),
+                ],
               ),
             ] else if (_selectedFile != null)
               const Spacer(),
@@ -199,6 +218,7 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
                   _extractedText = null;
                   _selectedFile = null;
                   _errorMessage = null;
+                  _txtPath = null;
                 }),
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Start New Extraction'),
@@ -220,6 +240,7 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
         setState(() {
           _selectedFile = file;
           _extractedText = null;
+          _txtPath = null;
           _errorMessage = null;
         });
       }
@@ -253,21 +274,42 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
         return;
       }
 
-      final info = await _fileService.readPdfInfo(_selectedFile!);
+      // Perform real PDF -> TXT conversion
+      final txtPath = await PdfService().convertPdfToTxt(
+        pdfPath: _selectedFile!,
+      );
+
+      // Validate output TXT exists and is readable
+      final txtFile = File(txtPath);
+      if (!await txtFile.exists()) {
+        throw Exception('Generated TXT file does not exist');
+      }
+
+      final text = await txtFile.readAsString(encoding: utf8);
+      if (text.isEmpty) {
+        throw Exception('Generated TXT file is empty');
+      }
+
+      // Add to History
+      await StorageService().addHistoryEntry(HistoryEntry(
+        id: AiController().generateId(),
+        title: 'Extracted Text: ${_fileService.getFileName(_selectedFile!)}',
+        date: DateTime.now(),
+        filePath: txtPath,
+        toolType: 'pdf_to_text',
+      ));
+
       if (!mounted) return;
 
       setState(() {
-        _extractedText = '''PDF Information:
-$info
-
-Note: Full OCR and text parsing is available for supported PDF structures.
-Above is the extracted structural information for the selected file.''';
+        _extractedText = text;
+        _txtPath = txtPath;
         _isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
         _isLoading = false;
       });
     }
@@ -280,6 +322,17 @@ Above is the extracted structural information for the selected file.''';
         const SnackBar(
           content: Text('Text copied to clipboard!'),
           duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _shareTxtFile() {
+    if (_txtPath != null) {
+      SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(_txtPath!)],
+          text: 'Here is the extracted text file.',
         ),
       );
     }
