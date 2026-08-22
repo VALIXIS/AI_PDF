@@ -498,6 +498,22 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             onClose: () => setState(() => _selected = null),
           ),
 
+        // Image Annotation Property Panel
+        if (_editMode &&
+            _selected != null &&
+            _selected!.kind == AnnotationKind.image)
+          _ImageToolbar(
+            annotation: _selected!,
+            primary: primary,
+            isDark: isDark,
+            onChange: () => setState(() {}),
+            onDelete: () => setState(() {
+              _pageAnnotations.remove(_selected);
+              _selected = null;
+              _activeTool = null;
+            }),
+          ),
+
         // Document Canvas View
         Expanded(
           child: PageView.builder(

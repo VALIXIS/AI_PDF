@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
-import 'package:pdf_ai_toolkit/main.dart'
-    show themeNotifier, kPrimary, kPrimaryDark;
+import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary;
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {

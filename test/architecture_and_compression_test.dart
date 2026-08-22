@@ -61,8 +61,6 @@ void main() {
     test('compressPdf executes real compression on valid sample PDF', () async {
       final tempDir = Directory.systemTemp.createTempSync('pdf_compress_test_');
       try {
-        final samplePdfPath = '${tempDir.path}/sample.pdf';
-
         // Generate valid PDF using generatePdfFromText
         final generatedPath = await PdfService().generatePdfFromText(
           title: 'Compression Architecture Test',
