@@ -23,6 +23,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   File? _pdfFile;
   pdfx.PdfDocument? _document;
   pdfx.PdfController? _pdfController;
+  PageController? _pageController;
   int _pageCount = 0;
   int _currentPage = 0;
   bool _loading = false;
@@ -38,6 +39,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   @override
   void dispose() {
+    _pageController?.dispose();
     _pdfController?.dispose();
     _document?.close();
     _textEditCtrl.dispose();
@@ -55,6 +57,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _loading = true;
         _pdfFile = null;
         _document = null;
+        _pageController?.dispose();
+        _pageController = null;
         _pdfController?.dispose();
         _pdfController = null;
         _annotations.clear();
@@ -78,12 +82,14 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         document: pdfx.PdfDocument.openFile(file.path),
         initialPage: 1,
       );
+      final pageCtrl = PageController(initialPage: 0);
 
       if (!mounted) return;
       setState(() {
         _pdfFile = file;
         _document = doc;
         _pdfController = pdfCtrl;
+        _pageController = pageCtrl;
         _pageCount = doc.pagesCount;
         _currentPage = 0;
         _loading = false;
@@ -102,7 +108,17 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       _annotations.putIfAbsent(_currentPage, () => []);
 
   void _addText(double rx, double ry) {
-    final ann = Annotation.text(id: UniqueKey().toString(), x: rx, y: ry);
+    const double defaultW = 0.4;
+    const double defaultH = 0.06;
+    final double clampedX = rx.clamp(0.0, (1.0 - defaultW).clamp(0.0, 1.0));
+    final double clampedY = ry.clamp(0.0, (1.0 - defaultH).clamp(0.0, 1.0));
+    final ann = Annotation.text(
+      id: UniqueKey().toString(),
+      x: clampedX,
+      y: clampedY,
+      width: defaultW,
+      height: defaultH,
+    );
     setState(() {
       _pageAnnotations.add(ann);
       _selected = ann;
@@ -126,10 +142,16 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         });
         return;
       }
+      const double defaultW = 0.4;
+      const double defaultH = 0.3;
+      final double clampedX = rx.clamp(0.0, (1.0 - defaultW).clamp(0.0, 1.0));
+      final double clampedY = ry.clamp(0.0, (1.0 - defaultH).clamp(0.0, 1.0));
       final ann = Annotation.image(
         id: UniqueKey().toString(),
-        x: rx,
-        y: ry,
+        x: clampedX,
+        y: clampedY,
+        width: defaultW,
+        height: defaultH,
         imageBytes: bytes,
       );
       if (!mounted) return;
@@ -195,9 +217,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 
   void _nextPage() {
-    if (_pdfController != null && _currentPage < _pageCount - 1) {
-      _pdfController!.animateToPage(
-        _currentPage + 2,
+    if (_currentPage < _pageCount - 1) {
+      final targetPage = _currentPage + 1;
+      _pageController?.animateToPage(
+        targetPage,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+      _pdfController?.animateToPage(
+        targetPage + 1,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
       );
@@ -205,9 +233,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 
   void _prevPage() {
-    if (_pdfController != null && _currentPage > 0) {
-      _pdfController!.animateToPage(
-        _currentPage,
+    if (_currentPage > 0) {
+      final targetPage = _currentPage - 1;
+      _pageController?.animateToPage(
+        targetPage,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+      _pdfController?.animateToPage(
+        targetPage + 1,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
       );
@@ -471,15 +505,36 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             onClose: () => setState(() => _selected = null),
           ),
 
+        // Image Annotation Property Panel
+        if (_editMode && _selected != null && _selected!.kind == AnnotationKind.image)
+          _ImageToolbar(
+            annotation: _selected!,
+            primary: primary,
+            isDark: isDark,
+            onChange: () => setState(() {}),
+            onDelete: () => setState(() {
+              _pageAnnotations.remove(_selected);
+              _selected = null;
+            }),
+          ),
+
         // Document Canvas View
         Expanded(
           child: PageView.builder(
+            controller: _pageController,
             itemCount: _pageCount,
             onPageChanged: (i) {
               setState(() {
                 _currentPage = i;
                 _selected = null;
               });
+              if (_pdfController != null) {
+                _pdfController!.animateToPage(
+                  i + 1,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                );
+              }
             },
             itemBuilder: (_, idx) => _buildPageCanvas(idx, primary, isDark),
           ),
@@ -570,8 +625,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             : null,
         onPanUpdate: _editMode
             ? (details) => setState(() {
-                  ann.x = (ann.x + details.delta.dx / c.maxWidth).clamp(0.0, 1.0 - (ann.width.clamp(0.01, 1.0)));
-                  ann.y = (ann.y + details.delta.dy / c.maxHeight).clamp(0.0, 1.0 - (ann.height.clamp(0.01, 1.0)));
+                  final maxW = ann.width.clamp(0.01, 1.0);
+                  final maxH = ann.height.clamp(0.01, 1.0);
+                  ann.x = (ann.x + details.delta.dx / c.maxWidth).clamp(0.0, (1.0 - maxW).clamp(0.0, 1.0));
+                  ann.y = (ann.y + details.delta.dy / c.maxHeight).clamp(0.0, (1.0 - maxH).clamp(0.0, 1.0));
                 })
             : null,
         child: Container(

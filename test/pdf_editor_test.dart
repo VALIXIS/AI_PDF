@@ -8,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
+import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -356,7 +357,7 @@ void main() {
       savedDoc.dispose();
     });
 
-    test('Test 7 — Error handling: non-existent file, empty file, invalid indices', () async {
+    test('Test 7 — Error handling: non-existent file, empty file, non-PDF file, invalid indices', () async {
       final service = PdfService();
 
       // Non-existent file
@@ -366,7 +367,7 @@ void main() {
           annotationsByPage: {},
           customOutputPath: tempDir.path,
         ),
-        throwsA(isA<Exception>()),
+        throwsA(isA<PdfServiceException>()),
       );
 
       // Empty file
@@ -378,7 +379,19 @@ void main() {
           annotationsByPage: {},
           customOutputPath: tempDir.path,
         ),
-        throwsA(isA<Exception>()),
+        throwsA(isA<PdfServiceException>()),
+      );
+
+      // Non-PDF file renamed as .pdf
+      final textRenamedFile = File('${tempDir.path}/fake_pdf.pdf');
+      await textRenamedFile.writeAsString('This is a plain text file, not a PDF!');
+      expect(
+        () async => await service.saveEditedPdf(
+          sourcePdfPath: textRenamedFile.path,
+          annotationsByPage: {},
+          customOutputPath: tempDir.path,
+        ),
+        throwsA(isA<PdfServiceException>()),
       );
 
       // Out of bounds page index is handled safely without crashing
