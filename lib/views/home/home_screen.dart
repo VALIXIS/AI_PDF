@@ -1,192 +1,36 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:pdf_ai_toolkit/main.dart'
     show themeNotifier, kPrimary, kPrimaryDark;
-import 'package:pdf_ai_toolkit/views/ai/ai_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/merge_pdf_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/split_pdf_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/text_to_pdf_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/pdf_to_text_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/compress_pdf_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/ai_refine_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/camera_scan_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/watermark_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/jpg_to_pdf_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/rotate_pdf_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/protect_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/tools_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/camera_scan_screen.dart';
+import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/share_service.dart';
+import 'package:pdf_ai_toolkit/models/history_entry.dart';
 
-// ── Tool model ────────────────────────────────────────────────────────────
-class ToolItem {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final Widget screen;
-  final String category;
-  const ToolItem({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.screen,
-    required this.category,
-  });
-}
-
-const _tools = <ToolItem>[
-  // Convert
-  ToolItem(
-    title: 'Images to PDF',
-    subtitle: 'Gallery to document',
-    icon: Icons.image_rounded,
-    color: Color(0xFF0EA5E9),
-    screen: JpgToPdfScreen(),
-    category: 'Convert',
-  ),
-  ToolItem(
-    title: 'Word/TXT to PDF',
-    subtitle: 'Doc/Text to PDF',
-    icon: Icons.text_fields_rounded,
-    color: Color(0xFF10B981),
-    screen: TextToPdfScreen(),
-    category: 'Convert',
-  ),
-  ToolItem(
-    title: 'PDF to Text',
-    subtitle: 'Extract text from PDF',
-    icon: Icons.text_snippet_rounded,
-    color: Color(0xFF6366F1),
-    screen: PdfToTextScreen(),
-    category: 'Convert',
-  ),
-  ToolItem(
-    title: 'Camera Scan',
-    subtitle: 'Scan physical docs',
-    icon: Icons.document_scanner_rounded,
-    color: Color(0xFF059669),
-    screen: CameraScanScreen(),
-    category: 'Convert',
-  ),
-
-  // Organize
-  ToolItem(
-    title: 'Merge PDF',
-    subtitle: 'Combine multiple PDFs',
-    icon: Icons.call_merge_rounded,
-    color: Color(0xFF8B5CF6),
-    screen: MergePdfScreen(),
-    category: 'Organize',
-  ),
-  ToolItem(
-    title: 'Split PDF',
-    subtitle: 'Extract page ranges',
-    icon: Icons.call_split_rounded,
-    color: Color(0xFFEC4899),
-    screen: SplitPdfScreen(),
-    category: 'Organize',
-  ),
-  ToolItem(
-    title: 'Compress PDF',
-    subtitle: 'Reduce file size',
-    icon: Icons.compress_rounded,
-    color: Color(0xFFF59E0B),
-    screen: CompressPdfScreen(),
-    category: 'Organize',
-  ),
-  ToolItem(
-    title: 'Rotate PDF',
-    subtitle: 'Rotate orientation',
-    icon: Icons.rotate_right_rounded,
-    color: Color(0xFF10B981),
-    screen: RotatePdfScreen(),
-    category: 'Organize',
-  ),
-
-  // Edit
-  ToolItem(
-    title: 'PDF Editor',
-    subtitle: 'Edit & annotate',
-    icon: Icons.edit_document,
-    color: Color(0xFFE03131),
-    screen: PdfEditorScreen(),
-    category: 'Edit',
-  ),
-  ToolItem(
-    title: 'Watermark PDF',
-    subtitle: 'Add text & stamps',
-    icon: Icons.branding_watermark_rounded,
-    color: Color(0xFFD97706),
-    screen: WatermarkScreen(),
-    category: 'Edit',
-  ),
-  ToolItem(
-    title: 'Protect PDF',
-    subtitle: 'Set PDF password',
-    icon: Icons.lock_rounded,
-    color: Color(0xFFEF4444),
-    screen: ProtectPdfScreen(),
-    category: 'Edit',
-  ),
-
-  // AI
-  ToolItem(
-    title: 'AI to PDF',
-    subtitle: 'ChatGPT → PDF',
-    icon: Icons.auto_awesome_rounded,
-    color: Color(0xFF7C3AED),
-    screen: AiScreen(),
-    category: 'AI',
-  ),
-  ToolItem(
-    title: 'AI Refine',
-    subtitle: 'Polish with AI',
-    icon: Icons.auto_fix_high_rounded,
-    color: Color(0xFF0284C7),
-    screen: AiRefineScreen(),
-    category: 'AI',
-  ),
-  ToolItem(
-    title: 'Chat with PDF',
-    subtitle: 'AI Document Q&A',
-    icon: Icons.chat_rounded,
-    color: Color(0xFF10B981),
-    screen: ChatWithPdfScreen(),
-    category: 'AI',
-  ),
-];
-
-// ── Home Screen ───────────────────────────────────────────────────────────
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  final _inputCtrl = TextEditingController();
-  late final AnimationController _heroAnim;
-  late final Animation<double> _heroFade;
-  late final Animation<Offset> _heroSlide;
-  Timer? _heroTimer;
-  String _category = 'All';
-  bool _buttonPressed = false;
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  final _promptController = TextEditingController();
+  final StorageService _storageService = StorageService();
 
-  final _categories = const ['All', 'Convert', 'Organize', 'Edit', 'AI'];
+  List<HistoryEntry> _recentHistory = [];
+  bool _loadingHistory = true;
+  bool _isPromptFocused = false;
 
   @override
   void initState() {
     super.initState();
     themeNotifier.addListener(_rebuild);
-    _heroAnim = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
-    _heroFade = CurvedAnimation(parent: _heroAnim, curve: Curves.easeOut);
-    _heroSlide = Tween(begin: const Offset(0, 0.08), end: Offset.zero).animate(
-        CurvedAnimation(parent: _heroAnim, curve: Curves.easeOutCubic));
-    _heroTimer = Timer(const Duration(milliseconds: 100), () {
-      if (mounted) _heroAnim.forward();
-    });
+    _loadRecentHistory();
   }
 
   void _rebuild() {
@@ -195,679 +39,589 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _heroTimer?.cancel();
-    _inputCtrl.dispose();
-    _heroAnim.dispose();
     themeNotifier.removeListener(_rebuild);
+    _promptController.dispose();
     super.dispose();
   }
 
-  void _push(Widget screen) {
-    if (!mounted) return;
+  Future<void> _loadRecentHistory() async {
     try {
-      Navigator.of(context).push(
-        PageRouteBuilder(
-          pageBuilder: (_, a, __) => screen,
-          transitionDuration: const Duration(milliseconds: 280),
-          transitionsBuilder: (_, a, __, child) => SlideTransition(
-            position: Tween(begin: const Offset(1, 0), end: Offset.zero)
-                .animate(
-                    CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
-            child: child,
-          ),
-        ),
-      );
-    } catch (e) {
+      final entries = await _storageService.getHistoryEntriesSortedByDate();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to open screen: $e')),
-        );
+        setState(() {
+          _recentHistory = entries.take(3).toList();
+          _loadingHistory = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _loadingHistory = false);
       }
     }
   }
 
-  List<ToolItem> get _filtered => _category == 'All'
-      ? _tools
-      : _tools.where((t) => t.category == _category).toList();
+  void _push(Widget screen) async {
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (_, a, __) => screen,
+        transitionDuration: const Duration(milliseconds: 280),
+        transitionsBuilder: (_, a, __, child) => SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.08, 0.0),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: a, curve: Curves.easeOutCubic)),
+          child: FadeTransition(
+            opacity: a,
+            child: child,
+          ),
+        ),
+      ),
+    );
+    _loadRecentHistory();
+  }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = isDark ? kPrimaryDark : kPrimary;
-    final sub = isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+    final textCol = isDark ? Colors.white : const Color(0xFF0F172A);
+    final cardBg = isDark ? const Color(0xFF13131F) : Colors.white;
+    final borderCol =
+        isDark ? const Color(0xFF1F1F35) : const Color(0xFFF1F5F9);
 
     return Scaffold(
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          // ── Sliver AppBar ──────────────────────────────────────────
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 0,
-            backgroundColor:
-                isDark ? const Color(0xFF0B0B13) : const Color(0xFFF7F7F9),
-            title: Row(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.asset(
-                  'assets/ICON.png',
-                  width: 32,
-                  height: 32,
-                  fit: BoxFit.contain,
+      appBar: AppBar(
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/ICON.png',
+                width: 34,
+                height: 34,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'PDF AI Toolkit',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: textCol,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            color: isDark ? Colors.white70 : const Color(0xFF475569),
+            onPressed: () => _push(const SizedBox()), // Handled via route
+            tooltip: 'Settings',
+          ),
+          const SizedBox(width: 8),
+        ],
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── MAIN AI COMPANION ASK CARD ─────────────────────────────────
+              Text(
+                'What can I help you with?',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: textCol,
+                  letterSpacing: -0.5,
                 ),
               ),
-              const SizedBox(width: 10),
-              Text('PDF AI Toolkit',
-                  style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF111827))),
-            ]),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings_rounded),
-                color: isDark ? Colors.white : const Color(0xFF111827),
-                onPressed: () => Navigator.of(context).pushNamed('/settings'),
-                tooltip: 'Settings',
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF131326) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: _isPromptFocused
+                        ? primary
+                        : (isDark
+                            ? const Color(0xFF252538)
+                            : const Color(0xFFE2E8F0)),
+                    width: 1.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primary.withOpacity(isDark ? 0.15 : 0.05),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF7C3AED).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.auto_awesome_rounded,
+                            color: Color(0xFF7C3AED),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'AI PDF Assistant',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: textCol.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Focus(
+                      onFocusChange: (hasFocus) {
+                        setState(() {
+                          _isPromptFocused = hasFocus;
+                        });
+                      },
+                      child: TextField(
+                        controller: _promptController,
+                        maxLines: 3,
+                        minLines: 2,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: textCol,
+                        ),
+                        decoration: InputDecoration(
+                          hintText:
+                              'Ask or type document requests...\n(e.g., "Merge my PDFs" or "Summarize report")',
+                          hintStyle: TextStyle(
+                            color: isDark ? Colors.white38 : Colors.black38,
+                            fontSize: 13,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        final text = _promptController.text.trim();
+                        _promptController.clear();
+                        _push(ChatWithPdfScreen(
+                            initialPrompt: text.isNotEmpty ? text : null));
+                      },
+                      icon: const Icon(Icons.send_rounded, size: 16),
+                      label: const Text(
+                        'Start AI Chat',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7C3AED),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-            ],
-          ),
+              const SizedBox(height: 28),
 
-          // ── Body content ──────────────────────────────────────────
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Hero title
-                Text('What would you like\nto do today?',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontSize: 26, letterSpacing: -0.8)),
-                const SizedBox(height: 4),
-                Text('Paste AI text or pick a tool below',
-                    style: TextStyle(color: sub, fontSize: 14)),
-                const SizedBox(height: 22),
-
-                // ── Hero card ──────────────────────────────────────
-                FadeTransition(
-                  opacity: _heroFade,
-                  child: SlideTransition(
-                    position: _heroSlide,
-                    child: _HeroCard(
-                      controller: _inputCtrl,
-                      primary: primary,
-                      isDark: isDark,
-                      pressed: _buttonPressed,
-                      onPressDown: () => setState(() => _buttonPressed = true),
-                      onPressUp: () => setState(() => _buttonPressed = false),
-                      onGenerate: () =>
-                          _push(AiScreen(initialInput: _inputCtrl.text.trim())),
+              // ── RECENTLY USED SECTION ─────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Recently Used',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: textCol,
                     ),
                   ),
-                ),
-                const SizedBox(height: 28),
-
-                // ── Quick actions ─────────────────────────────────
-                Row(children: [
-                  _QuickBtn(
-                      icon: Icons.document_scanner_rounded,
-                      label: 'Scan',
-                      color: const Color(0xFF059669),
-                      onTap: () => _push(const CameraScanScreen())),
-                  const SizedBox(width: 10),
-                  _QuickBtn(
-                      icon: Icons.edit_document,
-                      label: 'Edit PDF',
-                      color: kPrimary,
-                      onTap: () => _push(const PdfEditorScreen())),
-                  const SizedBox(width: 10),
-                  _QuickBtn(
-                      icon: Icons.image_rounded,
-                      label: 'Img to PDF',
-                      color: const Color(0xFF0EA5E9),
-                      onTap: () => _push(const JpgToPdfScreen())),
-                ]),
-                const SizedBox(height: 28),
-
-                // ── Pro Tips ──────────────────────────────────────
-                Text('Pro Tips',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 114,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    children: [
-                      _TipCard(
-                        title: 'Perfect Scans',
-                        subtitle:
-                            'Use the Camera Scan tool for auto edge-detection.',
-                        icon: Icons.document_scanner_rounded,
-                        color: const Color(0xFF059669),
-                        isDark: isDark,
-                      ),
-                      const SizedBox(width: 12),
-                      _TipCard(
-                        title: 'Annotate Freely',
-                        subtitle:
-                            'Drag and drop text or images right onto any PDF.',
-                        icon: Icons.edit_document,
-                        color: kPrimary,
-                        isDark: isDark,
-                      ),
-                      const SizedBox(width: 12),
-                      _TipCard(
-                        title: 'Convert to Word',
-                        subtitle:
-                            'Extract text from PDFs directly into Word/TXT.',
-                        icon: Icons.text_snippet_rounded,
-                        color: const Color(0xFF6366F1),
-                        isDark: isDark,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // ── Category tabs ─────────────────────────────────
-                Text('All Tools',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 34,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) {
-                      final cat = _categories[i];
-                      final sel = _category == cat;
-                      return GestureDetector(
-                        key: ValueKey('category_tab_$cat'),
-                        onTap: () {
-                          if (mounted) {
-                            setState(() => _category = cat);
-                          }
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: sel
-                                ? primary
-                                : (isDark
-                                    ? const Color(0xFF1C1C28)
-                                    : const Color(0xFFEEEEF4)),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(cat,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight:
-                                    sel ? FontWeight.w700 : FontWeight.w500,
-                                color: sel ? Colors.white : sub,
-                              )),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Tool grid or Empty State ──────────────────────
-                _filtered.isEmpty
-                    ? Container(
-                        key: const ValueKey('empty_category_state'),
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 36, horizontal: 20),
-                        decoration: BoxDecoration(
-                          color:
-                              isDark ? const Color(0xFF14141E) : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isDark
-                                ? const Color(0xFF1F1F2E)
-                                : const Color(0xFFE5E7EB),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inventory_2_outlined,
-                              size: 44,
-                              color: isDark
-                                  ? const Color(0xFF4B5563)
-                                  : const Color(0xFF9CA3AF),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No tools available',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: isDark
-                                    ? Colors.white
-                                    : const Color(0xFF111827),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'No tools found in "$_category"',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark
-                                    ? const Color(0xFF9CA3AF)
-                                    : const Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : GridView.builder(
-                        key: ValueKey('tool_grid_$_category'),
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 1.55,
-                        ),
-                        itemCount: _filtered.length,
-                        itemBuilder: (_, i) => _ToolCard(
-                          key: ValueKey('tool_card_${_filtered[i].title}'),
-                          item: _filtered[i],
-                          isDark: isDark,
-                          onTap: () => _push(_filtered[i].screen),
-                        ),
-                      ),
-              ]),
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF14141E) : Colors.white,
-          border: Border(
-              top: BorderSide(
-                  color: isDark
-                      ? const Color(0xFF1F1F2E)
-                      : const Color(0xFFE5E7EB))),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _BottomAction(
-              icon: Icons.history_rounded,
-              label: 'History',
-              color: const Color(0xFF6366F1),
-              onTap: () => Navigator.of(context).pushNamed('/history'),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _push(const CameraScanScreen()),
-                icon: const Icon(Icons.document_scanner_rounded),
-                label: const Text('Start Scan',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                ),
+                  if (_recentHistory.isNotEmpty)
+                    TextButton(
+                      onPressed: () =>
+                          Navigator.of(context).pushNamed('/history'),
+                      child: const Text('View All'),
+                    ),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            _BottomAction(
-              icon: Icons.photo_library_rounded,
-              label: 'Gallery',
-              color: const Color(0xFF0EA5E9),
-              onTap: () => _push(const JpgToPdfScreen()),
-            ),
-          ],
+              const SizedBox(height: 8),
+              _buildRecentlyUsedSection(isDark, textCol, cardBg, borderCol),
+              const SizedBox(height: 28),
+
+              // ── MOST USED TOOLS ───────────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Most Used Tools',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: textCol,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        _push(const ToolsScreen(showBackButton: true)),
+                    child: const Text('See All'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildMostUsedToolsGrid(isDark),
+            ],
+          ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(context, isDark, primary),
     );
   }
-}
 
-class _BottomAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _BottomAction(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
+  Widget _buildRecentlyUsedSection(
+      bool isDark, Color textCol, Color cardBg, Color borderCol) {
+    if (_loadingHistory) {
+      return const SizedBox(
+        height: 100,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 70,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+    if (_recentHistory.isEmpty) {
+      // Premium visual empty state
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderCol, width: 1.2),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+            Icon(
+              Icons.folder_open_rounded,
+              size: 40,
+              color: isDark ? Colors.white30 : Colors.black26,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No recent PDF documents',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: textCol.withOpacity(0.6),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Your processed files will appear here',
+              style: TextStyle(
+                fontSize: 11,
+                color: textCol.withOpacity(0.4),
+              ),
+            ),
           ],
         ),
-      ),
-    );
-  }
-}
+      );
+    }
 
-// ── Hero input card ───────────────────────────────────────────────────────
-class _HeroCard extends StatelessWidget {
-  final TextEditingController controller;
-  final Color primary;
-  final bool isDark, pressed;
-  final VoidCallback onPressDown, onPressUp, onGenerate;
-  const _HeroCard(
-      {required this.controller,
-      required this.primary,
-      required this.isDark,
-      required this.pressed,
-      required this.onPressDown,
-      required this.onPressUp,
-      required this.onGenerate});
+    return Column(
+      children: _recentHistory.map((entry) {
+        final dateStr = DateFormat('MMM dd, yyyy • hh:mm a').format(entry.date);
+        final fileName = entry.filePath.split('/').last.split('\\').last;
 
-  @override
-  Widget build(BuildContext context) {
-    final bg = isDark ? const Color(0xFF14141E) : Colors.white;
-    final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
-    final hint = isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF);
-    return Container(
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
-              blurRadius: 24,
-              offset: const Offset(0, 8))
-        ],
-      ),
-      padding: const EdgeInsets.all(18),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-                color: primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20)),
-            child: Text('AI Powered',
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        TextField(
-          controller: controller,
-          minLines: 4,
-          maxLines: 6,
-          style: TextStyle(
-              fontSize: 14,
-              color: isDark ? Colors.white : const Color(0xFF111827)),
-          decoration: InputDecoration(
-            hintText: 'Paste your ChatGPT or notes here…',
-            hintStyle: TextStyle(color: hint, fontSize: 14),
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Divider(height: 1, color: border),
-        const SizedBox(height: 14),
-        GestureDetector(
-          onTapDown: (_) => onPressDown(),
-          onTapUp: (_) {
-            onPressUp();
-            onGenerate();
-          },
-          onTapCancel: onPressUp,
-          child: AnimatedScale(
-            duration: const Duration(milliseconds: 100),
-            scale: pressed ? 0.96 : 1.0,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              decoration: BoxDecoration(
-                color: primary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.picture_as_pdf_rounded,
-                        color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text('Generate PDF',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15)),
-                  ]),
-            ),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-// ── Quick action button ───────────────────────────────────────────────────
-class _QuickBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _QuickBtn(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: isDark ? 0.12 : 0.08),
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withValues(alpha: 0.2)),
+            side: BorderSide(color: borderCol, width: 1.2),
           ),
-          child: Column(children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 5),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tool card ─────────────────────────────────────────────────────────────
-class _ToolCard extends StatefulWidget {
-  final ToolItem item;
-  final bool isDark;
-  final VoidCallback onTap;
-  const _ToolCard(
-      {Key? key, required this.item, required this.isDark, required this.onTap})
-      : super(key: key);
-  @override
-  State<_ToolCard> createState() => _ToolCardState();
-}
-
-class _ToolCardState extends State<_ToolCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctl;
-  late final Animation<double> _scale;
-  @override
-  void initState() {
-    super.initState();
-    _ctl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 100), value: 1);
-    _scale = Tween(begin: 1.0, end: 0.94)
-        .animate(CurvedAnimation(parent: _ctl, curve: Curves.easeOut));
-  }
-
-  @override
-  void dispose() {
-    _ctl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = widget.isDark ? const Color(0xFF14141E) : Colors.white;
-    final border =
-        widget.isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
-    final col = widget.item.color;
-    return GestureDetector(
-      onTap: widget.onTap,
-      onTapDown: (_) => _ctl.reverse(),
-      onTapUp: (_) => _ctl.forward(),
-      onTapCancel: () => _ctl.forward(),
-      child: AnimatedBuilder(
-        animation: _scale,
-        builder: (_, child) =>
-            Transform.scale(scale: _scale.value, child: child),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: border),
-          ),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: 36,
-              height: 36,
+          color: cardBg,
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                  color: col.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10)),
-              child: Icon(widget.item.icon, color: col, size: 19),
+                color: const Color(0xFFE03131).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.picture_as_pdf_rounded,
+                color: Color(0xFFE03131),
+                size: 20,
+              ),
             ),
-            const Spacer(),
-            Text(widget.item.title,
-                style:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 2),
-            Text(widget.item.subtitle,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: widget.isDark
-                        ? const Color(0xFF6B7280)
-                        : const Color(0xFF9CA3AF)),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tip Card ──────────────────────────────────────────────────────────────
-class _TipCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final bool isDark;
-
-  const _TipCard(
-      {required this.title,
-      required this.subtitle,
-      required this.icon,
-      required this.color,
-      required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 240,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF14141E) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+            title: Text(
+              fileName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+            subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14)),
                 const SizedBox(height: 2),
-                Text(subtitle,
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: isDark
-                            ? const Color(0xFF8B949E)
-                            : const Color(0xFF64748B)),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  'Tool: ${entry.toolType.toUpperCase()}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+                Text(
+                  dateStr,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                ),
               ],
             ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.share_rounded, size: 18),
+                  onPressed: () {
+                    ShareService.showSaveShareDialog(context, entry.filePath);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildMostUsedToolsGrid(bool isDark) {
+    // Filter out our top 4 most used tools from the list
+    final mostUsed = appTools
+        .where((t) =>
+            t.title == 'Merge PDF' ||
+            t.title == 'PDF Editor' ||
+            t.title == 'Compress PDF' ||
+            t.title == 'Images to PDF')
+        .toList();
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.4,
+      ),
+      itemCount: mostUsed.length,
+      itemBuilder: (context, index) {
+        final item = mostUsed[index];
+        final cardBg = isDark ? const Color(0xFF13131F) : Colors.white;
+        final borderCol =
+            isDark ? const Color(0xFF1F1F35) : const Color(0xFFE2E8F0);
+
+        return GestureDetector(
+          onTap: () => _push(item.screen),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: borderCol, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                )
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: item.color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    item.icon,
+                    color: item.color,
+                    size: 20,
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      item.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: isDark ? Colors.white54 : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomNavigationBar(
+      BuildContext context, bool isDark, Color primary) {
+    final barBg = isDark ? const Color(0xFF10101C) : Colors.white;
+    final borderCol =
+        isDark ? const Color(0xFF1D1D2C) : const Color(0xFFE2E8F0);
+    final actionColor = isDark ? Colors.white70 : const Color(0xFF475569);
+
+    return Container(
+      height: 84,
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+      decoration: BoxDecoration(
+        color: barBg,
+        border: Border(top: BorderSide(color: borderCol, width: 1.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
           )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Left Action: History
+          GestureDetector(
+            onTap: () => Navigator.of(context).pushNamed('/history'),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: 60,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.history_rounded, color: actionColor, size: 22),
+                  const SizedBox(height: 3),
+                  Text(
+                    'History',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: actionColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Center Shutter Button: dominant action Scan
+          GestureDetector(
+            onTap: () => _push(const CameraScanScreen()),
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [primary, const Color(0xFF7C3AED)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: primary.withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+                border: Border.all(
+                  color: isDark ? const Color(0xFF0A0A10) : Colors.white,
+                  width: 3.5,
+                ),
+              ),
+              child: const Icon(
+                Icons.document_scanner_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
+
+          // Right Action: Tools
+          GestureDetector(
+            onTap: () => _push(const ToolsScreen(showBackButton: true)),
+            behavior: HitTestBehavior.opaque,
+            child: SizedBox(
+              width: 60,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.category_rounded, color: actionColor, size: 22),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Tools',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: actionColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

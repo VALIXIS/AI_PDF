@@ -31,8 +31,10 @@ class ChatMessage {
 
 class ChatWithPdfScreen extends StatefulWidget {
   final String? initialPdfPath;
+  final String? initialPrompt;
 
-  const ChatWithPdfScreen({Key? key, this.initialPdfPath}) : super(key: key);
+  const ChatWithPdfScreen({Key? key, this.initialPdfPath, this.initialPrompt})
+      : super(key: key);
 
   @override
   State<ChatWithPdfScreen> createState() => _ChatWithPdfScreenState();
@@ -70,6 +72,30 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     FileService().cleanupTempResources();
     if (widget.initialPdfPath != null) {
       _loadPdfFromPath(widget.initialPdfPath!);
+    }
+
+    // Setup initial welcome message
+    _messages.add(ChatMessage(
+      id: UniqueKey().toString(),
+      text:
+          'Hello! I am your AI PDF Companion. Attach one or more PDF files below to start chatting, asking questions, comparing documents, or requesting PDF operations!',
+      isUser: false,
+      timestamp: DateTime.now(),
+    ));
+
+    if (widget.initialPrompt != null) {
+      _inputController.text = widget.initialPrompt!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (widget.initialPdfPath == null) {
+          _pickPdf().then((_) {
+            if (_attachedFiles.isNotEmpty) {
+              _sendMessage(widget.initialPrompt);
+            }
+          });
+        } else {
+          _sendMessage(widget.initialPrompt);
+        }
+      });
     }
   }
 
@@ -132,16 +158,16 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
         _pdfText = cachedData.textContent;
         _pageCount = cachedData.pageCount;
         _isLoadingPdf = false;
-        if (_messages.isEmpty) {
-          _messages.add(ChatMessage(
-            id: UniqueKey().toString(),
-            text:
-                'Hello! I am your Autonomous AI PDF Agent. I have loaded "${FileService().getFileName(path)}". Ask me questions or command me to merge, split, compress, extract text, rotate, watermark, or protect your PDF!',
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-        }
+
+        _messages.add(ChatMessage(
+          id: UniqueKey().toString(),
+          text:
+              'Loaded "${FileService().getFileName(path)}". I am ready to summarize, answer questions, or process this document.',
+          isUser: false,
+          timestamp: DateTime.now(),
+        ));
       });
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -151,8 +177,17 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     }
   }
 
+  void _removeAttachment(int idx) {
+    setState(() {
+      final removed = _attachedFiles.removeAt(idx);
+      if (_pdfFile?.path == removed.path) {
+        _pdfFile = _attachedFiles.isNotEmpty ? _attachedFiles.last : null;
+        _pdfText = null;
+      }
+    });
+  }
+
   String _buildConversationHistory() {
-    // Collect last 6 messages excluding current pending query and tool result bubbles
     final historyMsgs = _messages.where((m) => m.actionResult == null).toList();
     if (historyMsgs.isEmpty) return '';
     final recent = historyMsgs.length > 6
@@ -172,8 +207,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
 
     if (_attachedFiles.isEmpty && _pdfFile == null) {
       setState(() {
-        _errorMessage =
-            'Please select or attach at least one PDF document first.';
+        _errorMessage = 'Please attach at least one PDF document first.';
       });
       return;
     }
@@ -200,7 +234,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       final pdfPaths = _attachedFiles.map((f) => f.path).toList();
       if (pdfPaths.isEmpty && _pdfFile != null) pdfPaths.add(_pdfFile!.path);
 
-      // 1. Check if user command triggers a PDF tool action (Merge, Split, Compress, Extract, Rotate, Watermark, Protect)
+      // Check if user command triggers a PDF tool action
       final actionResult = await _aiController.processMultiDocumentAction(
         pdfPaths: pdfPaths,
         command: text,
@@ -220,7 +254,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
           _isAiThinking = false;
         });
       } else {
-        // 2. Multi-PDF Comparison vs Single Document Q&A
+        // Multi-PDF Comparison vs Single Document Q&A
         String answer;
         if (_attachedFiles.length > 1) {
           final List<String> docTexts = [];
@@ -327,9 +361,9 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = isDark ? kPrimaryDark : kPrimary;
-    final bg = isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF8FAFC);
-    final cardBg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
-    final border = isDark ? const Color(0xFF2A2A3C) : const Color(0xFFE2E8F0);
+    final bg = isDark ? const Color(0xFF0A0A10) : const Color(0xFFF8FAFC);
+    final cardBg = isDark ? const Color(0xFF13131F) : Colors.white;
+    final border = isDark ? const Color(0xFF1F1F35) : const Color(0xFFE2E8F0);
 
     return Scaffold(
       backgroundColor: bg,
@@ -337,39 +371,44 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('AI PDF Agent',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text(
+              'AI PDF Companion',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
             Text(
               _pdfFile != null
-                  ? FileService().getFileName(_pdfFile!.path)
-                  : 'Select a PDF document to begin',
+                  ? '${_attachedFiles.length} file(s) loaded'
+                  : 'No active document',
               style: TextStyle(
-                  fontSize: 11,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600]),
-              overflow: TextOverflow.ellipsis,
+                fontSize: 10.5,
+                color: isDark ? Colors.white60 : Colors.black54,
+              ),
             ),
           ],
         ),
         actions: [
-          if (_messages.isNotEmpty)
+          if (_messages.length > 1)
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_rounded),
-              tooltip: 'Export Chat to PDF',
+              tooltip: 'Export Chat Report',
               onPressed: _exportChatToPdf,
             ),
           IconButton(
-            icon: const Icon(Icons.folder_open_rounded),
-            tooltip: 'Change PDF File',
+            icon: const Icon(Icons.file_upload_outlined),
+            tooltip: 'Attach PDF',
             onPressed: _pickPdf,
           ),
         ],
+        elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
       body: Column(
         children: [
-          // Loading PDF Banner
+          // Loading PDFs loading indicator
           if (_isLoadingPdf)
-            const ToolLoadingBanner(
-              message: 'Loading PDF document into AI Agent...',
+            const LinearProgressIndicator(
+              minHeight: 2.5,
+              backgroundColor: Colors.transparent,
             ),
 
           // Error Banner
@@ -379,43 +418,25 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
               onDismiss: () => setState(() => _errorMessage = null),
             ),
 
-          // Top Document Card / Empty State
-          if (_pdfFile == null && !_isLoadingPdf)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ToolEmptyState(
-                icon: Icons.auto_awesome_rounded,
-                title: 'No PDF Document Selected',
-                subtitle:
-                    'Select a PDF document to edit, rotate, watermark, split, or ask questions',
-                actionLabel: 'Select PDF Document',
-                onAction: _pickPdf,
-              ),
-            )
-          else if (_pdfFile != null)
-            _buildDocumentHeader(primary, cardBg, border, isDark),
-
-          // Chat Messages List
+          // Main Chat Message Area
           Expanded(
-            child: _pdfFile == null
-                ? const SizedBox.shrink()
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final msg = _messages[index];
-                      return _buildMessageBubble(
-                          msg, primary, cardBg, border, isDark);
-                    },
-                  ),
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              physics: const BouncingScrollPhysics(),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final msg = _messages[index];
+                return _buildMessageBubble(
+                    msg, primary, cardBg, border, isDark);
+              },
+            ),
           ),
 
-          // AI Thinking Banner
+          // AI Thinking state bubble
           if (_isAiThinking)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
                   const SizedBox(
@@ -425,120 +446,131 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'AI Agent is executing tool operation...',
+                    'AI Companion is thinking...',
                     style: TextStyle(
-                        fontSize: 12,
-                        color: primary,
-                        fontWeight: FontWeight.w500),
+                      fontSize: 12,
+                      color: primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ),
 
-          // Quick Action Chips
-          if (_pdfFile != null && !_isAiThinking)
+          // Dynamic Horizontal PDF File Attachments list
+          if (_attachedFiles.isNotEmpty)
+            _buildAttachmentsRow(cardBg, border, isDark),
+
+          // Floating Quick Prompt Chips
+          if (!_isAiThinking)
             _buildQuickActionChips(primary, cardBg, border, isDark),
 
-          // Bottom Input Bar
-          if (_pdfFile != null)
-            _buildBottomInputBar(primary, cardBg, border, isDark),
+          // Bottom Premium Input Bar
+          _buildBottomInputBar(primary, cardBg, border, isDark),
         ],
       ),
     );
   }
 
-  Widget _buildDocumentHeader(
-      Color primary, Color cardBg, Color border, bool isDark) {
-    final count = _attachedFiles.length;
-    final fileNames =
-        _attachedFiles.map((f) => FileService().getFileName(f.path)).join(', ');
-
+  Widget _buildAttachmentsRow(Color cardBg, Color border, bool isDark) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      padding: const EdgeInsets.all(12),
+      height: 70,
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: border),
+        color: isDark ? const Color(0xFF0F0F1A) : const Color(0xFFF1F5F9),
+        border: Border(top: BorderSide(color: border, width: 0.8)),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _attachedFiles.length,
+        itemBuilder: (context, index) {
+          final file = _attachedFiles[index];
+          final name = FileService().getFileName(file.path);
+          final sizeKb = (file.lengthSync() / 1024).toStringAsFixed(1);
+
+          return Container(
+            margin: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+              color: cardBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: border),
             ),
-            child: Icon(
-                count > 1 ? Icons.copy_rounded : Icons.picture_as_pdf_rounded,
-                color: primary,
-                size: 24),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  count > 1
-                      ? '$count PDFs Attached'
-                      : FileService().getFileName(_pdfFile!.path),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
-                  overflow: TextOverflow.ellipsis,
+                const Icon(Icons.picture_as_pdf_rounded,
+                    color: Color(0xFFE03131), size: 18),
+                const SizedBox(width: 8),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 120,
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 11.5, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Text(
+                      '$sizeKb KB',
+                      style: const TextStyle(fontSize: 9.5, color: Colors.grey),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  count > 1
-                      ? fileNames
-                      : '$_pageCount Pages • ${(_pdfFile!.lengthSync() / 1024).toStringAsFixed(1)} KB',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600]),
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () => _removeAttachment(index),
+                  child: const Icon(Icons.close_rounded,
+                      size: 16, color: Colors.grey),
                 ),
               ],
             ),
-          ),
-          OutlinedButton.icon(
-            onPressed: _pickPdf,
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: Text(count > 1 ? 'Add PDF' : 'Attach',
-                style: const TextStyle(fontSize: 12)),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
   Widget _buildQuickActionChips(
       Color primary, Color cardBg, Color border, bool isDark) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: _quickPrompts.map((prompt) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        physics: const BouncingScrollPhysics(),
+        itemCount: _quickPrompts.length,
+        itemBuilder: (context, index) {
+          final prompt = _quickPrompts[index];
           return Padding(
-            padding: const EdgeInsets.only(right: 8.0),
+            padding: const EdgeInsets.only(right: 8),
             child: ActionChip(
-              avatar:
-                  Icon(Icons.auto_awesome_rounded, size: 14, color: primary),
-              label: Text(prompt, style: const TextStyle(fontSize: 12)),
+              avatar: const Icon(Icons.auto_awesome,
+                  size: 12, color: Colors.deepPurple),
+              label: Text(prompt, style: const TextStyle(fontSize: 11.5)),
               backgroundColor: cardBg,
-              side: BorderSide(color: border),
+              side: BorderSide(color: border, width: 1.2),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               onPressed: () => _sendMessage(prompt),
             ),
           );
-        }).toList(),
+        },
       ),
     );
   }
 
   Widget _buildMessageBubble(
       ChatMessage msg, Color primary, Color cardBg, Color border, bool isDark) {
+    final userBubbleBg = const Color(0xFF7C3AED); // Modern purple bubble
+    final aiBubbleBg = isDark ? const Color(0xFF13131F) : Colors.white;
+
     if (msg.isUser) {
       return Align(
         alignment: Alignment.centerRight,
@@ -546,7 +578,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
           margin: const EdgeInsets.only(left: 48, top: 6, bottom: 6),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: primary,
+            color: userBubbleBg,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(16),
               topRight: Radius.circular(16),
@@ -556,8 +588,8 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
           ),
           child: Text(
             msg.text,
-            style:
-                const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 13.5, height: 1.4),
           ),
         ),
       );
@@ -569,40 +601,41 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
         margin: const EdgeInsets.only(right: 36, top: 6, bottom: 6),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: cardBg,
+          color: aiBubbleBg,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(16),
             topRight: Radius.circular(16),
             bottomLeft: Radius.circular(4),
             bottomRight: Radius.circular(16),
           ),
-          border: Border.all(color: border),
+          border: Border.all(color: border, width: 1.2),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.smart_toy_rounded, size: 16, color: primary),
+                const Icon(Icons.smart_toy_rounded,
+                    size: 16, color: Color(0xFF7C3AED)),
                 const SizedBox(width: 6),
-                Text(
-                  'AI Autonomous Agent',
+                const Text(
+                  'AI Companion',
                   style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: primary),
+                      fontSize: 11.5,
+                      color: Color(0xFF7C3AED)),
                 ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.copy_rounded, size: 16),
-                  tooltip: 'Copy response',
+                  tooltip: 'Copy',
                   constraints: const BoxConstraints(),
                   padding: EdgeInsets.zero,
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: msg.text));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content: Text('AI response copied!'),
+                          content: Text('Copied to clipboard'),
                           duration: Duration(seconds: 1)),
                     );
                   },
@@ -613,12 +646,11 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
             SelectableText(
               msg.text,
               style: TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: isDark ? Colors.white : Colors.black87),
+                fontSize: 13.5,
+                height: 1.4,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
             ),
-
-            // Render Tool Action Result Card if available
             if (msg.actionResult != null && msg.actionResult!.isSuccess)
               _buildActionResultCard(msg.actionResult!, primary, isDark),
           ],
@@ -633,9 +665,9 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.08),
+        color: const Color(0xFF10B981).withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primary.withValues(alpha: 0.3)),
+        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,13 +675,13 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
           Row(
             children: [
               const Icon(Icons.check_circle_rounded,
-                  color: Colors.green, size: 18),
-              const SizedBox(width: 6),
+                  color: Color(0xFF10B981), size: 18),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  result.actionTitle ?? 'Action Completed Successfully',
+                  result.actionTitle ?? 'Action Completed',
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
+                      fontWeight: FontWeight.bold, fontSize: 12.5),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -663,10 +695,13 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => ShareService.showSaveShareDialog(
                         context, result.outputPath!),
-                    icon: const Icon(Icons.download_rounded, size: 16),
-                    label: const Text('Save / Share Output',
-                        style: TextStyle(fontSize: 12)),
+                    icon: const Icon(Icons.ios_share_rounded, size: 14),
+                    label: const Text('Save / Share',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
                   ),
@@ -674,9 +709,8 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
                   onPressed: () => _loadPdfFromPath(result.outputPath!),
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('Load in Chat',
-                      style: TextStyle(fontSize: 12)),
+                  icon: const Icon(Icons.refresh_rounded, size: 14),
+                  label: const Text('Load PDF', style: TextStyle(fontSize: 11)),
                   style: OutlinedButton.styleFrom(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -696,25 +730,32 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: cardBg,
-        border: Border(top: BorderSide(color: border)),
+        border: Border(top: BorderSide(color: border, width: 1.2)),
       ),
       child: SafeArea(
         child: Row(
           children: [
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline_rounded,
+                  color: Colors.grey),
+              onPressed: _isLoadingPdf || _isAiThinking ? null : _pickPdf,
+            ),
             Expanded(
               child: TextField(
                 enabled: !_isAiThinking,
                 controller: _inputController,
-                decoration: InputDecoration(
-                  hintText:
-                      'Command AI to rotate, watermark, split, or edit...',
-                  isDense: true,
+                style: const TextStyle(fontSize: 13.5),
+                maxLines: 4,
+                minLines: 1,
+                decoration: const InputDecoration(
+                  hintText: 'Ask or request operations (merge, compress)...',
+                  hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: border),
-                  ),
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 ),
                 onSubmitted: (_) => _sendMessage(),
               ),
@@ -722,7 +763,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
             const SizedBox(width: 8),
             IconButton.filled(
               onPressed: _isAiThinking ? null : () => _sendMessage(),
-              icon: const Icon(Icons.send_rounded),
+              icon: const Icon(Icons.send_rounded, size: 18),
               style: IconButton.styleFrom(
                 backgroundColor: primary,
                 foregroundColor: Colors.white,

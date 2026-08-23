@@ -23,12 +23,12 @@ final themeNotifier = ThemeNotifier();
 // ── Brand colours ─────────────────────────────────────────────────────────
 const Color kPrimary = Color(0xFFE03131); // rich red – PDF brand
 const Color kPrimaryDark = Color(0xFFFF4D4D); // brighter in dark mode
-const Color kBgLight = Color(0xFFF7F7F9);
+const Color kBgLight = Color(0xFFF8FAFC);
 const Color kCardLight = Colors.white;
-const Color kTextLight = Color(0xFF111827);
-const Color kBgDark = Color(0xFF0B0B13);
-const Color kCardDark = Color(0xFF14141E);
-const Color kTextDark = Color(0xFFF3F4F6);
+const Color kTextLight = Color(0xFF0F172A);
+const Color kBgDark = Color(0xFF0A0A10);
+const Color kCardDark = Color(0xFF13131F);
+const Color kTextDark = Color(0xFFF8FAFC);
 
 // ── Light theme ───────────────────────────────────────────────────────────
 ThemeData get lightTheme => ThemeData(

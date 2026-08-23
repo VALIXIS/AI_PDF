@@ -4,7 +4,7 @@ import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 import 'package:uuid/uuid.dart';
 
 class CompressPdfScreen extends StatefulWidget {
@@ -24,209 +24,6 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _successPath;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Compress PDF'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Reduce PDF File Size',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Select a PDF to compress and optimize its file size',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-
-            // Loading Banner
-            if (_isLoading)
-              const ToolLoadingBanner(
-                message: 'Compressing PDF document...',
-              ),
-
-            // Error Banner
-            if (_errorMessage != null)
-              ToolErrorBanner(
-                message: _errorMessage!,
-                onRetry: _selectedFile != null ? _compressPdf : null,
-                onDismiss: () => setState(() => _errorMessage = null),
-              ),
-
-            // Success Card
-            if (_successPath != null)
-              ToolSuccessCard(
-                title: 'PDF Compressed Successfully!',
-                subtitle:
-                    'Level: ${_compressionLevel.toUpperCase()} compression applied.',
-                filePath: _successPath,
-                onShare: () {
-                  if (_successPath != null && mounted) {
-                    ShareService.showSaveShareDialog(context, _successPath!);
-                  }
-                },
-                onReset: () {
-                  setState(() {
-                    _successPath = null;
-                    _selectedFile = null;
-                    _errorMessage = null;
-                  });
-                },
-              ),
-
-            // Selected file or empty state
-            if (_selectedFile != null) ...[
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.picture_as_pdf,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _fileService.getFileName(_selectedFile!),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 13.5),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Selected for compression',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (!_isLoading)
-                        IconButton(
-                          icon: const Icon(Icons.swap_horiz_rounded),
-                          tooltip: 'Change File',
-                          onPressed: _pickPdf,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Compression Level Options
-              Text(
-                'Compression Level',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 10),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment<String>(
-                    value: 'low',
-                    label: Text('Low'),
-                    icon: Icon(Icons.high_quality),
-                  ),
-                  ButtonSegment<String>(
-                    value: 'medium',
-                    label: Text('Medium'),
-                    icon: Icon(Icons.balance),
-                  ),
-                  ButtonSegment<String>(
-                    value: 'high',
-                    label: Text('High'),
-                    icon: Icon(Icons.compress),
-                  ),
-                ],
-                selected: {_compressionLevel},
-                onSelectionChanged: _isLoading
-                    ? null
-                    : (selection) {
-                        setState(() {
-                          _compressionLevel = selection.first;
-                          _errorMessage = null;
-                        });
-                      },
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _compressionLevel == 'low'
-                    ? 'Best quality, subtle size reduction.'
-                    : _compressionLevel == 'high'
-                        ? 'Smallest file size, maximum compression.'
-                        : 'Balanced quality and file size.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const Spacer(),
-            ] else if (_successPath == null) ...[
-              Expanded(
-                child: ToolEmptyState(
-                  icon: Icons.compress_rounded,
-                  title: 'No PDF Selected',
-                  subtitle: 'Select a PDF file to reduce its file size',
-                  actionLabel: 'Select PDF',
-                  onAction: _isLoading ? null : _pickPdf,
-                ),
-              ),
-            ] else
-              const Spacer(),
-
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _pickPdf,
-                    icon: const Icon(Icons.folder_open),
-                    label: Text(
-                        _selectedFile == null ? 'Select PDF' : 'Change PDF'),
-                  ),
-                ),
-                if (_selectedFile != null) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _compressPdf,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.compress),
-                      label: const Text('Compress'),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Future<void> _pickPdf() async {
     try {
@@ -289,9 +86,7 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
         _successPath = filePath;
       });
 
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, filePath);
-      }
+      ShareService.showSaveShareDialog(context, filePath);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -299,5 +94,86 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ToolScreenShell(
+      title: 'Compress PDF',
+      explanation:
+          'Reduce the file size of your PDF document while maintaining readable text and image quality.',
+      onPickFiles: _pickPdf,
+      selectedFiles: _selectedFile != null ? [_selectedFile!] : [],
+      onRemoveFile: (_) {
+        setState(() {
+          _selectedFile = null;
+          _errorMessage = null;
+        });
+      },
+      onExecute: _selectedFile != null ? _compressPdf : null,
+      executeButtonLabel: 'Compress PDF',
+      isLoading: _isLoading,
+      loadingMessage: 'Compressing and optimizing PDF file size...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      successPath: _successPath,
+      successSubtitle: 'Applied level: ${_compressionLevel.toUpperCase()}',
+      onReset: () {
+        setState(() {
+          _successPath = null;
+          _selectedFile = null;
+          _errorMessage = null;
+        });
+      },
+      extraConfig: _selectedFile == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Compression Level',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                ),
+                const SizedBox(height: 10),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment<String>(
+                      value: 'low',
+                      label: Text('Low'),
+                      icon: Icon(Icons.high_quality_rounded),
+                    ),
+                    ButtonSegment<String>(
+                      value: 'medium',
+                      label: Text('Medium'),
+                      icon: Icon(Icons.balance_rounded),
+                    ),
+                    ButtonSegment<String>(
+                      value: 'high',
+                      label: Text('High'),
+                      icon: Icon(Icons.compress_rounded),
+                    ),
+                  ],
+                  selected: {_compressionLevel},
+                  onSelectionChanged: _isLoading
+                      ? null
+                      : (selection) {
+                          setState(() {
+                            _compressionLevel = selection.first;
+                            _errorMessage = null;
+                          });
+                        },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _compressionLevel == 'low'
+                      ? 'Best quality, subtle size reduction.'
+                      : _compressionLevel == 'high'
+                          ? 'Smallest file size, maximum compression.'
+                          : 'Balanced quality and file size.',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+    );
   }
 }

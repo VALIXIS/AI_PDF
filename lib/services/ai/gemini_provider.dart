@@ -148,7 +148,6 @@ Detailed Analysis & Comparison:''';
     throw Exception('All Gemini model endpoints failed: $lastError');
   }
 
-
   String _parseGeminiResponse(String body) {
     final data = jsonDecode(body);
     if (data is Map && data.containsKey('candidates')) {

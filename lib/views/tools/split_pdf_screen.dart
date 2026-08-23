@@ -4,7 +4,7 @@ import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 import 'package:uuid/uuid.dart';
 
 class SplitPdfScreen extends StatefulWidget {
@@ -42,240 +42,6 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
     _startController.dispose();
     _endController.dispose();
     super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Split PDF'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Extract Pages from PDF',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Select a PDF and specify the page range to extract',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-
-            // Loading State Banner
-            if (_isLoading)
-              const ToolLoadingBanner(
-                message: 'Splitting PDF pages...',
-              ),
-
-            // Error Banner
-            if (_errorMessage != null)
-              ToolErrorBanner(
-                message: _errorMessage!,
-                onRetry: _selectedFile != null ? _splitPdf : null,
-                onDismiss: () => setState(() => _errorMessage = null),
-              ),
-
-            // Success Card
-            if (_successPath != null)
-              ToolSuccessCard(
-                title: 'PDF Split Successfully!',
-                subtitle: 'Extracted pages $_startPage to $_endPage.',
-                filePath: _successPath,
-                onShare: () {
-                  if (_successPath != null && mounted) {
-                    ShareService.showSaveShareDialog(context, _successPath!);
-                  }
-                },
-                onReset: () {
-                  setState(() {
-                    _successPath = null;
-                    _selectedFile = null;
-                    _errorMessage = null;
-                  });
-                },
-              ),
-
-            // File selection and Range controls or Empty State
-            if (_selectedFile != null) ...[
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.picture_as_pdf,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _fileService.getFileName(_selectedFile!),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 13.5),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Target range: Pages $_startPage - $_endPage',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (!_isLoading)
-                        IconButton(
-                          icon: const Icon(Icons.swap_horiz_rounded),
-                          tooltip: 'Change File',
-                          onPressed: _pickPdf,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Page Range Controls
-              Text(
-                'Page Range',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 10),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Start Page',
-                            style: Theme.of(context).textTheme.bodySmall),
-                        const SizedBox(height: 4),
-                        TextField(
-                          enabled: !_isLoading,
-                          controller: _startController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            hintText: 'e.g. 1',
-                            isDense: true,
-                          ),
-                          onChanged: (value) {
-                            if (value.isNotEmpty) {
-                              setState(() {
-                                _startPage = int.tryParse(value) ?? 1;
-                                _errorMessage = null;
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('End Page',
-                            style: Theme.of(context).textTheme.bodySmall),
-                        const SizedBox(height: 4),
-                        TextField(
-                          enabled: !_isLoading,
-                          controller: _endController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            hintText: 'e.g. 5',
-                            isDense: true,
-                          ),
-                          onChanged: (value) {
-                            if (value.isNotEmpty) {
-                              setState(() {
-                                _endPage =
-                                    int.tryParse(value) ?? (_totalPages ?? 1);
-                                _errorMessage = null;
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _totalPages != null
-                    ? 'Total document pages: $_totalPages (Extracting $_startPage - $_endPage)'
-                    : 'Extracting pages $_startPage - $_endPage',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const Spacer(),
-            ] else if (_successPath == null) ...[
-              Expanded(
-                child: ToolEmptyState(
-                  icon: Icons.call_split_rounded,
-                  title: 'No PDF Selected',
-                  subtitle:
-                      'Select a PDF document to extract a specific page range',
-                  actionLabel: 'Select PDF',
-                  onAction: _isLoading ? null : _pickPdf,
-                ),
-              ),
-            ] else
-              const Spacer(),
-
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _pickPdf,
-                    icon: const Icon(Icons.folder_open),
-                    label: Text(
-                        _selectedFile == null ? 'Select PDF' : 'Change PDF'),
-                  ),
-                ),
-                if (_selectedFile != null) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _splitPdf,
-                      icon: _isLoading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.call_split),
-                      label: const Text('Split PDF'),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _pickPdf() async {
@@ -319,23 +85,21 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
 
     if (_startPage < 1) {
       setState(() {
-        _errorMessage = 'Start page must be at least 1.';
+        _errorMessage = 'Start page must be 1 or greater.';
       });
       return;
     }
 
     if (_totalPages != null && _endPage > _totalPages!) {
       setState(() {
-        _errorMessage =
-            'End page ($_endPage) cannot exceed total pages ($_totalPages).';
+        _errorMessage = 'End page cannot exceed total pages (${_totalPages!}).';
       });
       return;
     }
 
     if (_startPage > _endPage) {
       setState(() {
-        _errorMessage =
-            'Start page ($_startPage) cannot be greater than end page ($_endPage).';
+        _errorMessage = 'Start page cannot be greater than end page.';
       });
       return;
     }
@@ -364,7 +128,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
 
       final entry = HistoryEntry(
         id: const Uuid().v4(),
-        title: 'Split PDF (p$_startPage-$_endPage)',
+        title:
+            'Split PDF - ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
         date: DateTime.now(),
         filePath: filePath,
         toolType: 'split_pdf',
@@ -377,9 +142,7 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
         _successPath = filePath;
       });
 
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, filePath);
-      }
+      ShareService.showSaveShareDialog(context, filePath);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -387,5 +150,101 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textCol = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+
+    return ToolScreenShell(
+      title: 'Split PDF',
+      explanation:
+          'Extract a specific page range from your PDF document into a new PDF.',
+      onPickFiles: _pickPdf,
+      selectedFiles: _selectedFile != null ? [_selectedFile!] : [],
+      onRemoveFile: (_) {
+        setState(() {
+          _selectedFile = null;
+          _errorMessage = null;
+        });
+      },
+      onExecute: _selectedFile != null ? _splitPdf : null,
+      executeButtonLabel: 'Extract Pages',
+      isLoading: _isLoading,
+      loadingMessage: 'Extracting pages $_startPage to $_endPage...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      successPath: _successPath,
+      successSubtitle: 'Extracted pages $_startPage to $_endPage',
+      onReset: () {
+        setState(() {
+          _successPath = null;
+          _selectedFile = null;
+          _errorMessage = null;
+        });
+      },
+      extraConfig: _selectedFile == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_totalPages != null) ...[
+                  Text(
+                    'Total Pages: $_totalPages',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 13.5),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _startController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: textCol, fontSize: 14),
+                        decoration: const InputDecoration(
+                          labelText: 'Start Page',
+                          isDense: true,
+                        ),
+                        onChanged: (val) {
+                          final parsed = int.tryParse(val);
+                          if (parsed != null) {
+                            setState(() {
+                              _startPage = parsed;
+                              _errorMessage = null;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: _endController,
+                        keyboardType: TextInputType.number,
+                        style: TextStyle(color: textCol, fontSize: 14),
+                        decoration: const InputDecoration(
+                          labelText: 'End Page',
+                          isDense: true,
+                        ),
+                        onChanged: (val) {
+                          final parsed = int.tryParse(val);
+                          if (parsed != null) {
+                            setState(() {
+                              _endPage = parsed;
+                              _errorMessage = null;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    );
   }
 }

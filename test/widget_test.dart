@@ -6,6 +6,7 @@ import 'package:pdf_ai_toolkit/views/tools/text_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_text_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/camera_scan_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/tools_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 void main() {
@@ -20,10 +21,10 @@ void main() {
     await tester.pumpWidget(const PdfAiToolkitApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('What would you like\nto do today?'), findsOneWidget);
+    expect(find.text('What can I help you with?'), findsOneWidget);
     expect(find.text('PDF AI Toolkit'), findsWidgets);
-    expect(find.text('All Tools'), findsOneWidget);
-    expect(find.text('Start Scan'), findsOneWidget);
+    expect(find.text('History'), findsOneWidget);
+    expect(find.text('Tools'), findsOneWidget);
   });
 
   testWidgets('HomeScreen category filtering and tool navigation test',
@@ -41,6 +42,11 @@ void main() {
     // Verify main app title is visible
     expect(find.text('PDF AI Toolkit'), findsWidgets);
 
+    // Navigate to ToolsScreen
+    final toolsTabBtn = find.text('Tools');
+    await tester.tap(toolsTabBtn);
+    await tester.pumpAndSettle();
+
     // Verify all categories exist
     expect(find.text('All'), findsOneWidget);
     expect(find.text('Convert'), findsOneWidget);
@@ -49,8 +55,7 @@ void main() {
     expect(find.text('AI'), findsOneWidget);
 
     // 1. Verify Organize category filtering
-    final organizeTab = find.byKey(const ValueKey('category_tab_Organize'));
-    await tester.ensureVisible(organizeTab);
+    final organizeTab = find.text('Organize');
     await tester.tap(organizeTab);
     await tester.pumpAndSettle();
 
@@ -65,27 +70,25 @@ void main() {
     expect(find.text('PDF Editor'), findsNothing);
 
     // 2. Verify navigation to an Organize tool (Merge PDF)
-    final mergeCard = find.byKey(const ValueKey('tool_card_Merge PDF'));
-    await tester.ensureVisible(mergeCard);
+    final mergeCard = find.text('Merge PDF');
     await tester.tap(mergeCard);
     await tester.pumpAndSettle();
 
     // Verify MergePdfScreen opened
     expect(find.byType(MergePdfScreen), findsOneWidget);
-    expect(find.text('Select PDFs to Merge'), findsOneWidget);
+    expect(find.text('No PDF Selected'), findsOneWidget);
 
-    // Navigate back to Home screen
+    // Navigate back to Tools screen
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
 
-    // Verify we are back on Home screen and category is still 'Organize'
+    // Verify we are back on Tools screen
     expect(find.byType(MergePdfScreen), findsNothing);
     expect(find.text('Merge PDF'), findsOneWidget);
     expect(find.text('Split PDF'), findsOneWidget);
 
     // 3. Verify Convert category filtering
-    final convertTab = find.byKey(const ValueKey('category_tab_Convert'));
-    await tester.ensureVisible(convertTab);
+    final convertTab = find.text('Convert');
     await tester.tap(convertTab);
     await tester.pumpAndSettle();
 
@@ -96,8 +99,7 @@ void main() {
     expect(find.text('Merge PDF'), findsNothing);
 
     // 4. Verify Edit category filtering
-    final editTab = find.byKey(const ValueKey('category_tab_Edit'));
-    await tester.ensureVisible(editTab);
+    final editTab = find.text('Edit');
     await tester.tap(editTab);
     await tester.pumpAndSettle();
 
@@ -106,8 +108,7 @@ void main() {
     expect(find.text('Protect PDF'), findsOneWidget);
 
     // 5. Verify AI category filtering
-    final aiTab = find.byKey(const ValueKey('category_tab_AI'));
-    await tester.ensureVisible(aiTab);
+    final aiTab = find.text('AI');
     await tester.tap(aiTab);
     await tester.pumpAndSettle();
 
@@ -116,8 +117,7 @@ void main() {
     expect(find.text('Chat with PDF'), findsOneWidget);
 
     // 6. Verify All category shows all tools
-    final allTab = find.byKey(const ValueKey('category_tab_All'));
-    await tester.ensureVisible(allTab);
+    final allTab = find.text('All');
     await tester.tap(allTab);
     await tester.pumpAndSettle();
 
@@ -243,7 +243,7 @@ void main() {
       ));
 
       expect(find.byType(ToolEmptyState), findsOneWidget);
-      expect(find.text('No PDFs Selected'), findsOneWidget);
+      expect(find.text('No PDF Selected'), findsOneWidget);
     });
 
     testWidgets('PdfToTextScreen displays empty state when no file selected',
