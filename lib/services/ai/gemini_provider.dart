@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdf_ai_toolkit/services/ai/ai_provider.dart';
+import 'package:pdf_ai_toolkit/services/ai/context_helper.dart';
 
 class GeminiProvider implements AiProvider {
   @override
@@ -52,11 +54,13 @@ class GeminiProvider implements AiProvider {
         ? '--- RECENT CONVERSATION HISTORY ---\n$conversationHistory\n--- END HISTORY ---\n\n'
         : '';
 
+    final limitedPdfText = ContextHelper.limitText(pdfText, maxChars: 600000);
+
     final prompt =
         '''You are an expert AI PDF Companion. Answer the user question accurately based on the PDF document text context and conversation history.
 
 $historySection--- PDF DOCUMENT CONTEXT ---
-$pdfText
+$limitedPdfText
 --- END CONTEXT ---
 
 Question: $question
@@ -83,7 +87,8 @@ Answer:''';
     final docsBuffer = StringBuffer();
     for (int i = 0; i < docTexts.length; i++) {
       docsBuffer.writeln('=== DOCUMENT ${i + 1} ===');
-      docsBuffer.writeln(docTexts[i]);
+      docsBuffer
+          .writeln(ContextHelper.limitText(docTexts[i], maxChars: 300000));
       docsBuffer.writeln();
     }
 
@@ -100,6 +105,7 @@ Detailed Analysis & Comparison:''';
   }
 
   Future<String> _callGeminiApi(String prompt) async {
+    developer.log('AI Provider: Gemini', name: 'GeminiProvider');
     Object? lastError;
     for (final baseEndpoint in _modelEndpoints) {
       try {

@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:archive/archive.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 
@@ -31,33 +33,47 @@ class PdfCacheService {
   static const int _maxCacheEntries = 20;
 
   /// Gets cached PDF data or parses and caches it if missing or stale
-  Future<CachedPdfData> getPdfData(String pdfPath) async {
-    final file = File(pdfPath);
+  Future<CachedPdfData> getPdfData(String filePath) async {
+    final file = File(filePath);
     if (!await file.exists()) {
-      throw Exception('File does not exist: $pdfPath');
+      throw Exception('File does not exist: $filePath');
     }
 
     final stat = await file.stat();
-    final cached = _cache[pdfPath];
+    final cached = _cache[filePath];
 
     // Cache hit: return immediately if file has not been modified
     if (cached != null && cached.lastModified.isAtSameMomentAs(stat.modified)) {
       return cached;
     }
 
-    // Cache miss: parse and store in cache
-    final text = await _fileService.readPdfInfo(pdfPath);
-    final count = await _pdfService.getPdfPageCount(pdfPath);
+    // Cache miss: parse and store in cache depending on extension
+    String text;
+    int count = 1;
+    final extension = filePath.split('.').last.toLowerCase();
+
+    if (extension == 'pdf') {
+      text = await _pdfService.extractPdfText(filePath);
+      count = await _pdfService.getPdfPageCount(filePath);
+    } else if (extension == 'docx') {
+      text = await _extractDocxText(filePath);
+      count = (text.length / 2000).ceil().clamp(1, 1000);
+    } else if (extension == 'txt') {
+      text = await _fileService.readTextFile(filePath);
+      count = (text.length / 2000).ceil().clamp(1, 1000);
+    } else {
+      throw Exception('Unsupported file format: .$extension');
+    }
 
     final newData = CachedPdfData(
-      pdfPath: pdfPath,
+      pdfPath: filePath,
       pageCount: count,
       textContent: text,
       lastModified: stat.modified,
       cachedAt: DateTime.now(),
     );
 
-    _cache[pdfPath] = newData;
+    _cache[filePath] = newData;
     _evictOldEntriesIfNeeded();
 
     return newData;
@@ -86,5 +102,49 @@ class PdfCacheService {
         _cache.remove(sortedKeys.removeAt(0));
       }
     }
+  }
+
+  Future<String> _extractDocxText(String filePath) async {
+    final file = File(filePath);
+    final bytes = await file.readAsBytes();
+    final archive = ZipDecoder().decodeBytes(bytes);
+    final documentXml = archive.findFile('word/document.xml');
+    if (documentXml == null) {
+      throw Exception('Not a valid DOCX file (missing word/document.xml)');
+    }
+    final content = utf8.decode(documentXml.content);
+
+    final StringBuffer textBuffer = StringBuffer();
+    final pRegExp = RegExp(r'<w:p\b[^>]*>(.*?)</w:p>');
+    final tRegExp = RegExp(r'<w:t\b[^>]*>(.*?)</w:t>');
+
+    final pMatches = pRegExp.allMatches(content);
+    for (final pMatch in pMatches) {
+      final pContent = pMatch.group(1) ?? '';
+      final tMatches = tRegExp.allMatches(pContent);
+      final pText =
+          tMatches.map((m) => _decodeXmlEntities(m.group(1) ?? '')).join('');
+      if (pText.isNotEmpty) {
+        textBuffer.writeln(pText);
+      }
+    }
+
+    if (textBuffer.isEmpty) {
+      final tMatches = tRegExp.allMatches(content);
+      for (final m in tMatches) {
+        textBuffer.write(_decodeXmlEntities(m.group(1) ?? ''));
+      }
+    }
+
+    return textBuffer.toString();
+  }
+
+  String _decodeXmlEntities(String xml) {
+    return xml
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'");
   }
 }

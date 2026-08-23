@@ -38,61 +38,64 @@ void main() {
       expect(factory.activeProvider.providerName, equals('HuggingFace'));
     });
 
+    test('HuggingFaceProvider throws exception when API key is missing',
+        () async {
+      final hf = HuggingFaceProvider();
+      expect(
+        () => hf.askPdfQuestion(
+          pdfText: 'Sample text content',
+          question: 'What is this document about?',
+          conversationHistory: 'User: Hello\nAI Companion: Hi!',
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
     test(
-        'HuggingFaceProvider returns structured mock response when API key is missing',
+        'HuggingFaceProvider throws exception on multi-document comparison when missing key',
         () async {
       final hf = HuggingFaceProvider();
-      final response = await hf.askPdfQuestion(
-        pdfText: 'Sample text content',
-        question: 'What is this document about?',
-        conversationHistory: 'User: Hello\nAI Companion: Hi!',
+      expect(
+        () => hf.compareDocuments(
+          docTexts: ['Doc 1 text content', 'Doc 2 text content'],
+          question: 'Compare Document 1 and Document 2',
+        ),
+        throwsA(isA<Exception>()),
       );
-
-      expect(response, contains('Based on the document context'));
-      expect(response, contains('What is this document about?'));
     });
 
-    test('HuggingFaceProvider handles multi-document comparison mock responses',
-        () async {
-      final hf = HuggingFaceProvider();
-      final response = await hf.compareDocuments(
-        docTexts: ['Doc 1 text content', 'Doc 2 text content'],
-        question: 'Compare Document 1 and Document 2',
-      );
-
-      expect(response, contains('Document Comparison Analysis'));
-      expect(response, contains('Key Differences'));
-    });
-
-    test('AiService routes requests seamlessly via AiProviderFactory',
+    test(
+        'AiService routes requests via AiProviderFactory and throws when keys are absent',
         () async {
       final service = AiService();
       expect(service.activeProviderName, equals('HuggingFace'));
 
-      final notes =
-          await service.generateText('Flutter is awesome', AiService.modeNotes);
-      expect(notes, isNotEmpty);
-
-      final qa = await service.askPdfQuestion(
-        pdfText: 'Flutter widgets build UI.',
-        question: 'What builds UI?',
+      expect(
+        () => service.generateText('Flutter is awesome', AiService.modeNotes),
+        throwsA(isA<Exception>()),
       );
-      expect(qa, contains('What builds UI?'));
+
+      expect(
+        () => service.askPdfQuestion(
+          pdfText: 'Flutter widgets build UI.',
+          question: 'What builds UI?',
+        ),
+        throwsA(isA<Exception>()),
+      );
     });
 
-    test(
-        'AiController handles multi-document comparison & conversation context',
+    test('AiController throws exception when no providers are configured',
         () async {
       final controller = AiController();
-      final response = await controller.compareDocuments(
-        docTexts: ['Version 1 specs', 'Version 2 specs'],
-        question: 'What are the main changes between versions?',
-        conversationHistory:
-            'User: Summarize V1\nAI Companion: V1 is initial draft',
+      expect(
+        () => controller.compareDocuments(
+          docTexts: ['Version 1 specs', 'Version 2 specs'],
+          question: 'What are the main changes between versions?',
+          conversationHistory:
+              'User: Summarize V1\nAI Companion: V1 is initial draft',
+        ),
+        throwsA(isA<Exception>()),
       );
-
-      expect(response, isNotEmpty);
-      expect(response, contains('Document Comparison Analysis'));
     });
   });
 

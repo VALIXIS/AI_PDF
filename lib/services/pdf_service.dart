@@ -671,4 +671,27 @@ class PdfService {
       throw Exception('Failed to extract text: $e');
     }
   }
+
+  /// Extracts text from a PDF document and returns the raw string
+  Future<String> extractPdfText(String pdfPath) async {
+    try {
+      final file = File(pdfPath);
+      if (!await file.exists()) {
+        throw Exception('File does not exist: $pdfPath');
+      }
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        return '';
+      }
+      final document = sf.PdfDocument(inputBytes: bytes);
+      try {
+        final extractor = sf.PdfTextExtractor(document);
+        return extractor.extractText();
+      } finally {
+        document.dispose();
+      }
+    } catch (e) {
+      throw Exception('Failed to extract text: $e');
+    }
+  }
 }

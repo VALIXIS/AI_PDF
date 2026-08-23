@@ -3,26 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/services/ai_service.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 void main() {
   group('AI PDF Document Q&A & Chat Service Tests', () {
     final aiService = AiService();
     final aiController = AiController();
 
-    test('askPdfQuestion generates structured answer from PDF context',
-        () async {
+    test('askPdfQuestion throws exception when API key is missing', () async {
       const pdfContext =
           'Project Antigravity is an AI coding assistant designed by Google DeepMind.';
       const question = 'What is Project Antigravity?';
 
-      final answer = await aiService.askPdfQuestion(
-        pdfText: pdfContext,
-        question: question,
+      expect(
+        () => aiService.askPdfQuestion(
+          pdfText: pdfContext,
+          question: question,
+        ),
+        throwsA(isA<Exception>()),
       );
-
-      expect(answer, isNotEmpty);
-      expect(answer, contains('Project Antigravity'));
     });
 
     test('AiController.askDocumentQuestion validates non-empty question',
@@ -36,25 +34,24 @@ void main() {
   });
 
   group('ChatWithPdfScreen UI & State Tests', () {
-    testWidgets('ChatWithPdfScreen displays empty state when no PDF selected',
+    testWidgets('ChatWithPdfScreen displays AppBar and welcoming state',
         (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: ChatWithPdfScreen(),
       ));
 
-      expect(find.text('AI PDF Agent'), findsOneWidget);
-      expect(find.byType(ToolEmptyState), findsOneWidget);
-      expect(find.text('No PDF Document Selected'), findsOneWidget);
-      expect(find.text('Select PDF Document'), findsOneWidget);
+      expect(find.text('AI PDF Companion'), findsOneWidget);
+      expect(find.text('No active document'), findsOneWidget);
+      expect(find.byIcon(Icons.file_upload_outlined), findsOneWidget);
     });
 
-    testWidgets('ChatWithPdfScreen header displays title and change button',
+    testWidgets('ChatWithPdfScreen input bar displays send button',
         (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: ChatWithPdfScreen(),
       ));
 
-      expect(find.byIcon(Icons.folder_open_rounded), findsWidgets);
+      expect(find.byIcon(Icons.send_rounded), findsOneWidget);
     });
   });
 }

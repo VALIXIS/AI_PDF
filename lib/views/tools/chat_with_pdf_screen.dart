@@ -49,7 +49,6 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
 
   File? _pdfFile;
   final List<File> _attachedFiles = [];
-  String? _pdfText;
   bool _isLoadingPdf = false;
   bool _isAiThinking = false;
   String? _errorMessage;
@@ -109,7 +108,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf'],
+        allowedExtensions: ['pdf', 'docx', 'txt'],
         allowMultiple: true,
       );
       if (result == null || result.files.isEmpty) return;
@@ -127,7 +126,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Failed to select PDF file: $e';
+        _errorMessage = 'Failed to select document: $e';
       });
     }
   }
@@ -136,7 +135,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     if (!await FileService().isFileAccessible(path)) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Selected PDF file does not exist or is inaccessible.';
+        _errorMessage = 'Selected document does not exist or is inaccessible.';
       });
       return;
     }
@@ -147,14 +146,13 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     });
 
     try {
-      final cachedData = await PdfCacheService().getPdfData(path);
+      await PdfCacheService().getPdfData(path);
       if (!mounted) return;
       setState(() {
         _pdfFile = File(path);
         if (!_attachedFiles.any((file) => file.path == path)) {
           _attachedFiles.add(File(path));
         }
-        _pdfText = cachedData.textContent;
         _isLoadingPdf = false;
 
         _messages.add(ChatMessage(
@@ -169,7 +167,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Could not parse PDF content: $e';
+        _errorMessage = 'Could not parse document content: $e';
         _isLoadingPdf = false;
       });
     }
@@ -180,7 +178,6 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       final removed = _attachedFiles.removeAt(idx);
       if (_pdfFile?.path == removed.path) {
         _pdfFile = _attachedFiles.isNotEmpty ? _attachedFiles.last : null;
-        _pdfText = null;
       }
     });
   }
@@ -205,7 +202,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
 
     if (_attachedFiles.isEmpty && _pdfFile == null) {
       setState(() {
-        _errorMessage = 'Please attach at least one PDF document first.';
+        _errorMessage = 'Please attach at least one document first.';
       });
       return;
     }
@@ -267,8 +264,14 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
             conversationHistory: historyContext,
           );
         } else {
+          String docText = 'Document contents ready.';
+          if (_attachedFiles.isNotEmpty) {
+            final cache =
+                await PdfCacheService().getPdfData(_attachedFiles.first.path);
+            docText = cache.textContent;
+          }
           answer = await _aiController.askDocumentQuestion(
-            pdfText: _pdfText ?? 'Document contents ready.',
+            pdfText: docText,
             question: text,
             conversationHistory: historyContext,
           );
@@ -290,7 +293,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'AI Agent error: $e';
+        _errorMessage = "AI couldn't process this request. Please try again.";
         _isAiThinking = false;
       });
     }
@@ -486,6 +489,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
           final file = _attachedFiles[index];
           final name = FileService().getFileName(file.path);
           final sizeKb = (file.lengthSync() / 1024).toStringAsFixed(1);
+          final extension = file.path.split('.').last.toLowerCase();
 
           return Container(
             margin: const EdgeInsets.only(right: 10),
@@ -497,8 +501,19 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.picture_as_pdf_rounded,
-                    color: Color(0xFFE03131), size: 18),
+                Icon(
+                  extension == 'docx'
+                      ? Icons.description_rounded
+                      : (extension == 'txt'
+                          ? Icons.article_rounded
+                          : Icons.picture_as_pdf_rounded),
+                  color: extension == 'docx'
+                      ? Colors.blue
+                      : (extension == 'txt'
+                          ? Colors.amber
+                          : const Color(0xFFE03131)),
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -515,7 +530,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                       ),
                     ),
                     Text(
-                      '$sizeKb KB',
+                      '${extension.toUpperCase()} • $sizeKb KB',
                       style: const TextStyle(fontSize: 9.5, color: Colors.grey),
                     ),
                   ],

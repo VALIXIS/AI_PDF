@@ -89,6 +89,16 @@ class AiActionDispatcher {
     required List<String> pdfPaths,
     required String command,
   }) async {
+    for (final path in pdfPaths) {
+      if (path.split('.').last.toLowerCase() != 'pdf') {
+        return AiActionResult(
+          type: AiActionType.merge,
+          isSuccess: false,
+          message: 'Merging is only supported for PDF documents.',
+        );
+      }
+    }
+
     if (pdfPaths.length < 2) {
       return AiActionResult(
         type: AiActionType.merge,
@@ -131,6 +141,23 @@ class AiActionDispatcher {
     required String command,
   }) async {
     final actionType = detectActionType(command);
+    if (actionType == AiActionType.none) {
+      return AiActionResult(
+        type: AiActionType.none,
+        isSuccess: false,
+        message: 'No executable action detected.',
+      );
+    }
+
+    final extension = pdfPath.split('.').last.toLowerCase();
+    if (extension != 'pdf') {
+      return AiActionResult(
+        type: actionType,
+        isSuccess: false,
+        message: 'This operation is only supported for PDF documents.',
+      );
+    }
+
     final lower = command.toLowerCase();
 
     switch (actionType) {

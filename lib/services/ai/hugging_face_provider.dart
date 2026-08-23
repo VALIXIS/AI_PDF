@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdf_ai_toolkit/services/ai/ai_provider.dart';
+import 'package:pdf_ai_toolkit/services/ai/context_helper.dart';
 
 class HuggingFaceProvider implements AiProvider {
   @override
@@ -24,14 +25,10 @@ class HuggingFaceProvider implements AiProvider {
     final prompt = _buildPrompt(input, mode);
 
     if (!isConfigured) {
-      return _getMockResponse(prompt);
+      throw Exception('Hugging Face API key is not configured in .env');
     }
 
-    try {
-      return await _callApi(prompt);
-    } catch (e) {
-      return _getMockResponse(prompt);
-    }
+    return await _callApi(prompt);
   }
 
   @override
@@ -45,25 +42,23 @@ class HuggingFaceProvider implements AiProvider {
         ? '--- RECENT CONVERSATION HISTORY ---\n$conversationHistory\n--- END HISTORY ---\n\n'
         : '';
 
+    final limitedPdfText = ContextHelper.limitText(pdfText, maxChars: 30000);
+
     final prompt =
         '''You are an expert AI document assistant. Answer the question accurately based on the provided PDF document context and conversation history.
 
 $historySection--- PDF DOCUMENT CONTEXT ---
-$pdfText
+$limitedPdfText
 --- END CONTEXT ---
 
 Question: $question
 Answer:''';
 
     if (!isConfigured) {
-      return _getMockResponse(prompt);
+      throw Exception('Hugging Face API key is not configured in .env');
     }
 
-    try {
-      return await _callApi(prompt);
-    } catch (e) {
-      return _getMockResponse(prompt);
-    }
+    return await _callApi(prompt);
   }
 
   @override
@@ -80,7 +75,7 @@ Answer:''';
     final docsBuffer = StringBuffer();
     for (int i = 0; i < docTexts.length; i++) {
       docsBuffer.writeln('=== DOCUMENT ${i + 1} ===');
-      docsBuffer.writeln(docTexts[i]);
+      docsBuffer.writeln(ContextHelper.limitText(docTexts[i], maxChars: 15000));
       docsBuffer.writeln();
     }
 
@@ -94,14 +89,10 @@ Request: $question
 Detailed Analysis & Comparison:''';
 
     if (!isConfigured) {
-      return _getMockResponse(prompt);
+      throw Exception('Hugging Face API key is not configured in .env');
     }
 
-    try {
-      return await _callApi(prompt);
-    } catch (e) {
-      return _getMockResponse(prompt);
-    }
+    return await _callApi(prompt);
   }
 
   Future<String> _callApi(String prompt) async {
@@ -154,35 +145,6 @@ Detailed Analysis & Comparison:''';
         return 'Clean and organize the following text:\n\n$input';
       default:
         return input;
-    }
-  }
-
-  String _getMockResponse(String prompt) {
-    if (prompt.contains('ATTACHED DOCUMENTS') || prompt.contains('Compare')) {
-      return '''### Document Comparison Analysis
-
-• **Document Overview**: Analyzed ${prompt.contains('DOCUMENT 2') ? '2' : 'multiple'} attached PDF documents.
-• **Key Differences**:
-  - Document 1 focuses on core specifications and initial guidelines.
-  - Document 2 highlights updated execution policies and detailed schedules.
-• **Summary**: Both documents share matching terminology but reflect sequential stages of development.
-
-*(Note: Live AI active with HF_API_KEY or GEMINI_API_KEY in .env)*''';
-    } else if (prompt.contains('PDF DOCUMENT CONTEXT') ||
-        prompt.contains('Question:')) {
-      final questionLine = prompt.contains('Question:')
-          ? prompt.split('Question:').last.split('\n').first.trim()
-          : 'your request';
-      return '''Based on the document context:
-
-• **Analysis**: Regarding "$questionLine", the document outlines clear structural facts and details.
-• **Key Points**:
-  - Extracted text layer was parsed natively.
-  - Content has been processed cleanly.
-
-*(Note: Live AI active with HF_API_KEY or GEMINI_API_KEY in .env)*''';
-    } else {
-      return '''Cleaned and organized content response. Set up GEMINI_API_KEY or HF_API_KEY in .env for live model responses.''';
     }
   }
 }
