@@ -1,4 +1,5 @@
 import 'package:pdf_ai_toolkit/services/ai_service.dart';
+import 'package:pdf_ai_toolkit/controllers/ai_action_dispatcher.dart';
 import 'package:uuid/uuid.dart';
 
 class AiMode {
@@ -9,7 +10,42 @@ class AiMode {
 
 class AiController {
   final AiService _aiService = AiService();
+  final AiActionDispatcher _actionDispatcher = AiActionDispatcher();
   static const uuid = Uuid();
+
+  /// Processes document commands and detects executable tool actions
+  Future<AiActionResult?> processDocumentAction({
+    required String pdfPath,
+    required String command,
+  }) async {
+    final type = _actionDispatcher.detectActionType(command);
+    if (type == AiActionType.none) return null;
+    return await _actionDispatcher.executeAction(
+      pdfPath: pdfPath,
+      command: command,
+    );
+  }
+
+  /// Processes multi-document commands (e.g. merging 2+ PDFs)
+  Future<AiActionResult?> processMultiDocumentAction({
+    required List<String> pdfPaths,
+    required String command,
+  }) async {
+    final type = _actionDispatcher.detectActionType(command);
+    if (type == AiActionType.merge && pdfPaths.length >= 2) {
+      return await _actionDispatcher.executeMultiDocAction(
+        pdfPaths: pdfPaths,
+        command: command,
+      );
+    }
+    if (pdfPaths.isNotEmpty) {
+      return await processDocumentAction(
+        pdfPath: pdfPaths.last,
+        command: command,
+      );
+    }
+    return null;
+  }
 
   /// Processes text with selected AI mode using Hugging Face API
   /// 
@@ -53,6 +89,24 @@ class AiController {
   /// Gets all available modes
   List<String> getAvailableModes() {
     return [AiMode.notes, AiMode.summary, AiMode.clean];
+  }
+
+  /// Answers a question about a PDF document
+  Future<String> askDocumentQuestion({
+    required String pdfText,
+    required String question,
+  }) async {
+    try {
+      if (question.trim().isEmpty) {
+        throw Exception('Question cannot be empty');
+      }
+      return await _aiService.askPdfQuestion(
+        pdfText: pdfText,
+        question: question.trim(),
+      );
+    } catch (e) {
+      throw Exception('Failed to get answer: $e');
+    }
   }
 
   /// Generates a unique ID for history entries

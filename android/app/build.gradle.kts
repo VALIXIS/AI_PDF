@@ -60,6 +60,10 @@ android {
                 // Keep local release builds working until a real keystore is configured.
                 signingConfig = signingConfigs.getByName("debug")
             }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }

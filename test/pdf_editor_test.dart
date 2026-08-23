@@ -8,7 +8,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
+<<<<<<< HEAD
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
+=======
+>>>>>>> origin/develop
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -357,7 +360,11 @@ void main() {
       savedDoc.dispose();
     });
 
+<<<<<<< HEAD
     test('Test 7 — Error handling: non-existent file, empty file, non-PDF file, invalid indices', () async {
+=======
+    test('Test 7 — Error handling: non-existent file, empty file, invalid indices', () async {
+>>>>>>> origin/develop
       final service = PdfService();
 
       // Non-existent file
@@ -367,7 +374,11 @@ void main() {
           annotationsByPage: {},
           customOutputPath: tempDir.path,
         ),
+<<<<<<< HEAD
         throwsA(isA<PdfServiceException>()),
+=======
+        throwsA(isA<Exception>()),
+>>>>>>> origin/develop
       );
 
       // Empty file
@@ -379,6 +390,7 @@ void main() {
           annotationsByPage: {},
           customOutputPath: tempDir.path,
         ),
+<<<<<<< HEAD
         throwsA(isA<PdfServiceException>()),
       );
 
@@ -392,6 +404,9 @@ void main() {
           customOutputPath: tempDir.path,
         ),
         throwsA(isA<PdfServiceException>()),
+=======
+        throwsA(isA<Exception>()),
+>>>>>>> origin/develop
       );
 
       // Out of bounds page index is handled safely without crashing
@@ -419,15 +434,261 @@ void main() {
       savedDoc.dispose();
     });
 
+<<<<<<< HEAD
+=======
+    test('Test 8 — Verifies no full-page rasterization or image background substitution', () async {
+      final sourcePath = await createTestPdf(
+        filename: 'text_only_doc.pdf',
+        pageCount: 2,
+        textPrefix: 'VectorDocument',
+      );
+
+      final annotations = <int, List<Annotation>>{
+        0: [Annotation.text(id: 'txt-1', x: 0.1, y: 0.8, text: 'AddedFooterText')],
+      };
+
+      final service = PdfService();
+      final savedPath = await service.saveEditedPdf(
+        sourcePdfPath: sourcePath,
+        annotationsByPage: annotations,
+        customOutputPath: tempDir.path,
+      );
+
+      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      expect(savedDoc.pages.count, equals(2));
+
+      // Extract and verify exact textual content on both pages
+      final extractor = syncfusion.PdfTextExtractor(savedDoc);
+      final p1Text = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      final p2Text = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
+
+      expect(p1Text, contains('VectorDocument Page1 Content'));
+      expect(p1Text, contains('AddedFooterText'));
+      expect(p2Text, contains('VectorDocument Page2 Content'));
+
+      // Verify file size did not inflate disproportionately (destructive JPEG save typically produces ~200-500KB+ per page vs clean vector PDF ~2-10KB)
+      final sourceSize = await File(sourcePath).length();
+      final savedSize = await File(savedPath).length();
+      // Saved vector text addition should be roughly within a small delta of source size
+      expect(savedSize, lessThan(sourceSize + 25000));
+
+      savedDoc.dispose();
+    });
+
+    test('Test 9 — Extreme and edge coordinate mapping (0.0, 0.99, negative, > 1.0)', () async {
+      final sourcePath = await createTestPdf(
+        filename: 'edge_coords_source.pdf',
+        pageCount: 1,
+        textPrefix: 'EdgeCoords',
+      );
+
+      final annotations = <int, List<Annotation>>{
+        0: [
+          Annotation.text(
+            id: 'top-left-edge',
+            x: 0.0,
+            y: 0.0,
+            text: 'TopLeftEdgeText',
+          ),
+          Annotation.text(
+            id: 'bottom-right-edge',
+            x: 0.95,
+            y: 0.95,
+            text: 'BottomRightEdgeText',
+          ),
+          Annotation.text(
+            id: 'overflow-edge',
+            x: 1.5,
+            y: -0.5,
+            text: 'ClampedText',
+          ),
+          Annotation.image(
+            id: 'edge-image',
+            x: 0.9,
+            y: 0.9,
+            width: 0.2,
+            height: 0.2,
+            imageBytes: sampleImageBytes,
+          ),
+        ],
+      };
+
+      final service = PdfService();
+      final savedPath = await service.saveEditedPdf(
+        sourcePdfPath: sourcePath,
+        annotationsByPage: annotations,
+        customOutputPath: tempDir.path,
+      );
+
+      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      expect(savedDoc.pages.count, equals(1));
+
+      final extractor = syncfusion.PdfTextExtractor(savedDoc);
+      final text = extractor.extractText().replaceAll(RegExp(r'\s+'), ' ');
+      expect(text, contains('EdgeCoords Page1 Content'));
+      expect(text, contains('TopLeftEdgeText'));
+      expect(text, contains('BottomRightEdgeText'));
+
+      savedDoc.dispose();
+    });
+
+    test('Test 10 — Handles corrupted or invalid image bytes gracefully without crash', () async {
+      final sourcePath = await createTestPdf(
+        filename: 'corrupt_img_source.pdf',
+        pageCount: 1,
+        textPrefix: 'CorruptImgBase',
+      );
+
+      final corruptBytes = Uint8List.fromList([0x00, 0x11, 0x22, 0x33, 0x44]);
+
+      final annotations = <int, List<Annotation>>{
+        0: [
+          Annotation.image(
+            id: 'corrupt-img',
+            x: 0.2,
+            y: 0.2,
+            imageBytes: corruptBytes,
+          ),
+          Annotation.text(
+            id: 'valid-text',
+            x: 0.1,
+            y: 0.1,
+            text: 'StillSavedText',
+          ),
+        ],
+      };
+
+      final service = PdfService();
+      final savedPath = await service.saveEditedPdf(
+        sourcePdfPath: sourcePath,
+        annotationsByPage: annotations,
+        customOutputPath: tempDir.path,
+      );
+
+      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      expect(savedDoc.pages.count, equals(1));
+
+      final extractor = syncfusion.PdfTextExtractor(savedDoc);
+      final text = extractor.extractText().replaceAll(RegExp(r'\s+'), ' ');
+      expect(text, contains('CorruptImgBase Page1 Content'));
+      expect(text, contains('StillSavedText'));
+
+      savedDoc.dispose();
+    });
+
+    test('Test 11 — Multiple annotations on multiple pages with complete page isolation', () async {
+      final sourcePath = await createTestPdf(
+        filename: 'multi_page_isolation.pdf',
+        pageCount: 3,
+        textPrefix: 'IsolationDoc',
+      );
+
+      final annotations = <int, List<Annotation>>{
+        0: [
+          Annotation.text(id: 'p0-t1', x: 0.1, y: 0.1, text: 'Page0OnlyText'),
+          Annotation.image(id: 'p0-i1', x: 0.4, y: 0.4, imageBytes: sampleImageBytes),
+        ],
+        2: [
+          Annotation.text(id: 'p2-t1', x: 0.2, y: 0.2, text: 'Page2OnlyText', bold: true, fontSize: 22, color: Colors.blue),
+        ],
+      };
+
+      final service = PdfService();
+      final savedPath = await service.saveEditedPdf(
+        sourcePdfPath: sourcePath,
+        annotationsByPage: annotations,
+        customOutputPath: tempDir.path,
+      );
+
+      final savedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      expect(savedDoc.pages.count, equals(3));
+
+      final extractor = syncfusion.PdfTextExtractor(savedDoc);
+
+      // Page 0 has Page0OnlyText
+      final p0 = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      expect(p0, contains('IsolationDoc Page1 Content'));
+      expect(p0, contains('Page0OnlyText'));
+      expect(p0, isNot(contains('Page2OnlyText')));
+
+      // Page 1 is untouched
+      final p1 = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
+      expect(p1, contains('IsolationDoc Page2 Content'));
+      expect(p1, isNot(contains('Page0OnlyText')));
+      expect(p1, isNot(contains('Page2OnlyText')));
+
+      // Page 2 has Page2OnlyText
+      final p2 = extractor.extractText(startPageIndex: 2, endPageIndex: 2).replaceAll(RegExp(r'\s+'), ' ');
+      expect(p2, contains('IsolationDoc Page3 Content'));
+      expect(p2, contains('Page2OnlyText'));
+      expect(p2, isNot(contains('Page0OnlyText')));
+
+      savedDoc.dispose();
+    });
+
+    test('Test 12 — Annotation model copyWith and property updates', () {
+      final textAnn = Annotation.text(
+        id: 't-test',
+        x: 0.1,
+        y: 0.2,
+        text: 'Initial',
+        fontSize: 14,
+        color: Colors.red,
+        bold: false,
+      );
+
+      final updatedText = textAnn.copyWith(
+        text: 'Updated',
+        fontSize: 20,
+        bold: true,
+        color: Colors.green,
+      );
+
+      expect(updatedText.id, equals('t-test'));
+      expect(updatedText.text, equals('Updated'));
+      expect(updatedText.fontSize, equals(20));
+      expect(updatedText.bold, isTrue);
+      expect(updatedText.color, equals(Colors.green));
+      expect(updatedText.kind, equals(AnnotationKind.text));
+
+      final imgAnn = Annotation.image(
+        id: 'img-test',
+        x: 0.3,
+        y: 0.3,
+        imageBytes: sampleImageBytes,
+      );
+
+      final updatedImg = imgAnn.copyWith(
+        width: 0.6,
+        height: 0.5,
+      );
+
+      expect(updatedImg.id, equals('img-test'));
+      expect(updatedImg.width, equals(0.6));
+      expect(updatedImg.height, equals(0.5));
+      expect(updatedImg.imageBytes, equals(sampleImageBytes));
+      expect(updatedImg.kind, equals(AnnotationKind.image));
+    });
+
+>>>>>>> origin/develop
     testWidgets('PdfEditorScreen displays empty state when no PDF loaded', (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
         home: PdfEditorScreen(),
       ));
 
       expect(find.text('PDF Editor'), findsOneWidget);
+<<<<<<< HEAD
       expect(find.text('Open a PDF to Edit'), findsOneWidget);
+=======
+      expect(find.text('Open a PDF to edit'), findsOneWidget);
+>>>>>>> origin/develop
       expect(find.text('Choose PDF File'), findsOneWidget);
       expect(find.byType(ElevatedButton), findsOneWidget);
     });
   });
 }
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> origin/develop

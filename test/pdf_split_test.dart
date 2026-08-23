@@ -4,7 +4,10 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
+<<<<<<< HEAD
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
+=======
+>>>>>>> origin/develop
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -207,7 +210,11 @@ void main() {
           endPage: 1,
           customOutputPath: tempDir.path,
         ),
+<<<<<<< HEAD
         throwsA(isA<PdfServiceException>()),
+=======
+        throwsA(isA<Exception>()),
+>>>>>>> origin/develop
       );
     });
 
@@ -226,7 +233,11 @@ void main() {
           endPage: 2,
           customOutputPath: tempDir.path,
         ),
+<<<<<<< HEAD
         throwsA(isA<PdfServiceException>()),
+=======
+        throwsA(isA<Exception>()),
+>>>>>>> origin/develop
       );
     });
 
@@ -245,7 +256,11 @@ void main() {
           endPage: 10,
           customOutputPath: tempDir.path,
         ),
+<<<<<<< HEAD
         throwsA(isA<PdfServiceException>()),
+=======
+        throwsA(isA<Exception>()),
+>>>>>>> origin/develop
       );
     });
 
@@ -261,7 +276,11 @@ void main() {
           endPage: 1,
           customOutputPath: tempDir.path,
         ),
+<<<<<<< HEAD
         throwsA(isA<PdfServiceException>()),
+=======
+        throwsA(isA<Exception>()),
+>>>>>>> origin/develop
       );
     });
 
@@ -274,7 +293,11 @@ void main() {
           endPage: 1,
           customOutputPath: tempDir.path,
         ),
+<<<<<<< HEAD
         throwsA(isA<PdfServiceException>()),
+=======
+        throwsA(isA<Exception>()),
+>>>>>>> origin/develop
       );
     });
   });
