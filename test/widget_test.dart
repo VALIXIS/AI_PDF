@@ -39,12 +39,12 @@ void main() {
     // Verify main app title is visible
     expect(find.text('PDF AI Toolkit'), findsWidgets);
 
-    // Verify all categories exist
-    expect(find.text('All'), findsOneWidget);
-    expect(find.text('Convert'), findsOneWidget);
-    expect(find.text('Organize'), findsOneWidget);
-    expect(find.text('Edit'), findsOneWidget);
-    expect(find.text('AI'), findsOneWidget);
+    // Verify all category tabs exist by key
+    expect(find.byKey(const ValueKey('category_tab_All')), findsOneWidget);
+    expect(find.byKey(const ValueKey('category_tab_Convert')), findsOneWidget);
+    expect(find.byKey(const ValueKey('category_tab_Organize')), findsOneWidget);
+    expect(find.byKey(const ValueKey('category_tab_Edit')), findsOneWidget);
+    expect(find.byKey(const ValueKey('category_tab_AI'), skipOffstage: false), findsOneWidget);
 
     // 1. Verify Organize category filtering
     final organizeTab = find.byKey(const ValueKey('category_tab_Organize'));
@@ -104,9 +104,9 @@ void main() {
     expect(find.text('Protect PDF'), findsOneWidget);
 
     // 5. Verify AI category filtering
-    final aiTab = find.byKey(const ValueKey('category_tab_AI'));
+    final aiTab = find.byKey(const ValueKey('category_tab_AI'), skipOffstage: false);
     await tester.ensureVisible(aiTab);
-    await tester.tap(aiTab);
+    await tester.tap(aiTab, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(find.text('AI to PDF'), findsOneWidget);
@@ -114,8 +114,9 @@ void main() {
     expect(find.text('Chat with PDF'), findsOneWidget);
 
     // 6. Verify All category shows all tools
+    await tester.drag(find.byKey(const ValueKey('category_tab_AI'), skipOffstage: false), const Offset(500, 0));
+    await tester.pumpAndSettle();
     final allTab = find.byKey(const ValueKey('category_tab_All'));
-    await tester.ensureVisible(allTab);
     await tester.tap(allTab);
     await tester.pumpAndSettle();
 

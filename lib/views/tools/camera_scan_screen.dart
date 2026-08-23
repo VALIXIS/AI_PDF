@@ -21,6 +21,7 @@ class CameraScanScreen extends StatefulWidget {
 
 class _CameraScanScreenState extends State<CameraScanScreen> {
   final List<File> _pages = [];
+  final Set<int> _selectedIndices = {};
   bool _isLoading = false;
   bool _isCapturing = false;
   bool _isReorderMode = false;
@@ -151,6 +152,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       setState(() {
         _isLoading = false;
         _successPath = path;
+        _selectedIndices.clear();
       });
 
       if (mounted) {
@@ -168,39 +170,110 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   void _removePage(int index) {
     setState(() {
       _pages.removeAt(index);
+      _selectedIndices.remove(index);
+      if (_pages.isEmpty) {
+        _isReorderMode = false;
+        _selectedIndices.clear();
+      }
+    });
+  }
+
+  void _deleteSelectedPages() {
+    if (_selectedIndices.isEmpty) return;
+    setState(() {
+      final sortedList = _selectedIndices.toList()..sort((a, b) => b.compareTo(a));
+      for (final idx in sortedList) {
+        if (idx < _pages.length) {
+          _pages.removeAt(idx);
+        }
+      }
+      _selectedIndices.clear();
       if (_pages.isEmpty) {
         _isReorderMode = false;
       }
     });
   }
 
-  void _showFullPreview(File file) {
+  void _toggleSelectPage(int index) {
+    setState(() {
+      if (_selectedIndices.contains(index)) {
+        _selectedIndices.remove(index);
+      } else {
+        _selectedIndices.add(index);
+      }
+    });
+  }
+
+  void _showFullPreview(int initialIndex) {
+    int currentIndex = initialIndex;
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBar(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              title: const Text('Page Preview', style: TextStyle(fontSize: 16)),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.of(ctx).pop(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final file = _pages[currentIndex];
+          return Dialog(
+            backgroundColor: Colors.black,
+            insetPadding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppBar(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  title: Text('Page ${currentIndex + 1} of ${_pages.length}', style: const TextStyle(fontSize: 16)),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444)),
+                      tooltip: 'Delete Page',
+                      onPressed: () {
+                        Navigator.of(dialogCtx).pop();
+                        _removePage(currentIndex);
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(dialogCtx).pop(),
+                    ),
+                  ],
+                ),
+                Flexible(
+                  child: InteractiveViewer(
+                    child: Image.file(file, fit: BoxFit.contain),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton.icon(
+                        onPressed: currentIndex > 0
+                            ? () => setDialogState(() => currentIndex--)
+                            : null,
+                        icon: const Icon(Icons.chevron_left_rounded),
+                        label: const Text('Previous'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.white),
+                      ),
+                      Text(
+                        FileService().getFileName(file.path),
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      TextButton.icon(
+                        onPressed: currentIndex < _pages.length - 1
+                            ? () => setDialogState(() => currentIndex++)
+                            : null,
+                        icon: const Icon(Icons.chevron_right_rounded),
+                        label: const Text('Next'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            Flexible(
-              child: InteractiveViewer(
-                child: Image.file(file, fit: BoxFit.contain),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -273,6 +346,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                     _pages.clear();
                     _errorMessage = null;
                     _isReorderMode = false;
+                    _selectedIndices.clear();
                   });
                 },
               ),
@@ -322,7 +396,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (_pages.isNotEmpty) ...[
-                        // Page Count & Mode Controls Bar
+                        // Page Count & Control Toolbar
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           child: Row(
@@ -331,7 +405,27 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                 '${_pages.length} scanned page${_pages.length > 1 ? 's' : ''}',
                                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                               ),
+                              if (_selectedIndices.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: primary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${_selectedIndices.length} selected',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primary),
+                                  ),
+                                ),
+                              ],
                               const Spacer(),
+                              if (_selectedIndices.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFDC2626)),
+                                  tooltip: 'Delete Selected',
+                                  onPressed: _deleteSelectedPages,
+                                ),
                               IconButton(
                                 icon: Icon(
                                   _isReorderMode ? Icons.grid_view_rounded : Icons.reorder_rounded,
@@ -345,6 +439,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                 TextButton(
                                   onPressed: () => setState(() {
                                     _pages.clear();
+                                    _selectedIndices.clear();
                                     _errorMessage = null;
                                     _isReorderMode = false;
                                   }),
@@ -366,13 +461,18 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                       if (newIndex > oldIndex) newIndex -= 1;
                                       final item = _pages.removeAt(oldIndex);
                                       _pages.insert(newIndex, item);
+                                      _selectedIndices.clear();
                                     });
                                   },
                                   itemBuilder: (context, index) {
                                     final page = _pages[index];
+                                    final isSelected = _selectedIndices.contains(index);
                                     return Card(
                                       key: ValueKey(page.path),
                                       margin: const EdgeInsets.only(bottom: 10),
+                                      color: isSelected
+                                          ? primary.withValues(alpha: isDark ? 0.2 : 0.08)
+                                          : null,
                                       child: ListTile(
                                         leading: ClipRRect(
                                           borderRadius: BorderRadius.circular(6),
@@ -392,6 +492,14 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             IconButton(
+                                              icon: Icon(
+                                                isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                                                color: isSelected ? primary : Colors.grey,
+                                                size: 22,
+                                              ),
+                                              onPressed: () => _toggleSelectPage(index),
+                                            ),
+                                            IconButton(
                                               icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFDC2626), size: 20),
                                               onPressed: () => _removePage(index),
                                             ),
@@ -401,7 +509,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                             ),
                                           ],
                                         ),
-                                        onTap: () => _showFullPreview(page),
+                                        onTap: () => _showFullPreview(index),
                                       ),
                                     );
                                   },
@@ -415,71 +523,114 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                     childAspectRatio: 0.72,
                                   ),
                                   itemCount: _pages.length,
-                                  itemBuilder: (_, i) => GestureDetector(
-                                    onTap: () => _showFullPreview(_pages[i]),
-                                    child: Stack(
-                                      children: [
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: bg,
-                                            borderRadius: BorderRadius.circular(10),
-                                            border: Border.all(color: border),
-                                          ),
-                                          clipBehavior: Clip.hardEdge,
-                                          child: Image.file(_pages[i], fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-                                        ),
-                                        Positioned(
-                                          bottom: 5,
-                                          left: 5,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  itemBuilder: (_, i) {
+                                    final isSelected = _selectedIndices.contains(i);
+                                    return GestureDetector(
+                                      onTap: () => _showFullPreview(i),
+                                      onLongPress: () => _toggleSelectPage(i),
+                                      child: Stack(
+                                        children: [
+                                          Container(
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withValues(alpha: 0.65),
-                                              borderRadius: BorderRadius.circular(6),
+                                              color: bg,
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: isSelected ? primary : border,
+                                                width: isSelected ? 2.5 : 1.0,
+                                              ),
                                             ),
-                                            child: Text('P${i + 1}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                                            clipBehavior: Clip.hardEdge,
+                                            child: Image.file(_pages[i], fit: BoxFit.cover, width: double.infinity, height: double.infinity),
                                           ),
-                                        ),
-                                        if (!_isLoading && !_isCapturing)
+                                          Positioned(
+                                            bottom: 5,
+                                            left: 5,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black.withValues(alpha: 0.65),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text('P${i + 1}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                                            ),
+                                          ),
                                           Positioned(
                                             top: 4,
-                                            right: 4,
+                                            left: 4,
                                             child: GestureDetector(
-                                              onTap: () => _removePage(i),
+                                              onTap: () => _toggleSelectPage(i),
                                               child: Container(
                                                 width: 22,
                                                 height: 22,
-                                                decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
-                                                child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                                                decoration: BoxDecoration(
+                                                  color: isSelected ? primary : Colors.black.withValues(alpha: 0.4),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Icon(
+                                                  isSelected ? Icons.check_rounded : Icons.circle_outlined,
+                                                  color: Colors.white,
+                                                  size: 14,
+                                                ),
                                               ),
                                             ),
                                           ),
-                                      ],
-                                    ),
-                                  ),
+                                          if (!_isLoading && !_isCapturing)
+                                            Positioned(
+                                              top: 4,
+                                              right: 4,
+                                              child: GestureDetector(
+                                                onTap: () => _removePage(i),
+                                                child: Container(
+                                                  width: 22,
+                                                  height: 22,
+                                                  decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
+                                                  child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                         ),
                       ],
 
-                      // Bottom Save Button
+                      // Bottom Action Toolbar (Save as PDF & Add Page)
                       if (_pages.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.all(20),
-                          child: SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: (_isLoading || _isCapturing) ? null : _buildPdf,
-                              icon: _isLoading
-                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                  : const Icon(Icons.picture_as_pdf_rounded),
-                              label: const Text('Save as PDF', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 15),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: (_isLoading || _isCapturing) ? null : _scanDocument,
+                                icon: const Icon(Icons.add_a_photo_rounded, size: 18),
+                                label: const Text('Add Another Page', style: TextStyle(fontWeight: FontWeight.w600)),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  minimumSize: const Size(double.infinity, 44),
+                                  side: BorderSide(color: primary),
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: (_isLoading || _isCapturing) ? null : _buildPdf,
+                                  icon: _isLoading
+                                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                      : const Icon(Icons.picture_as_pdf_rounded),
+                                  label: Text('Save as PDF (${_pages.length} pages)', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 15),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                     ],

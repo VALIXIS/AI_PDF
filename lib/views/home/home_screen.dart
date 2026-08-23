@@ -16,6 +16,7 @@ import 'package:pdf_ai_toolkit/views/tools/jpg_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/rotate_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/protect_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 // ── Tool model ────────────────────────────────────────────────────────────
 class ToolItem {
@@ -180,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     themeNotifier.addListener(_rebuild);
     _heroAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
-    _heroFade  = CurvedAnimation(parent: _heroAnim, curve: Curves.easeOut);
+    _heroFade = CurvedAnimation(parent: _heroAnim, curve: Curves.easeOut);
     _heroSlide = Tween(begin: const Offset(0, 0.08), end: Offset.zero)
         .animate(CurvedAnimation(parent: _heroAnim, curve: Curves.easeOutCubic));
     _heroTimer = Timer(const Duration(milliseconds: 100), () {
@@ -188,7 +189,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-  void _rebuild() { if (mounted) setState(() {}); }
+  void _rebuild() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -226,6 +229,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ? _tools
       : _tools.where((t) => t.category == _category).toList();
 
+  int _getCategoryCount(String cat) {
+    if (cat == 'All') return _tools.length;
+    return _tools.where((t) => t.category == cat).length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -241,21 +249,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             pinned: true,
             expandedHeight: 0,
             backgroundColor: isDark ? const Color(0xFF0B0B13) : const Color(0xFFF7F7F9),
-            title: Row(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.asset(
-                  'assets/ICON.png',
-                  width: 32,
-                  height: 32,
-                  fit: BoxFit.contain,
+            title: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    'assets/ICON.png',
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.contain,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text('PDF AI Toolkit',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : const Color(0xFF111827))),
-            ]),
+                const SizedBox(width: 10),
+                Text(
+                  'PDF AI Toolkit',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF111827),
+                  ),
+                ),
+              ],
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.settings_rounded),
@@ -273,9 +288,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // Hero title
-                Text('What would you like\nto do today?',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 26, letterSpacing: -0.8)),
+                Text(
+                  'What would you like\nto do today?',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontSize: 26,
+                        letterSpacing: -0.8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
                 const SizedBox(height: 4),
                 Text('Paste AI text or pick a tool below', style: TextStyle(color: sub, fontSize: 14)),
                 const SizedBox(height: 22),
@@ -299,13 +319,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 28),
 
                 // ── Quick actions ─────────────────────────────────
-                Row(children: [
-                  _QuickBtn(icon: Icons.document_scanner_rounded, label: 'Scan', color: const Color(0xFF059669), onTap: () => _push(const CameraScanScreen())),
-                  const SizedBox(width: 10),
-                  _QuickBtn(icon: Icons.edit_document,             label: 'Edit PDF', color: kPrimary,              onTap: () => _push(const PdfEditorScreen())),
-                  const SizedBox(width: 10),
-                  _QuickBtn(icon: Icons.image_rounded,             label: 'Img to PDF', color: const Color(0xFF0EA5E9), onTap: () => _push(const JpgToPdfScreen())),
-                ]),
+                Row(
+                  children: [
+                    _QuickBtn(
+                      icon: Icons.document_scanner_rounded,
+                      label: 'Scan',
+                      color: const Color(0xFF059669),
+                      onTap: () => _push(const CameraScanScreen()),
+                    ),
+                    const SizedBox(width: 10),
+                    _QuickBtn(
+                      icon: Icons.edit_document,
+                      label: 'Edit PDF',
+                      color: kPrimary,
+                      onTap: () => _push(const PdfEditorScreen()),
+                    ),
+                    const SizedBox(width: 10),
+                    _QuickBtn(
+                      icon: Icons.image_rounded,
+                      label: 'Img to PDF',
+                      color: const Color(0xFF0EA5E9),
+                      onTap: () => _push(const JpgToPdfScreen()),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 28),
 
                 // ── Pro Tips ──────────────────────────────────────
@@ -346,10 +383,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 28),
 
                 // ── Category tabs ─────────────────────────────────
-                Text('All Tools', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
+                Row(
+                  children: [
+                    Text('All Tools', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, fontSize: 16)),
+                    const Spacer(),
+                    Text(
+                      '${_filtered.length} tools',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: sub),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 SizedBox(
-                  height: 34,
+                  height: 36,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _categories.length,
@@ -357,6 +403,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     itemBuilder: (_, i) {
                       final cat = _categories[i];
                       final sel = _category == cat;
+                      final count = _getCategoryCount(cat);
                       return GestureDetector(
                         key: ValueKey('category_tab_$cat'),
                         onTap: () {
@@ -366,17 +413,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                           decoration: BoxDecoration(
                             color: sel ? primary : (isDark ? const Color(0xFF1C1C28) : const Color(0xFFEEEEF4)),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(cat,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-                                color: sel ? Colors.white : sub,
-                              )),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                cat,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                                  color: sel ? Colors.white : sub,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: sel ? Colors.white.withValues(alpha: 0.25) : (isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08)),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '$count',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: sel ? Colors.white : sub,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -386,44 +456,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                 // ── Tool grid or Empty State ──────────────────────
                 _filtered.isEmpty
-                    ? Container(
+                    ? ToolEmptyState(
                         key: const ValueKey('empty_category_state'),
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF14141E) : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.inventory_2_outlined,
-                              size: 44,
-                              color: isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No tools available',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF111827),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'No tools found in "$_category"',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
-                        ),
+                        icon: Icons.inventory_2_outlined,
+                        title: 'No Tools Available',
+                        subtitle: 'No PDF tools found in category "$_category"',
+                        actionLabel: 'Show All Tools',
+                        onAction: () => setState(() => _category = 'All'),
                       )
                     : GridView.builder(
                         key: ValueKey('tool_grid_$_category'),
@@ -527,15 +566,21 @@ class _HeroCard extends StatelessWidget {
   final Color primary;
   final bool isDark, pressed;
   final VoidCallback onPressDown, onPressUp, onGenerate;
-  const _HeroCard({required this.controller, required this.primary,
-    required this.isDark, required this.pressed,
-    required this.onPressDown, required this.onPressUp, required this.onGenerate});
+  const _HeroCard({
+    required this.controller,
+    required this.primary,
+    required this.isDark,
+    required this.pressed,
+    required this.onPressDown,
+    required this.onPressUp,
+    required this.onGenerate,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bg     = isDark ? const Color(0xFF14141E) : Colors.white;
+    final bg = isDark ? const Color(0xFF14141E) : Colors.white;
     final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
-    final hint   = isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF);
+    final hint = isDark ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF);
     return Container(
       decoration: BoxDecoration(
         color: bg,
@@ -544,56 +589,67 @@ class _HeroCard extends StatelessWidget {
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06), blurRadius: 24, offset: const Offset(0, 8))],
       ),
       padding: const EdgeInsets.all(18),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-            child: Text('AI Powered', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
-          ),
-        ]),
-        const SizedBox(height: 12),
-        TextField(
-          controller: controller,
-          minLines: 4,
-          maxLines: 6,
-          style: TextStyle(fontSize: 14, color: isDark ? Colors.white : const Color(0xFF111827)),
-          decoration: InputDecoration(
-            hintText: 'Paste your ChatGPT or notes here…',
-            hintStyle: TextStyle(color: hint, fontSize: 14),
-            filled: false,
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Divider(height: 1, color: border),
-        const SizedBox(height: 14),
-        GestureDetector(
-          onTapDown: (_) => onPressDown(),
-          onTapUp: (_) { onPressUp(); onGenerate(); },
-          onTapCancel: onPressUp,
-          child: AnimatedScale(
-            duration: const Duration(milliseconds: 100),
-            scale: pressed ? 0.96 : 1.0,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              decoration: BoxDecoration(
-                color: primary,
-                borderRadius: BorderRadius.circular(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                child: Text('AI Powered', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
               ),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Text('Generate PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-              ]),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            minLines: 4,
+            maxLines: 6,
+            style: TextStyle(fontSize: 14, color: isDark ? Colors.white : const Color(0xFF111827)),
+            decoration: InputDecoration(
+              hintText: 'Paste your ChatGPT or notes here…',
+              hintStyle: TextStyle(color: hint, fontSize: 14),
+              filled: false,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
             ),
           ),
-        ),
-      ]),
+          const SizedBox(height: 14),
+          Divider(height: 1, color: border),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTapDown: (_) => onPressDown(),
+            onTapUp: (_) {
+              onPressUp();
+              onGenerate();
+            },
+            onTapCancel: onPressUp,
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 100),
+              scale: pressed ? 0.96 : 1.0,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: BoxDecoration(
+                  color: primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Text('Generate PDF', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -619,11 +675,13 @@ class _QuickBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
-          child: Column(children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 5),
-            Text(label, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
-          ]),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 5),
+              Text(label, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
+            ],
+          ),
         ),
       ),
     );
@@ -646,17 +704,21 @@ class _ToolCardState extends State<_ToolCard> with SingleTickerProviderStateMixi
   @override
   void initState() {
     super.initState();
-    _ctl   = AnimationController(vsync: this, duration: const Duration(milliseconds: 100), value: 1);
+    _ctl = AnimationController(vsync: this, duration: const Duration(milliseconds: 100), value: 1);
     _scale = Tween(begin: 1.0, end: 0.94).animate(CurvedAnimation(parent: _ctl, curve: Curves.easeOut));
   }
+
   @override
-  void dispose() { _ctl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final bg     = widget.isDark ? const Color(0xFF14141E) : Colors.white;
+    final bg = widget.isDark ? const Color(0xFF14141E) : Colors.white;
     final border = widget.isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
-    final col    = widget.item.color;
+    final col = widget.item.color;
     return GestureDetector(
       onTap: widget.onTap,
       onTapDown: (_) => _ctl.reverse(),
@@ -672,17 +734,21 @@ class _ToolCardState extends State<_ToolCard> with SingleTickerProviderStateMixi
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: border),
           ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: col.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(widget.item.icon, color: col, size: 19),
-            ),
-            const Spacer(),
-            Text(widget.item.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 2),
-            Text(widget.item.subtitle, style: TextStyle(fontSize: 11, color: widget.isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)), maxLines: 1, overflow: TextOverflow.ellipsis),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(color: col.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+                child: Icon(widget.item.icon, color: col, size: 19),
+              ),
+              const Spacer(),
+              Text(widget.item.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text(widget.item.subtitle, style: TextStyle(fontSize: 11, color: widget.isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF)), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ],
+          ),
         ),
       ),
     );
