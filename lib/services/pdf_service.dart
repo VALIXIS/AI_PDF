@@ -303,7 +303,11 @@ class PdfService {
   }
 
   /// Compresses a PDF file using high-efficiency stream compression and page re-rendering
-  Future<String> compressPdf(String pdfPath, {String? customOutputPath}) async {
+  Future<String> compressPdf(
+    String pdfPath, {
+    String? customOutputPath,
+    String compressionLevel = 'medium',
+  }) async {
     final file = File(pdfPath);
     if (!await file.exists()) {
       throw PdfServiceException(
@@ -320,7 +324,21 @@ class PdfService {
     try {
       sourceDoc = syncfusion.PdfDocument(inputBytes: bytes);
       outputDoc = syncfusion.PdfDocument();
-      outputDoc.compressionLevel = syncfusion.PdfCompressionLevel.best;
+      
+      syncfusion.PdfCompressionLevel level;
+      switch (compressionLevel.toLowerCase()) {
+        case 'low':
+          level = syncfusion.PdfCompressionLevel.belowNormal;
+          break;
+        case 'high':
+          level = syncfusion.PdfCompressionLevel.best;
+          break;
+        case 'medium':
+        default:
+          level = syncfusion.PdfCompressionLevel.aboveNormal;
+          break;
+      }
+      outputDoc.compressionLevel = level;
 
       for (int i = 0; i < sourceDoc.pages.count; i++) {
         final syncfusion.PdfPage sourcePage = sourceDoc.pages[i];
