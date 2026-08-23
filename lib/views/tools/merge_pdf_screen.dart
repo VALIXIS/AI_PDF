@@ -199,7 +199,15 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
       if (!mounted) return;
       if (files.isNotEmpty) {
         setState(() {
-          _selectedFiles.addAll(files);
+          final combined = [..._selectedFiles, ...files];
+          _selectedFiles.clear();
+          final seen = <String>{};
+          for (final f in combined) {
+            final norm = _fileService.normalizePath(f);
+            if (seen.add(norm)) {
+              _selectedFiles.add(norm);
+            }
+          }
           _errorMessage = null;
           _successPath = null;
         });
@@ -213,31 +221,25 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
   }
 
   Future<void> _mergePdfs() async {
-    if (_selectedFiles.length < 2) {
+    final validFiles = await _fileService.validateSelectedFiles(_selectedFiles, allowedExtensions: ['pdf']);
+    if (validFiles.length < 2) {
       setState(() {
-        _errorMessage = 'Please select at least 2 PDF files to merge.';
+        _selectedFiles.clear();
+        _selectedFiles.addAll(validFiles);
+        _errorMessage = 'Please select at least 2 valid and accessible PDF files to merge.';
       });
       return;
     }
 
     setState(() {
+      _selectedFiles.clear();
+      _selectedFiles.addAll(validFiles);
       _isLoading = true;
       _errorMessage = null;
       _successPath = null;
     });
 
     try {
-      for (final file in _selectedFiles) {
-        if (!await _fileService.isFileAccessible(file)) {
-          setState(() {
-            _errorMessage =
-                'One or more selected files no longer exist or are inaccessible: ${_fileService.getFileName(file)}';
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-
       final filePath = await _pdfService.mergePdfs(_selectedFiles);
 
       final entry = HistoryEntry(

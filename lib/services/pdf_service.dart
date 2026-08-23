@@ -63,8 +63,10 @@ class PdfService {
 
       // Save PDF to file
       final output = await getApplicationDocumentsDirectory();
-      final fileName =
-          'pdf_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName = FileService().formatOutputFileName(
+        baseName: title,
+        extension: 'pdf',
+      );
       final targetPath = path.join(output.path, fileName);
       final pdfBytes = await pdf.save();
 
@@ -203,8 +205,14 @@ class PdfService {
       final List<int> mergedBytes = outputDocument.saveSync();
 
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final fileName =
-          'merged_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final String firstBase = (pdfPaths.isNotEmpty && pdfPaths.first.isNotEmpty)
+          ? path.basenameWithoutExtension(pdfPaths.first)
+          : 'merged';
+      final fileName = FileService().formatOutputFileName(
+        baseName: firstBase,
+        suffix: 'merged',
+        extension: 'pdf',
+      );
       final targetPath = path.join(dirPath, fileName);
       return await FileService().safeWriteBytes(targetPath, mergedBytes);
     } catch (e) {
@@ -275,8 +283,12 @@ class PdfService {
       final List<int> outputBytes = outputDocument.saveSync();
 
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final fileName =
-          'split_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final String baseName = path.basenameWithoutExtension(pdfPath);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'split_p${startPage}-p${endPage}',
+        extension: 'pdf',
+      );
       final targetPath = path.join(dirPath, fileName);
       return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
@@ -325,7 +337,12 @@ class PdfService {
 
       final List<int> outputBytes = outputDoc.saveSync();
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final fileName = 'compressed_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final String baseName = path.basenameWithoutExtension(pdfPath);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'compressed',
+        extension: 'pdf',
+      );
       final targetPath = path.join(dirPath, fileName);
       return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
@@ -400,7 +417,12 @@ class PdfService {
         final List<int> outputBytes = await document.save();
         
         final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final fileName = 'rotated_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final String baseName = path.basenameWithoutExtension(pdfPath);
+        final fileName = FileService().formatOutputFileName(
+          baseName: baseName,
+          suffix: 'rotated_${rotationAngle}',
+          extension: 'pdf',
+        );
         final targetPath = path.join(dirPath, fileName);
         
         return await FileService().safeWriteBytes(targetPath, outputBytes);
@@ -495,7 +517,12 @@ class PdfService {
         final List<int> outputBytes = await document.save();
 
         final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final fileName = 'watermarked_${DateTime.now().millisecondsSinceEpoch}.pdf';
+        final String baseName = path.basenameWithoutExtension(pdfPath);
+        final fileName = FileService().formatOutputFileName(
+          baseName: baseName,
+          suffix: 'watermarked',
+          extension: 'pdf',
+        );
         final targetPath = path.join(dirPath, fileName);
 
         return await FileService().safeWriteBytes(targetPath, outputBytes);
@@ -600,7 +627,12 @@ class PdfService {
 
       final List<int> outputBytes = await document.save();
       final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final fileName = 'edited_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final String baseName = path.basenameWithoutExtension(sourcePdfPath);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'edited',
+        extension: 'pdf',
+      );
       final targetPath = path.join(dirPath, fileName);
 
       return await FileService().safeWriteBytes(targetPath, outputBytes);
@@ -638,13 +670,16 @@ class PdfService {
           throw Exception('No extractable text found in the PDF. Scanned or image-only PDFs are not supported.');
         }
 
-        // Save extracted text to a .txt file
+        // Save extracted text to a .txt file safely using safeWriteBytes
         final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final fileName = 'extracted_${DateTime.now().millisecondsSinceEpoch}.txt';
-        final outputFile = File(path.join(dirPath, fileName));
-        await outputFile.writeAsString(extractedText, encoding: utf8);
-
-        return outputFile.path;
+        final String baseName = path.basenameWithoutExtension(pdfPath);
+        final fileName = FileService().formatOutputFileName(
+          baseName: baseName,
+          suffix: 'extracted',
+          extension: 'txt',
+        );
+        final targetPath = path.join(dirPath, fileName);
+        return await FileService().safeWriteBytes(targetPath, utf8.encode(extractedText));
       } finally {
         document.dispose();
       }

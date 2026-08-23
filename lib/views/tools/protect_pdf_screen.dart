@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -37,11 +36,11 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
 
   Future<void> _pick() async {
     try {
-      final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+      final pickedPath = await FileService().pickPdfFile();
       if (!mounted) return;
-      if (r?.files.single.path != null) {
+      if (pickedPath != null) {
         setState(() {
-          _pdfFile = File(r!.files.single.path!);
+          _pdfFile = File(pickedPath);
           _errorMessage = null;
           _successPath = null;
         });
@@ -95,28 +94,35 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
           pw.Text('Password set successfully', style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
         ])),
       ));
-      final dir  = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(dir.path, 'protected_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      await File(path).writeAsBytes(await pdf.save());
+      final dir = await getApplicationDocumentsDirectory();
+      final baseName = FileService().getFileName(_pdfFile!.path);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'protected',
+        extension: 'pdf',
+      );
+      final targetPath = FileService().joinPaths(dir.path, fileName);
+      final pdfBytes = await pdf.save();
+      final finalPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
 
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Protected PDF',
         date: DateTime.now(),
-        filePath: path,
+        filePath: finalPath,
         toolType: 'protect_pdf',
       ));
 
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _successPath = path;
+        _successPath = finalPath;
         _passCtrl.clear();
         _confirmCtrl.clear();
       });
 
       if (mounted) {
-        ShareService.showSaveShareDialog(context, path);
+        ShareService.showSaveShareDialog(context, finalPath);
       }
     } catch (e) {
       if (!mounted) return;

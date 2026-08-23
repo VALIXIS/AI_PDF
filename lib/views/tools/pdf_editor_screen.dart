@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
@@ -46,11 +45,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
   Future<void> _pickPdf() async {
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
-      );
-      if (result == null || result.files.isEmpty || result.files.single.path == null) return;
+      final pickedPath = await FileService().pickPdfFile();
+      if (pickedPath == null) return;
       setState(() {
         _loading = true;
         _pdfFile = null;
@@ -63,7 +59,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _successPath = null;
       });
 
-      final file = File(result.files.single.path!);
+      final file = File(pickedPath);
       if (!await FileService().isFileAccessible(file.path)) {
         if (!mounted) return;
         setState(() {

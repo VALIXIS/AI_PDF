@@ -31,11 +31,21 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
       final picked = await ImagePicker().pickMultiImage(imageQuality: 90);
       if (!mounted) return;
       if (picked.isNotEmpty) {
-        setState(() {
-          _images.addAll(picked.map((x) => File(x.path)));
-          _errorMessage = null;
-          _successPath = null;
-        });
+        final existingPaths = _images.map((f) => FileService().normalizePath(f.path)).toSet();
+        final newFiles = <File>[];
+        for (final x in picked) {
+          final norm = FileService().normalizePath(x.path);
+          if (existingPaths.add(norm) && await FileService().isFileAccessible(norm)) {
+            newFiles.add(File(norm));
+          }
+        }
+        if (newFiles.isNotEmpty) {
+          setState(() {
+            _images.addAll(newFiles);
+            _errorMessage = null;
+            _successPath = null;
+          });
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -46,14 +56,24 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
   }
 
   Future<void> _convert() async {
-    if (_images.isEmpty) {
+    final validImages = <File>[];
+    for (final f in _images) {
+      if (await FileService().isFileAccessible(f.path)) {
+        validImages.add(f);
+      }
+    }
+
+    if (validImages.isEmpty) {
       setState(() {
-        _errorMessage = 'Please select at least one image.';
+        _images.clear();
+        _errorMessage = 'Please select at least one valid and accessible image.';
       });
       return;
     }
 
     setState(() {
+      _images.clear();
+      _images.addAll(validImages);
       _isLoading = true;
       _errorMessage = null;
       _successPath = null;
@@ -72,26 +92,33 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
               : pw.Center(child: pw.Image(img, fit: pw.BoxFit.contain)),
         ));
       }
-      final dir  = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(dir.path, 'images_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      await File(path).writeAsBytes(await pdf.save());
+      final dir = await getApplicationDocumentsDirectory();
+      final firstBase = _images.isNotEmpty ? FileService().getFileName(_images.first.path) : 'images';
+      final fileName = FileService().formatOutputFileName(
+        baseName: firstBase,
+        suffix: 'converted',
+        extension: 'pdf',
+      );
+      final targetPath = FileService().joinPaths(dir.path, fileName);
+      final pdfBytes = await pdf.save();
+      final finalPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
 
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Images to PDF (${_images.length})',
         date: DateTime.now(),
-        filePath: path,
+        filePath: finalPath,
         toolType: 'jpg_to_pdf',
       ));
 
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _successPath = path;
+        _successPath = finalPath;
       });
 
       if (mounted) {
-        ShareService.showSaveShareDialog(context, path);
+        ShareService.showSaveShareDialog(context, finalPath);
       }
     } catch (e) {
       if (!mounted) return;

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
@@ -34,11 +33,11 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
 
   Future<void> _pick() async {
     try {
-      final r = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+      final pickedPath = await FileService().pickPdfFile();
       if (!mounted) return;
-      if (r?.files.single.path != null) {
+      if (pickedPath != null) {
         setState(() {
-          _pdfFile = File(r!.files.single.path!);
+          _pdfFile = File(pickedPath);
           _errorMessage = null;
           _successPath = null;
         });
