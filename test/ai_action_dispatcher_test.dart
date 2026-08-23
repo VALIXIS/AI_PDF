@@ -1,11 +1,31 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
+import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_action_dispatcher.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  late Directory hiveTempDir;
+
+  setUpAll(() async {
+    hiveTempDir =
+        await Directory.systemTemp.createTemp('ai_dispatcher_hive_test_');
+    Hive.init(hiveTempDir.path);
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(HistoryEntryAdapter());
+    }
+  });
+
+  tearDownAll(() async {
+    await Hive.close();
+    if (await hiveTempDir.exists()) {
+      await hiveTempDir.delete(recursive: true);
+    }
+  });
 
   const MethodChannel channel =
       MethodChannel('plugins.flutter.io/path_provider');
