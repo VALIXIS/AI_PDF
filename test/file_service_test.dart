@@ -171,5 +171,73 @@ void main() {
         await tempDir.delete(recursive: true);
       }
     });
+
+    test('sanitizeFileName handles Windows reserved names and trailing dots/spaces', () {
+      expect(fileService.sanitizeFileName('CON.pdf'), equals('file_CON.pdf'));
+      expect(fileService.sanitizeFileName('nul'), equals('file_nul'));
+      expect(fileService.sanitizeFileName('PRN.txt'), equals('file_PRN.txt'));
+      expect(fileService.sanitizeFileName('  doc name.pdf. . '), equals('doc name.pdf'));
+      expect(fileService.sanitizeFileName(''), equals('untitled'));
+    });
+
+    test('formatOutputFileName avoids duplicate extensions and handles suffixes cleanly', () {
+      final name1 = fileService.formatOutputFileName(
+        baseName: 'document.pdf',
+        suffix: 'compressed',
+        extension: 'pdf',
+      );
+      expect(name1, equals('document_compressed.pdf'));
+
+      final name2 = fileService.formatOutputFileName(
+        baseName: 'report.txt',
+        suffix: 'extracted',
+        extension: 'txt',
+      );
+      expect(name2, equals('report_extracted.txt'));
+
+      final name3 = fileService.formatOutputFileName(
+        baseName: 'my file name',
+        extension: '.pdf',
+      );
+      expect(name3, equals('my file name.pdf'));
+    });
+
+    test('getUniqueFilePath increments existing (N) suffixes correctly', () async {
+      final tempDir = await Directory.systemTemp.createTemp('unique_inc_test_');
+      try {
+        final doc1Path = '${tempDir.path}/doc (1).pdf';
+        await File(doc1Path).writeAsString('content 1');
+
+        final nextPath = await fileService.getUniqueFilePath(doc1Path);
+        expect(nextPath, contains('doc (2).pdf'));
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    test('validateSelectedFiles deduplicates and filters missing/invalid files', () async {
+      final tempDir = await Directory.systemTemp.createTemp('validate_files_test_');
+      try {
+        final f1 = File('${tempDir.path}/valid1.pdf');
+        await f1.writeAsString('pdf 1');
+
+        final f2 = File('${tempDir.path}/valid2.pdf');
+        await f2.writeAsString('pdf 2');
+
+        final pathsToValidate = [
+          f1.path,
+          f1.path, // duplicate
+          '${tempDir.path}/non_existent.pdf', // missing
+          f2.path,
+        ];
+
+        final validated = await fileService.validateSelectedFiles(pathsToValidate, allowedExtensions: ['pdf']);
+        expect(validated.length, equals(2));
+        expect(validated.first, equals(fileService.normalizePath(f1.path)));
+        expect(validated.last, equals(fileService.normalizePath(f2.path)));
+      } finally {
+        await tempDir.delete(recursive: true);
+      }
+    });
   });
 }

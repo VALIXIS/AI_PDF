@@ -4,7 +4,7 @@ import 'package:path/path.dart' as path;
 import 'dart:io';
 
 class FileService {
-  /// Picks a single PDF file
+  /// Picks single PDF file safely
   Future<String?> pickPdfFile() async {
     try {
       FilePickerResult? result = await FilePicker.pickFiles(
@@ -12,8 +12,11 @@ class FileService {
         allowedExtensions: ['pdf'],
       );
 
-      if (result != null) {
-        return result.files.single.path;
+      if (result != null && result.files.single.path != null) {
+        final p = result.files.single.path!;
+        if (await isFileAccessible(p)) {
+          return p;
+        }
       }
       return null;
     } catch (e) {
@@ -21,7 +24,7 @@ class FileService {
     }
   }
 
-  /// Picks multiple PDF files
+  /// Picks multiple PDF files safely and deduplicates output
   Future<List<String>> pickMultiplePdfFiles() async {
     try {
       FilePickerResult? result = await FilePicker.pickFiles(
@@ -31,7 +34,8 @@ class FileService {
       );
 
       if (result != null) {
-        return result.paths.whereType<String>().toList();
+        final rawPaths = result.paths.whereType<String>().toList();
+        return await validateSelectedFiles(rawPaths, allowedExtensions: ['pdf']);
       }
       return [];
     } catch (e) {
@@ -39,7 +43,38 @@ class FileService {
     }
   }
 
-  /// Picks a text file
+  /// Validates a list of selected file paths:
+  /// - Removes duplicates preserving order
+  /// - Removes missing or inaccessible files
+  /// - Optional extension filtering
+  Future<List<String>> validateSelectedFiles(
+    List<String> filePaths, {
+    List<String>? allowedExtensions,
+  }) async {
+    final validPaths = <String>[];
+    final seenNormalized = <String>{};
+
+    for (final rawPath in filePaths) {
+      if (rawPath.trim().isEmpty) continue;
+      final normalized = normalizePath(rawPath);
+      if (seenNormalized.contains(normalized)) continue;
+
+      if (allowedExtensions != null && allowedExtensions.isNotEmpty) {
+        final ext = path.extension(normalized).replaceAll('.', '').toLowerCase();
+        final allowed = allowedExtensions.map((e) => e.replaceAll('.', '').toLowerCase()).toSet();
+        if (!allowed.contains(ext)) continue;
+      }
+
+      if (await isFileAccessible(normalized)) {
+        validPaths.add(normalized);
+        seenNormalized.add(normalized);
+      }
+    }
+
+    return validPaths;
+  }
+
+  /// Picks a text file safely
   Future<String?> pickTextFile() async {
     try {
       FilePickerResult? result = await FilePicker.pickFiles(
@@ -47,8 +82,11 @@ class FileService {
         allowedExtensions: ['txt'],
       );
 
-      if (result != null) {
-        return result.files.single.path;
+      if (result != null && result.files.single.path != null) {
+        final p = result.files.single.path!;
+        if (await isFileAccessible(p)) {
+          return p;
+        }
       }
       return null;
     } catch (e) {
@@ -148,17 +186,63 @@ class FileService {
     return path.normalize(filePath);
   }
 
+  static final _reservedWindowsNames = <String>{
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+  };
+
   /// Sanitizes a file name by removing illegal filename characters
   /// across Windows, macOS, Linux, Android, and iOS.
   String sanitizeFileName(String fileName) {
-    if (fileName.isEmpty) return 'untitled';
+    if (fileName.trim().isEmpty) return 'untitled';
     // Replace Windows & POSIX illegal characters: < > : " / \ | ? * and control chars
     String sanitized = fileName.replaceAll(RegExp(r'[<>"|?*:\/\\]'), '_');
     // Remove null characters or control characters
     sanitized = sanitized.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '');
     // Trim spaces and trailing dots (problematic on Windows)
-    sanitized = sanitized.trim().replaceAll(RegExp(r'\.+$'), '');
+    sanitized = sanitized.trim().replaceAll(RegExp(r'[\.\s]+$'), '');
+
+    if (sanitized.isEmpty) return 'untitled';
+
+    // Handle Windows reserved device names
+    final baseWithoutExt = path.basenameWithoutExtension(sanitized).toUpperCase();
+    if (_reservedWindowsNames.contains(baseWithoutExt)) {
+      sanitized = 'file_$sanitized';
+    }
+
     return sanitized.isEmpty ? 'untitled' : sanitized;
+  }
+
+  /// Formats an output filename from a base name, optional suffix, and extension.
+  /// Prevents extension duplication (e.g. 'doc.pdf' + '.pdf' -> 'doc.pdf').
+  String formatOutputFileName({
+    required String baseName,
+    String? suffix,
+    required String extension,
+  }) {
+    final ext = extension.startsWith('.') ? extension : '.$extension';
+    String cleanBase = baseName.trim();
+    if (cleanBase.isEmpty) {
+      cleanBase = 'document';
+    }
+
+    // Strip trailing matching extension if present in cleanBase to avoid duplication
+    if (cleanBase.toLowerCase().endsWith(ext.toLowerCase())) {
+      cleanBase = cleanBase.substring(0, cleanBase.length - ext.length);
+    } else {
+      final currentExt = path.extension(cleanBase);
+      if (currentExt.isNotEmpty && currentExt.length <= 5) {
+        cleanBase = path.basenameWithoutExtension(cleanBase);
+      }
+    }
+
+    final String withSuffix = (suffix != null && suffix.isNotEmpty)
+        ? '${cleanBase}_$suffix'
+        : cleanBase;
+
+    final String sanitized = sanitizeFileName(withSuffix);
+    return '$sanitized$ext';
   }
 
   /// Generates a non-colliding file path if the target file already exists.
@@ -172,9 +256,15 @@ class FileService {
 
     final dir = getDirectoryName(normalized);
     final ext = getExtension(normalized);
-    final baseWithoutExt = path.basenameWithoutExtension(normalized);
+    String baseWithoutExt = path.basenameWithoutExtension(normalized);
 
     int counter = 1;
+    final match = RegExp(r'^(.*) \((\d+)\)$').firstMatch(baseWithoutExt);
+    if (match != null) {
+      baseWithoutExt = match.group(1)!;
+      counter = int.parse(match.group(2)!) + 1;
+    }
+
     while (true) {
       final newFileName = '$baseWithoutExt ($counter)$ext';
       final newPath = dir.isEmpty ? newFileName : path.join(dir, newFileName);
