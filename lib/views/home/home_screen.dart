@@ -16,6 +16,7 @@ import 'package:pdf_ai_toolkit/views/tools/jpg_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/rotate_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/protect_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 
 // ── Tool model ────────────────────────────────────────────────────────────
 class ToolItem {
@@ -59,6 +60,14 @@ const _tools = <ToolItem>[
     icon: Icons.text_snippet_rounded,
     color: Color(0xFF6366F1),
     screen: PdfToTextScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
+    title: 'PDF to Images',
+    subtitle: 'Extract pages as images',
+    icon: Icons.picture_in_picture_alt_rounded,
+    color: Color(0xFF8B5CF6),
+    screen: PdfToImageScreen(),
     category: 'Convert',
   ),
   ToolItem(

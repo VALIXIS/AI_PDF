@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'dart:convert';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:path_provider/path_provider.dart';
@@ -24,53 +25,72 @@ class PdfService {
       final lines = content.split('\n');
 
       pdf.addPage(
-        pw.Page(
+        pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
           build: (pw.Context context) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                  // Title
-                  pw.Text(
-                    title,
-                    style: pw.TextStyle(
-                      fontSize: 24,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
-                  pw.SizedBox(height: 12),
+            return [
+              // Title
+              pw.Text(
+                title,
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 12),
 
-                  // Metadata
-                  pw.Text(
-                    'Generated: ${DateTime.now().toString().split('.')[0]}',
-                    style: const pw.TextStyle(
-                      fontSize: 10,
-                      color: PdfColors.grey,
-                    ),
-                  ),
-                  pw.SizedBox(height: 20),
+              // Metadata
+              pw.Text(
+                'Generated: ${DateTime.now().toString().split('.')[0]}',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey,
+                ),
+              ),
+              pw.SizedBox(height: 20),
 
-                  // Content
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: _buildContentWidgets(lines),
-                  ),
-                ],
-            );
+              // Content
+              ..._buildContentWidgets(lines),
+            ];
           },
         ),
       );
 
       // Save PDF to file
       final output = await getApplicationDocumentsDirectory();
-      final fileName =
-          'pdf_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName = 'pdf_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(output.path, fileName);
       final pdfBytes = await pdf.save();
 
-      return await FileService().safeWriteBytes(targetPath, pdfBytes);
+      final resultPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
+
+      // Verification: ensure output is valid
+      final outputFile = File(resultPath);
+      if (!await outputFile.exists()) {
+        throw PdfServiceException('Failed to create PDF output file', code: 'TXT_TO_PDF_OUTPUT_NOT_FOUND');
+      }
+      if (await outputFile.length() == 0) {
+        throw PdfServiceException('Generated PDF file is empty', code: 'TXT_TO_PDF_OUTPUT_EMPTY');
+      }
+
+      // Verify the generated PDF can be reopened/read
+      syncfusion.PdfDocument? testDoc;
+      try {
+        testDoc = syncfusion.PdfDocument(inputBytes: pdfBytes);
+        if (testDoc.pages.count == 0) {
+          throw Exception('Generated PDF contains no pages');
+        }
+      } catch (e) {
+        throw PdfServiceException('Generated PDF is corrupt or invalid: $e', code: 'TXT_TO_PDF_INVALID_OUTPUT', details: e);
+      } finally {
+        testDoc?.dispose();
+      }
+
+      return resultPath;
     } catch (e) {
-      throw Exception('Failed to generate PDF: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to generate PDF: $e', code: 'TXT_TO_PDF_FAILURE', details: e);
     }
   }
 
@@ -616,40 +636,236 @@ class PdfService {
     required String pdfPath,
     String? customOutputPath,
   }) async {
+    final file = File(pdfPath);
+    if (!await file.exists()) {
+      throw PdfServiceException('Input PDF file not found: $pdfPath', code: 'PDF_TO_TXT_INPUT_NOT_FOUND');
+    }
+
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw PdfServiceException('Input PDF file is empty: $pdfPath', code: 'PDF_TO_TXT_INPUT_EMPTY');
+    }
+
+    // Load existing document
+    sf.PdfDocument? document;
     try {
-      final file = File(pdfPath);
-      if (!await file.exists()) {
-        throw Exception('Input file does not exist');
-      }
-
-      final bytes = await file.readAsBytes();
-      if (bytes.isEmpty) {
-        throw Exception('Input PDF file is empty');
-      }
-
-      // Load existing document
-      final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
+      document = sf.PdfDocument(inputBytes: bytes);
+    } catch (e) {
+      throw PdfServiceException('Invalid or corrupt PDF file: $e', code: 'PDF_TO_TXT_INVALID_PDF', details: e);
+    }
+    
+    try {
+      final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(document);
+      final String extractedText = extractor.extractText();
       
-      try {
-        final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(document);
-        final String extractedText = extractor.extractText();
-        
-        if (extractedText.trim().isEmpty) {
-          throw Exception('No extractable text found in the PDF. Scanned or image-only PDFs are not supported.');
+      if (extractedText.trim().isEmpty) {
+        throw PdfServiceException('No extractable text found in the PDF. Scanned or image-only PDFs are not supported.', code: 'PDF_TO_TXT_NO_TEXT');
+      }
+
+      // Save extracted text to a .txt file
+      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName = 'extracted_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final outputFile = File(path.join(dirPath, fileName));
+      await outputFile.writeAsString(extractedText, encoding: utf8);
+
+      // Validate output
+      if (!await outputFile.exists()) {
+        throw PdfServiceException('Failed to create TXT output file', code: 'PDF_TO_TXT_OUTPUT_NOT_FOUND');
+      }
+      final outLength = await outputFile.length();
+      if (outLength == 0) {
+        throw PdfServiceException('Generated TXT file is empty', code: 'PDF_TO_TXT_OUTPUT_EMPTY');
+      }
+
+      return outputFile.path;
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to extract text: $e', code: 'PDF_TO_TXT_FAILURE', details: e);
+    } finally {
+      document.dispose();
+    }
+  }
+
+  /// Converts a TXT file to a PDF file
+  Future<String> convertTxtToPdf({
+    required String txtPath,
+    required String title,
+    String? customOutputPath,
+  }) async {
+    final file = File(txtPath);
+    if (!await file.exists()) {
+      throw PdfServiceException('Input TXT file not found: $txtPath', code: 'TXT_TO_PDF_INPUT_NOT_FOUND');
+    }
+
+    final content = await file.readAsString(encoding: utf8);
+    if (content.trim().isEmpty) {
+      throw PdfServiceException('Input TXT file is empty', code: 'TXT_TO_PDF_INPUT_EMPTY');
+    }
+
+    return await generatePdfFromText(title: title, content: content);
+  }
+
+  /// Converts a list of image files to a single PDF document
+  Future<String> convertImagesToPdf({
+    required List<String> imagePaths,
+    PdfPageFormat pageFormat = PdfPageFormat.a4,
+    bool fitPage = true,
+    String? customOutputPath,
+  }) async {
+    if (imagePaths.isEmpty) {
+      throw PdfServiceException('No images selected for conversion.', code: 'IMAGE_TO_PDF_NO_IMAGES');
+    }
+
+    try {
+      final pdf = pw.Document();
+
+      for (final imagePath in imagePaths) {
+        final imgFile = File(imagePath);
+        if (!await imgFile.exists()) {
+          throw PdfServiceException('Image file not found: $imagePath', code: 'IMAGE_TO_PDF_INPUT_NOT_FOUND');
         }
 
-        // Save extracted text to a .txt file
-        final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final fileName = 'extracted_${DateTime.now().millisecondsSinceEpoch}.txt';
-        final outputFile = File(path.join(dirPath, fileName));
-        await outputFile.writeAsString(extractedText, encoding: utf8);
+        final bytes = await imgFile.readAsBytes();
+        if (bytes.isEmpty) {
+          throw PdfServiceException('Image file is empty: $imagePath', code: 'IMAGE_TO_PDF_INPUT_EMPTY');
+        }
 
-        return outputFile.path;
-      } finally {
-        document.dispose();
+        pw.MemoryImage img;
+        try {
+          img = pw.MemoryImage(bytes);
+        } catch (e) {
+          throw PdfServiceException('Invalid or corrupt image format: $imagePath', code: 'IMAGE_TO_PDF_INVALID_IMAGE', details: e);
+        }
+
+        pdf.addPage(pw.Page(
+          pageFormat: pageFormat,
+          margin: fitPage ? pw.EdgeInsets.zero : const pw.EdgeInsets.all(20),
+          build: (_) => fitPage
+              ? pw.Image(img, fit: pw.BoxFit.contain)
+              : pw.Center(child: pw.Image(img, fit: pw.BoxFit.contain)),
+        ));
       }
+
+      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName = 'images_converted_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final targetPath = path.join(dirPath, fileName);
+      final pdfBytes = await pdf.save();
+
+      final resultPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
+
+      // Validate output
+      final outputFile = File(resultPath);
+      if (!await outputFile.exists()) {
+        throw PdfServiceException('Failed to create PDF output file', code: 'IMAGE_TO_PDF_OUTPUT_NOT_FOUND');
+      }
+      if (await outputFile.length() == 0) {
+        throw PdfServiceException('Generated PDF file is empty', code: 'IMAGE_TO_PDF_OUTPUT_EMPTY');
+      }
+
+      // Verify the generated PDF can be reopened/read
+      syncfusion.PdfDocument? testDoc;
+      try {
+        testDoc = syncfusion.PdfDocument(inputBytes: pdfBytes);
+        if (testDoc.pages.count != imagePaths.length) {
+          throw Exception('Generated PDF page count (${testDoc.pages.count}) does not match input images count (${imagePaths.length})');
+        }
+      } catch (e) {
+        throw PdfServiceException('Generated PDF is corrupt or invalid: $e', code: 'IMAGE_TO_PDF_INVALID_OUTPUT', details: e);
+      } finally {
+        testDoc?.dispose();
+      }
+
+      return resultPath;
     } catch (e) {
-      throw Exception('Failed to extract text: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to convert images to PDF: $e', code: 'IMAGE_TO_PDF_FAILURE', details: e);
+    }
+  }
+
+  /// Converts a PDF file into a list of image file paths (one per page)
+  Future<List<String>> convertPdfToImages({
+    required String pdfPath,
+    String? customOutputPath,
+    int? startPage, // 1-indexed
+    int? endPage,   // 1-indexed
+    double scale = 2.0,
+  }) async {
+    final file = File(pdfPath);
+    if (!await file.exists()) {
+      throw PdfServiceException('Input PDF file not found: $pdfPath', code: 'PDF_TO_IMAGE_INPUT_NOT_FOUND');
+    }
+
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw PdfServiceException('Input PDF file is empty: $pdfPath', code: 'PDF_TO_IMAGE_INPUT_EMPTY');
+    }
+
+    // Verify it is a valid PDF
+    syncfusion.PdfDocument? testDoc;
+    int pageCount = 0;
+    try {
+      testDoc = syncfusion.PdfDocument(inputBytes: bytes);
+      pageCount = testDoc.pages.count;
+    } catch (e) {
+      throw PdfServiceException('Invalid or corrupt PDF file: $e', code: 'PDF_TO_IMAGE_INVALID_PDF', details: e);
+    } finally {
+      testDoc?.dispose();
+    }
+
+    if (pageCount == 0) {
+      throw PdfServiceException('PDF document contains no pages', code: 'PDF_TO_IMAGE_EMPTY_PDF');
+    }
+
+    final int start = startPage ?? 1;
+    final int end = endPage ?? pageCount;
+
+    if (start < 1 || start > pageCount) {
+      throw PdfServiceException('Invalid start page: $start (total pages: $pageCount)', code: 'PDF_TO_IMAGE_INVALID_PAGE_RANGE');
+    }
+    if (end < start || end > pageCount) {
+      throw PdfServiceException('Invalid end page: $end (total pages: $pageCount)', code: 'PDF_TO_IMAGE_INVALID_PAGE_RANGE');
+    }
+
+    final List<String> outputPaths = [];
+    pdfx.PdfDocument? doc;
+    try {
+      doc = await pdfx.PdfDocument.openFile(pdfPath);
+      final String dirPath = customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+
+      for (int pageNum = start; pageNum <= end; pageNum++) {
+        final page = await doc.getPage(pageNum);
+        try {
+          final pageImage = await page.render(
+            width: page.width * scale,
+            height: page.height * scale,
+            format: pdfx.PdfPageImageFormat.png,
+          );
+
+          if (pageImage == null || pageImage.bytes.isEmpty) {
+            throw Exception('Failed to render page $pageNum');
+          }
+
+          final fileName = 'page_${pageNum}_${DateTime.now().millisecondsSinceEpoch}.png';
+          final targetPath = path.join(dirPath, fileName);
+          final imagePath = await FileService().safeWriteBytes(targetPath, pageImage.bytes);
+
+          // Validate generated image
+          final imgFile = File(imagePath);
+          if (!await imgFile.exists() || await imgFile.length() == 0) {
+            throw Exception('Rendered image file is empty or missing: $imagePath');
+          }
+
+          outputPaths.add(imagePath);
+        } finally {
+          await page.close();
+        }
+      }
+
+      return outputPaths;
+    } catch (e) {
+      throw PdfServiceException('Failed to render PDF to images: $e', code: 'PDF_TO_IMAGE_FAILURE', details: e);
+    } finally {
+      await doc?.close();
     }
   }
 }
