@@ -78,8 +78,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
+          // ── AI Assistant ──────────────────────────────────────────
+          _SectionHeader(label: 'AI ASSISTANT', color: sectionColor),
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF14141E) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF1F1F2E)
+                      : const Color(0xFFE5E7EB)),
+            ),
+            child: const Column(
+              children: [
+                _SettingsTile(
+                  icon: Icons.auto_awesome_rounded,
+                  iconColor: Color(0xFF7C3AED),
+                  title: 'AI Provider Engine',
+                  subtitle:
+                      'Google Gemini 2.5 Flash (Resilient Fallback Active)',
+                ),
+                _SettingsTile(
+                  icon: Icons.document_scanner_rounded,
+                  iconColor: Color(0xFF0284C7),
+                  title: 'Multi-Format Understanding',
+                  subtitle: 'Full PDF, DOCX, and TXT contextual extraction',
+                  isLast: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
           // ── Data ─────────────────────────────────────────────────
-          _SectionHeader(label: 'DATA', color: sectionColor),
+          _SectionHeader(label: 'DATA & STORAGE', color: sectionColor),
           Container(
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF14141E) : Colors.white,
@@ -94,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingsTile(
                   icon: Icons.history_rounded,
                   iconColor: const Color(0xFF06B6D4),
-                  title: 'History',
+                  title: 'History Records',
                   subtitle:
                       '$_historyCount saved file${_historyCount == 1 ? '' : 's'}',
                   trailing: Icon(
@@ -140,13 +172,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   title: 'PDF AI Toolkit',
-                  subtitle: 'Version 1.0.0 (Official Icon Integrated)',
+                  subtitle: 'Version 1.0.0+1 (Founder Edition)',
                 ),
                 _SettingsTile(
-                  icon: Icons.description_rounded,
+                  icon: Icons.shield_rounded,
                   iconColor: const Color(0xFF10B981),
-                  title: 'Open Source',
-                  subtitle: 'Built with Flutter & Dart',
+                  title: 'Privacy & Security',
+                  subtitle:
+                      'Local document parsing with zero persistent cloud storage',
                   isLast: true,
                 ),
               ],

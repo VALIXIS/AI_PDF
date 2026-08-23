@@ -6,6 +6,7 @@ import 'package:pdf_ai_toolkit/main.dart'
 import 'package:pdf_ai_toolkit/views/tools/tools_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/camera_scan_screen.dart';
+import 'package:pdf_ai_toolkit/views/settings/settings_screen.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
@@ -20,6 +21,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   final _promptController = TextEditingController();
+  final FocusNode _promptFocusNode = FocusNode();
   final StorageService _storageService = StorageService();
 
   List<HistoryEntry> _recentHistory = [];
@@ -30,7 +32,16 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     themeNotifier.addListener(_rebuild);
+    _promptFocusNode.addListener(_onFocusChange);
     _loadRecentHistory();
+  }
+
+  void _onFocusChange() {
+    if (mounted) {
+      setState(() {
+        _isPromptFocused = _promptFocusNode.hasFocus;
+      });
+    }
   }
 
   void _rebuild() {
@@ -40,6 +51,8 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     themeNotifier.removeListener(_rebuild);
+    _promptFocusNode.removeListener(_onFocusChange);
+    _promptFocusNode.dispose();
     _promptController.dispose();
     super.dispose();
   }
@@ -62,6 +75,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _push(Widget screen) async {
     if (!mounted) return;
+    _promptFocusNode.unfocus();
+    FocusScope.of(context).unfocus();
+
     await Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (_, a, __) => screen,
@@ -78,7 +94,13 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
     );
-    _loadRecentHistory();
+
+    if (mounted) {
+      _promptFocusNode.unfocus();
+      FocusScope.of(context).unfocus();
+      setState(() => _isPromptFocused = false);
+      _loadRecentHistory();
+    }
   }
 
   @override
@@ -119,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen>
           IconButton(
             icon: const Icon(Icons.settings_rounded),
             color: isDark ? Colors.white70 : const Color(0xFF475569),
-            onPressed: () => _push(const SizedBox()), // Handled via route
+            onPressed: () => _push(const SettingsScreen()),
             tooltip: 'Settings',
           ),
           const SizedBox(width: 8),
@@ -127,176 +149,196 @@ class _HomeScreenState extends State<HomeScreen>
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── MAIN AI COMPANION ASK CARD ─────────────────────────────────
-              Text(
-                'What can I help you with?',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: textCol,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF131326) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _isPromptFocused
-                        ? primary
-                        : (isDark
-                            ? const Color(0xFF252538)
-                            : const Color(0xFFE2E8F0)),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primary.withOpacity(isDark ? 0.15 : 0.05),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    )
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isDark
+                ? const [
+                    Color(0xFF0A0E1A),
+                    Color(0xFF0F172A),
+                    Color(0xFF0A0A10),
+                  ]
+                : const [
+                    Color(0xFFF8FAFC),
+                    Color(0xFFF1F5F9),
+                    Color(0xFFE2E8F0),
                   ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── MAIN AI COMPANION ASK CARD ─────────────────────────────────
+                Text(
+                  'What can I help you with?',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: textCol,
+                    letterSpacing: -0.5,
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF7C3AED).withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF131326) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _isPromptFocused
+                          ? primary
+                          : (isDark
+                              ? const Color(0xFF252538)
+                              : const Color(0xFFE2E8F0)),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primary.withOpacity(isDark ? 0.15 : 0.05),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      )
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7C3AED).withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
+                              color: Color(0xFF7C3AED),
+                              size: 18,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.auto_awesome_rounded,
-                            color: Color(0xFF7C3AED),
-                            size: 18,
+                          const SizedBox(width: 10),
+                          Text(
+                            'AI PDF Assistant',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: textCol.withOpacity(0.8),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'AI PDF Assistant',
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Focus(
+                        onFocusChange: (hasFocus) {
+                          setState(() {
+                            _isPromptFocused = hasFocus;
+                          });
+                        },
+                        child: TextField(
+                          controller: _promptController,
+                          focusNode: _promptFocusNode,
+                          maxLines: 3,
+                          minLines: 2,
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: textCol.withOpacity(0.8),
+                            fontSize: 14,
+                            color: textCol,
+                          ),
+                          decoration: InputDecoration(
+                            hintText:
+                                'Ask or type document requests...\n(e.g., "Merge my PDFs" or "Summarize report")',
+                            hintStyle: TextStyle(
+                              color: isDark ? Colors.white38 : Colors.black38,
+                              fontSize: 13,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            filled: false,
+                            contentPadding: EdgeInsets.zero,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Focus(
-                      onFocusChange: (hasFocus) {
-                        setState(() {
-                          _isPromptFocused = hasFocus;
-                        });
-                      },
-                      child: TextField(
-                        controller: _promptController,
-                        maxLines: 3,
-                        minLines: 2,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: textCol,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          final text = _promptController.text.trim();
+                          _promptController.clear();
+                          _push(ChatWithPdfScreen(
+                              initialPrompt: text.isNotEmpty ? text : null));
+                        },
+                        icon: const Icon(Icons.send_rounded, size: 16),
+                        label: const Text(
+                          'Start AI Chat',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        decoration: InputDecoration(
-                          hintText:
-                              'Ask or type document requests...\n(e.g., "Merge my PDFs" or "Summarize report")',
-                          hintStyle: TextStyle(
-                            color: isDark ? Colors.white38 : Colors.black38,
-                            fontSize: 13,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C3AED),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(46),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          filled: false,
-                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        final text = _promptController.text.trim();
-                        _promptController.clear();
-                        _push(ChatWithPdfScreen(
-                            initialPrompt: text.isNotEmpty ? text : null));
-                      },
-                      icon: const Icon(Icons.send_rounded, size: 16),
-                      label: const Text(
-                        'Start AI Chat',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF7C3AED),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(46),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // ── RECENTLY USED SECTION ─────────────────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Recently Used',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: textCol,
                       ),
                     ),
+                    if (_recentHistory.isNotEmpty)
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed('/history'),
+                        child: const Text('View All'),
+                      ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 28),
+                const SizedBox(height: 8),
+                _buildRecentlyUsedSection(isDark, textCol, cardBg, borderCol),
+                const SizedBox(height: 28),
 
-              // ── RECENTLY USED SECTION ─────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Recently Used',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: textCol,
+                // ── MOST USED TOOLS ───────────────────────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Most Used Tools',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: textCol,
+                      ),
                     ),
-                  ),
-                  if (_recentHistory.isNotEmpty)
                     TextButton(
                       onPressed: () =>
-                          Navigator.of(context).pushNamed('/history'),
-                      child: const Text('View All'),
+                          _push(const ToolsScreen(showBackButton: true)),
+                      child: const Text('See All'),
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _buildRecentlyUsedSection(isDark, textCol, cardBg, borderCol),
-              const SizedBox(height: 28),
-
-              // ── MOST USED TOOLS ───────────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Most Used Tools',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: textCol,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () =>
-                        _push(const ToolsScreen(showBackButton: true)),
-                    child: const Text('See All'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _buildMostUsedToolsGrid(isDark),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildMostUsedToolsGrid(isDark),
+              ],
+            ),
           ),
         ),
       ),

@@ -14,6 +14,7 @@ import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_cache_service.dart';
 import 'package:pdf_ai_toolkit/services/ai_service.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ChatMessage {
   final String id;
@@ -594,7 +595,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
 
   Widget _buildMessageBubble(
       ChatMessage msg, Color primary, Color cardBg, Color border, bool isDark) {
-    final userBubbleBg = const Color(0xFF7C3AED); // Modern purple bubble
+    const userBubbleBg = Color(0xFF7C3AED); // Modern purple bubble
     final aiBubbleBg = isDark ? const Color(0xFF13131F) : Colors.white;
 
     if (msg.isUser) {
@@ -669,12 +670,69 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            SelectableText(
-              msg.text,
-              style: TextStyle(
-                fontSize: 13.5,
-                height: 1.4,
-                color: isDark ? Colors.white : Colors.black87,
+            MarkdownBody(
+              data: msg.text,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet(
+                p: TextStyle(
+                  fontSize: 13.5,
+                  height: 1.5,
+                  color: isDark
+                      ? const Color(0xFFE2E8F0)
+                      : const Color(0xFF1E293B),
+                ),
+                h1: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  height: 1.4,
+                ),
+                h2: TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  height: 1.4,
+                ),
+                h3: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  height: 1.4,
+                ),
+                strong: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+                em: const TextStyle(
+                  fontStyle: FontStyle.italic,
+                ),
+                code: TextStyle(
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                  backgroundColor: isDark
+                      ? const Color(0xFF1E1E2E)
+                      : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF38BDF8)
+                      : const Color(0xFF0284C7),
+                ),
+                codeblockDecoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF1E1E2E)
+                      : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                listBullet: TextStyle(
+                  fontSize: 13.5,
+                  color: isDark
+                      ? const Color(0xFF38BDF8)
+                      : const Color(0xFF7C3AED),
+                ),
               ),
             ),
             if (msg.actionResult != null && msg.actionResult!.isSuccess)
