@@ -50,7 +50,6 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
   File? _pdfFile;
   final List<File> _attachedFiles = [];
   String? _pdfText;
-  int _pageCount = 1;
   bool _isLoadingPdf = false;
   bool _isAiThinking = false;
   String? _errorMessage;
@@ -156,7 +155,6 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
           _attachedFiles.add(File(path));
         }
         _pdfText = cachedData.textContent;
-        _pageCount = cachedData.pageCount;
         _isLoadingPdf = false;
 
         _messages.add(ChatMessage(
