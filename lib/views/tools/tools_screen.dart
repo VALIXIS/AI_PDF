@@ -14,6 +14,7 @@ import 'package:pdf_ai_toolkit/views/tools/jpg_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/rotate_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/protect_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 
 class ToolItem {
   final String title;
@@ -65,6 +66,14 @@ const List<ToolItem> appTools = [
     icon: Icons.document_scanner_rounded,
     color: Color(0xFF059669),
     screen: CameraScanScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
+    title: 'PDF to Image',
+    subtitle: 'Extract PNG pages',
+    icon: Icons.collections_rounded,
+    color: Color(0xFF8B5CF6),
+    screen: PdfToImageScreen(),
     category: 'Convert',
   ),
 
