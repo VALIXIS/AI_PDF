@@ -15,11 +15,12 @@ class GeminiProvider implements AiProvider {
         '';
   }
 
-  // Uses Gemini 2.5 Flash / 1.5 Flash Free REST API endpoint
-  static const String _primaryEndpoint =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-  static const String _fallbackEndpoint =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  // Model endpoints list for maximum API compatibility
+  static const List<String> _modelEndpoints = [
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+  ];
 
   @override
   bool get isConfigured => _apiKey.isNotEmpty;
@@ -99,80 +100,54 @@ Detailed Analysis & Comparison:''';
   }
 
   Future<String> _callGeminiApi(String prompt) async {
-    final url = Uri.parse('$_primaryEndpoint?key=$_apiKey');
-    try {
-      final response = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'contents': [
-                {
-                  'parts': [
-                    {'text': prompt}
-                  ]
+    Object? lastError;
+    for (final baseEndpoint in _modelEndpoints) {
+      try {
+        final url = Uri.parse('$baseEndpoint?key=$_apiKey');
+        final response = await http
+            .post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'contents': [
+                  {
+                    'parts': [
+                      {'text': prompt}
+                    ]
+                  }
+                ],
+                'generationConfig': {
+                  'temperature': 0.2,
+                  'maxOutputTokens': 2048,
                 }
-              ],
-              'generationConfig': {
-                'temperature': 0.2,
-                'maxOutputTokens': 2048,
-              }
-            }),
-          )
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () => throw Exception('Gemini API timeout'),
-          );
+              }),
+            )
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () => throw Exception('Gemini API timeout'),
+            );
 
-      if (response.statusCode == 200) {
-        return _parseGeminiResponse(response.body);
-      } else if (response.statusCode == 404) {
-        // Fallback to gemini-1.5-flash endpoint if 2.5-flash endpoint is not yet live in this region
-        return await _callGeminiFallbackEndpoint(prompt);
-      } else {
-        throw Exception(
-            'Gemini API HTTP Error: ${response.statusCode} - ${response.body}');
+        if (response.statusCode == 200) {
+          return _parseGeminiResponse(response.body);
+        } else if (response.statusCode == 404) {
+          // Model endpoint alias not active on this region, try next candidate
+          lastError = Exception('Gemini 404: ${response.body}');
+          continue;
+        } else {
+          throw Exception(
+              'Gemini API HTTP Error: ${response.statusCode} - ${response.body}');
+        }
+      } catch (e) {
+        lastError = e;
+        if (e.toString().contains('404')) {
+          continue;
+        }
+        rethrow;
       }
-    } catch (e) {
-      if (e.toString().contains('404')) {
-        return await _callGeminiFallbackEndpoint(prompt);
-      }
-      rethrow;
     }
+    throw Exception('All Gemini model endpoints failed: $lastError');
   }
 
-  Future<String> _callGeminiFallbackEndpoint(String prompt) async {
-    final url = Uri.parse('$_fallbackEndpoint?key=$_apiKey');
-    final response = await http
-        .post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'contents': [
-              {
-                'parts': [
-                  {'text': prompt}
-                ]
-              }
-            ],
-            'generationConfig': {
-              'temperature': 0.2,
-              'maxOutputTokens': 2048,
-            }
-          }),
-        )
-        .timeout(
-          const Duration(seconds: 30),
-          onTimeout: () => throw Exception('Gemini 1.5 Fallback API timeout'),
-        );
-
-    if (response.statusCode == 200) {
-      return _parseGeminiResponse(response.body);
-    } else {
-      throw Exception(
-          'Gemini Fallback Error: ${response.statusCode} - ${response.body}');
-    }
-  }
 
   String _parseGeminiResponse(String body) {
     final data = jsonDecode(body);
