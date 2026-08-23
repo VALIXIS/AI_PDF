@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -11,6 +12,7 @@ import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_cache_service.dart';
+import 'package:pdf_ai_toolkit/services/ai_service.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ChatMessage {
@@ -237,14 +239,14 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
 
       if (!mounted) return;
 
-      if (actionResult != null && actionResult.isSuccess) {
+      if (actionResult != null) {
         setState(() {
           _messages.add(ChatMessage(
             id: UniqueKey().toString(),
             text: actionResult.message,
             isUser: false,
             timestamp: DateTime.now(),
-            actionResult: actionResult,
+            actionResult: actionResult.isSuccess ? actionResult : null,
           ));
           _isAiThinking = false;
         });
@@ -292,6 +294,17 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
+      final provider = AiService().activeProviderName;
+      final docCount = _attachedFiles.length;
+
+      developer.log(
+        'AI Request Exception -- Provider: $provider, Request: Q&A/Comparison, Documents: $docCount, Message: $e',
+        name: 'ChatWithPdfScreen',
+        error: e,
+      );
+      debugPrint(
+          'AI Request Exception -- Provider: $provider, Request: Q&A/Comparison, Documents: $docCount, Message: $e');
+
       setState(() {
         _errorMessage = "AI couldn't process this request. Please try again.";
         _isAiThinking = false;

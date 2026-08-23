@@ -23,8 +23,11 @@ class AiProviderFactory {
             name: 'AiProviderFactory');
         return await _geminiProvider.generateText(input, mode);
       } catch (e) {
-        developer.log(
-            'GeminiProvider failed: $e. Gracefully falling back to HuggingFaceProvider',
+        developer.log('GeminiProvider failed: $e.', name: 'AiProviderFactory');
+        if (!_huggingFaceProvider.isConfigured) {
+          rethrow;
+        }
+        developer.log('Gracefully falling back to HuggingFaceProvider',
             name: 'AiProviderFactory');
         return await _huggingFaceProvider.generateText(input, mode);
       }
@@ -48,8 +51,11 @@ class AiProviderFactory {
           conversationHistory: conversationHistory,
         );
       } catch (e) {
-        developer.log(
-            'GeminiProvider failed: $e. Gracefully falling back to HuggingFaceProvider',
+        developer.log('GeminiProvider failed: $e.', name: 'AiProviderFactory');
+        if (!_huggingFaceProvider.isConfigured) {
+          rethrow;
+        }
+        developer.log('Gracefully falling back to HuggingFaceProvider',
             name: 'AiProviderFactory');
         return await _huggingFaceProvider.askPdfQuestion(
           pdfText: pdfText,
@@ -81,8 +87,11 @@ class AiProviderFactory {
           conversationHistory: conversationHistory,
         );
       } catch (e) {
-        developer.log(
-            'GeminiProvider failed: $e. Gracefully falling back to HuggingFaceProvider',
+        developer.log('GeminiProvider failed: $e.', name: 'AiProviderFactory');
+        if (!_huggingFaceProvider.isConfigured) {
+          rethrow;
+        }
+        developer.log('Gracefully falling back to HuggingFaceProvider',
             name: 'AiProviderFactory');
         return await _huggingFaceProvider.compareDocuments(
           docTexts: docTexts,

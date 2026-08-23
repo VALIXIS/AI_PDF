@@ -19,8 +19,9 @@ class GeminiProvider implements AiProvider {
 
   // Model endpoints list for maximum API compatibility
   static const List<String> _modelEndpoints = [
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
   ];
 
@@ -135,20 +136,18 @@ Detailed Analysis & Comparison:''';
 
         if (response.statusCode == 200) {
           return _parseGeminiResponse(response.body);
-        } else if (response.statusCode == 404) {
-          // Model endpoint alias not active on this region, try next candidate
-          lastError = Exception('Gemini 404: ${response.body}');
-          continue;
         } else {
-          throw Exception(
-              'Gemini API HTTP Error: ${response.statusCode} - ${response.body}');
+          lastError = Exception(
+              'Gemini API HTTP Error (${baseEndpoint.split('/').last.split(':').first}): ${response.statusCode} - ${response.body}');
+          developer.log('Endpoint $baseEndpoint failed: $lastError',
+              name: 'GeminiProvider');
+          continue;
         }
       } catch (e) {
         lastError = e;
-        if (e.toString().contains('404')) {
-          continue;
-        }
-        rethrow;
+        developer.log('Endpoint $baseEndpoint failed with exception: $e',
+            name: 'GeminiProvider');
+        continue;
       }
     }
     throw Exception('All Gemini model endpoints failed: $lastError');
