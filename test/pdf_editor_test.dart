@@ -646,7 +646,7 @@ void main() {
       ));
 
       expect(find.text('PDF Editor'), findsOneWidget);
-      expect(find.text('Open a PDF to edit'), findsOneWidget);
+      expect(find.text('Open a PDF to Edit'), findsOneWidget);
       expect(find.text('Choose PDF File'), findsOneWidget);
       expect(find.byType(ElevatedButton), findsOneWidget);
     });

@@ -264,7 +264,10 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
         return;
       }
 
-      final filePath = await _pdfService.compressPdf(_selectedFile!);
+      final filePath = await _pdfService.compressPdf(
+        _selectedFile!,
+        compressionLevel: _compressionLevel,
+      );
 
       final entry = HistoryEntry(
         id: const Uuid().v4(),
