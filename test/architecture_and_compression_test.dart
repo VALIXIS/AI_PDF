@@ -84,28 +84,35 @@ void main() {
       }
     });
 
-    test('compressPdf reduces file size of an uncompressed PDF and does not copy bytes', () async {
+    test(
+        'compressPdf reduces file size of an uncompressed PDF and does not copy bytes',
+        () async {
       final tempDir = Directory.systemTemp.createTempSync('pdf_compress_test_');
       try {
-        print('Supported PdfCompressionLevel values: ${syncfusion.PdfCompressionLevel.values}');
+        print(
+            'Supported PdfCompressionLevel values: ${syncfusion.PdfCompressionLevel.values}');
 
         // Create an uncompressed PDF document with multiple pages and distinct content
         final pdf = pw.Document(compress: false);
         pdf.addPage(
           pw.Page(
             build: (context) => pw.Center(
-              child: pw.Text('Page One - Testing high-efficiency stream compression engine.\n' * 50),
+              child: pw.Text(
+                  'Page One - Testing high-efficiency stream compression engine.\n' *
+                      50),
             ),
           ),
         );
         pdf.addPage(
           pw.Page(
             build: (context) => pw.Center(
-              child: pw.Text('Page Two - Testing high-efficiency stream compression engine.\n' * 50),
+              child: pw.Text(
+                  'Page Two - Testing high-efficiency stream compression engine.\n' *
+                      50),
             ),
           ),
         );
-        
+
         final inputPath = '${tempDir.path}/uncompressed.pdf';
         final inputFile = File(inputPath);
         await inputFile.writeAsBytes(await pdf.save());
@@ -123,7 +130,7 @@ void main() {
         // 1. Verify output file exists and is non-empty
         expect(compressedFile.existsSync(), isTrue);
         expect(compressedSize, greaterThan(0));
-        
+
         // 2. Verify that the output is not a simple file copy (bytes are different)
         final compressedBytes = await compressedFile.readAsBytes();
         expect(compressedBytes, isNot(equals(originalBytes)));
@@ -131,22 +138,25 @@ void main() {
         // 3. Verify that the compressed file size is strictly smaller than the uncompressed original
         expect(compressedSize, lessThan(originalSize));
         print('Original Size: $originalSize, Compressed Size: $compressedSize');
-        
+
         // 4. Verify that the original input remains unchanged (bytes and length are identical)
         final originalBytesAfter = await inputFile.readAsBytes();
         expect(originalBytesAfter, equals(originalBytes));
         expect(inputFile.lengthSync(), equals(originalSize));
 
         // 5. Verify the output is a valid PDF that can be reopened and read
-        final syncfusion.PdfDocument outputDoc = syncfusion.PdfDocument(inputBytes: compressedBytes);
+        final syncfusion.PdfDocument outputDoc =
+            syncfusion.PdfDocument(inputBytes: compressedBytes);
         try {
           // 6. Verify page count is preserved
           expect(outputDoc.pages.count, equals(2));
 
           // 7. Verify page order is preserved & content remains usable
-          final syncfusion.PdfTextExtractor extractor = syncfusion.PdfTextExtractor(outputDoc);
+          final syncfusion.PdfTextExtractor extractor =
+              syncfusion.PdfTextExtractor(outputDoc);
           final String extractedText = extractor.extractText();
-          final String normalizedText = extractedText.replaceAll(RegExp(r'\s+'), ' ').trim();
+          final String normalizedText =
+              extractedText.replaceAll(RegExp(r'\s+'), ' ').trim();
           expect(normalizedText.contains('Page One'), isTrue);
           expect(normalizedText.contains('Page Two'), isTrue);
           final firstIdx = normalizedText.indexOf('Page One');
@@ -165,30 +175,36 @@ void main() {
     });
 
     test('compressPdf supports low, medium, and high levels', () async {
-      final tempDir = Directory.systemTemp.createTempSync('pdf_compress_test_levels_');
+      final tempDir =
+          Directory.systemTemp.createTempSync('pdf_compress_test_levels_');
       try {
         final pdf = pw.Document(compress: false);
         pdf.addPage(
           pw.Page(
             build: (context) => pw.Center(
-              child: pw.Text('Testing high-efficiency stream compression engine.\n' * 500),
+              child: pw.Text(
+                  'Testing high-efficiency stream compression engine.\n' * 500),
             ),
           ),
         );
-        
+
         final inputPath = '${tempDir.path}/uncompressed.pdf';
         await File(inputPath).writeAsBytes(await pdf.save());
 
-        final lowPath = await PdfService().compressPdf(inputPath, customOutputPath: tempDir.path, compressionLevel: 'low');
-        final mediumPath = await PdfService().compressPdf(inputPath, customOutputPath: tempDir.path, compressionLevel: 'medium');
-        final highPath = await PdfService().compressPdf(inputPath, customOutputPath: tempDir.path, compressionLevel: 'high');
+        final lowPath = await PdfService().compressPdf(inputPath,
+            customOutputPath: tempDir.path, compressionLevel: 'low');
+        final mediumPath = await PdfService().compressPdf(inputPath,
+            customOutputPath: tempDir.path, compressionLevel: 'medium');
+        final highPath = await PdfService().compressPdf(inputPath,
+            customOutputPath: tempDir.path, compressionLevel: 'high');
 
         final lowSize = File(lowPath).lengthSync();
         final mediumSize = File(mediumPath).lengthSync();
         final highSize = File(highPath).lengthSync();
 
-        print('Low size: $lowSize, Medium size: $mediumSize, High size: $highSize');
-        
+        print(
+            'Low size: $lowSize, Medium size: $mediumSize, High size: $highSize');
+
         expect(lowSize, greaterThan(0));
         expect(mediumSize, greaterThan(0));
         expect(highSize, greaterThan(0));
@@ -200,14 +216,17 @@ void main() {
       }
     });
 
-    test('compressPdf throws PdfServiceException on empty input file', () async {
-      final tempDir = Directory.systemTemp.createTempSync('pdf_compress_empty_');
+    test('compressPdf throws PdfServiceException on empty input file',
+        () async {
+      final tempDir =
+          Directory.systemTemp.createTempSync('pdf_compress_empty_');
       try {
         final emptyFile = File('${tempDir.path}/empty.pdf');
         await emptyFile.writeAsBytes([]);
 
         await expectLater(
-          PdfService().compressPdf(emptyFile.path, customOutputPath: tempDir.path),
+          PdfService()
+              .compressPdf(emptyFile.path, customOutputPath: tempDir.path),
           throwsA(isA<PdfServiceException>()),
         );
       } finally {
@@ -215,14 +234,17 @@ void main() {
       }
     });
 
-    test('compressPdf throws PdfServiceException on corrupt input file', () async {
-      final tempDir = Directory.systemTemp.createTempSync('pdf_compress_corrupt_');
+    test('compressPdf throws PdfServiceException on corrupt input file',
+        () async {
+      final tempDir =
+          Directory.systemTemp.createTempSync('pdf_compress_corrupt_');
       try {
         final corruptFile = File('${tempDir.path}/corrupt.pdf');
         await corruptFile.writeAsString('Definitely not a PDF document');
 
         await expectLater(
-          PdfService().compressPdf(corruptFile.path, customOutputPath: tempDir.path),
+          PdfService()
+              .compressPdf(corruptFile.path, customOutputPath: tempDir.path),
           throwsA(isA<PdfServiceException>()),
         );
       } finally {

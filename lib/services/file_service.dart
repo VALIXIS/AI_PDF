@@ -35,7 +35,8 @@ class FileService {
 
       if (result != null) {
         final rawPaths = result.paths.whereType<String>().toList();
-        return await validateSelectedFiles(rawPaths, allowedExtensions: ['pdf']);
+        return await validateSelectedFiles(rawPaths,
+            allowedExtensions: ['pdf']);
       }
       return [];
     } catch (e) {
@@ -60,8 +61,11 @@ class FileService {
       if (seenNormalized.contains(normalized)) continue;
 
       if (allowedExtensions != null && allowedExtensions.isNotEmpty) {
-        final ext = path.extension(normalized).replaceAll('.', '').toLowerCase();
-        final allowed = allowedExtensions.map((e) => e.replaceAll('.', '').toLowerCase()).toSet();
+        final ext =
+            path.extension(normalized).replaceAll('.', '').toLowerCase();
+        final allowed = allowedExtensions
+            .map((e) => e.replaceAll('.', '').toLowerCase())
+            .toSet();
         if (!allowed.contains(ext)) continue;
       }
 
@@ -187,9 +191,28 @@ class FileService {
   }
 
   static final _reservedWindowsNames = <String>{
-    'CON', 'PRN', 'AUX', 'NUL',
-    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+    'CON',
+    'PRN',
+    'AUX',
+    'NUL',
+    'COM1',
+    'COM2',
+    'COM3',
+    'COM4',
+    'COM5',
+    'COM6',
+    'COM7',
+    'COM8',
+    'COM9',
+    'LPT1',
+    'LPT2',
+    'LPT3',
+    'LPT4',
+    'LPT5',
+    'LPT6',
+    'LPT7',
+    'LPT8',
+    'LPT9',
   };
 
   /// Sanitizes a file name by removing illegal filename characters
@@ -206,7 +229,8 @@ class FileService {
     if (sanitized.isEmpty) return 'untitled';
 
     // Handle Windows reserved device names
-    final baseWithoutExt = path.basenameWithoutExtension(sanitized).toUpperCase();
+    final baseWithoutExt =
+        path.basenameWithoutExtension(sanitized).toUpperCase();
     if (_reservedWindowsNames.contains(baseWithoutExt)) {
       sanitized = 'file_$sanitized';
     }

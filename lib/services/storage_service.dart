@@ -52,7 +52,8 @@ class StorageService {
       for (final key in box.keys) {
         final dynamic val = box.get(key);
         if (val is HistoryEntry) {
-          if (FileService().normalizePath(val.filePath) == normalizedPath || val.id == entry.id) {
+          if (FileService().normalizePath(val.filePath) == normalizedPath ||
+              val.id == entry.id) {
             existingKey = key;
             existingEntry = val;
             break;
@@ -65,7 +66,9 @@ class StorageService {
           title: entry.title.isNotEmpty ? entry.title : existingEntry.title,
           date: entry.date,
           filePath: entry.filePath,
-          toolType: entry.toolType.isNotEmpty ? entry.toolType : existingEntry.toolType,
+          toolType: entry.toolType.isNotEmpty
+              ? entry.toolType
+              : existingEntry.toolType,
         );
         await box.put(existingKey, updatedEntry);
       } else {
@@ -131,7 +134,8 @@ class StorageService {
       dynamic targetKey;
       for (final key in box.keys) {
         final dynamic val = box.get(key);
-        if (val is HistoryEntry && FileService().normalizePath(val.filePath) == normalized) {
+        if (val is HistoryEntry &&
+            FileService().normalizePath(val.filePath) == normalized) {
           targetKey = key;
           break;
         }

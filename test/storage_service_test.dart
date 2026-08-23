@@ -57,7 +57,8 @@ void main() {
       expect(accessible, isFalse);
     });
 
-    test('addHistoryEntry ignores non-existent or failed file operation', () async {
+    test('addHistoryEntry ignores non-existent or failed file operation',
+        () async {
       final entry = HistoryEntry(
         id: 'failed_op_1',
         title: 'Failed PDF Save',
@@ -88,7 +89,8 @@ void main() {
       expect(entries.any((e) => e.filePath == validFile.path), isTrue);
     });
 
-    test('addHistoryEntry merges duplicate records for identical file path', () async {
+    test('addHistoryEntry merges duplicate records for identical file path',
+        () async {
       final validFile = File('${tempDir.path}/duplicate_test.pdf');
       await validFile.writeAsString('Dummy Content');
 
@@ -112,7 +114,8 @@ void main() {
       await storageService.addHistoryEntry(updatedEntry);
 
       final entries = await storageService.getAllHistoryEntries();
-      final matching = entries.where((e) => e.filePath == validFile.path).toList();
+      final matching =
+          entries.where((e) => e.filePath == validFile.path).toList();
 
       expect(matching.length, equals(1));
       expect(matching.first.title, equals('Updated Export'));
@@ -139,7 +142,9 @@ void main() {
       expect(await storageService.getHistoryEntry('del_1'), isNull);
     });
 
-    test('cleanupMissingEntries removes stale entries pointing to missing files', () async {
+    test(
+        'cleanupMissingEntries removes stale entries pointing to missing files',
+        () async {
       final box = await Hive.openBox<HistoryEntry>('historyBox');
       final missingEntry = HistoryEntry(
         id: 'stale_1',
@@ -156,4 +161,3 @@ void main() {
     });
   });
 }
-

@@ -6,9 +6,28 @@ import 'package:pdf_ai_toolkit/views/tools/text_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_text_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/camera_scan_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
+import 'dart:io';
+import 'package:hive/hive.dart';
+import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 void main() {
+  late Directory tempDir;
+
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('widget_test_hive_');
+    Hive.init(tempDir.path);
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(HistoryEntryAdapter());
+    }
+  });
+
+  tearDownAll(() async {
+    await Hive.close();
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
+  });
   testWidgets('App loads and displays HomeScreen smoke test',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
@@ -18,7 +37,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const PdfAiToolkitApp());
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
 
     expect(find.text('What can I help you with?'), findsOneWidget);
     expect(find.text('PDF AI Toolkit'), findsWidgets);
@@ -36,7 +56,8 @@ void main() {
 
     // Build our app and trigger a frame.
     await tester.pumpWidget(const PdfAiToolkitApp());
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
 
     // Verify main app title is visible
     expect(find.text('PDF AI Toolkit'), findsWidgets);

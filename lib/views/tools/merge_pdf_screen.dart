@@ -52,12 +52,14 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
   }
 
   Future<void> _mergePdfs() async {
-    final validFiles = await _fileService.validateSelectedFiles(_selectedFiles, allowedExtensions: ['pdf']);
+    final validFiles = await _fileService
+        .validateSelectedFiles(_selectedFiles, allowedExtensions: ['pdf']);
     if (validFiles.length < 2) {
       setState(() {
         _selectedFiles.clear();
         _selectedFiles.addAll(validFiles);
-        _errorMessage = 'Please select at least 2 valid and accessible PDF files to merge.';
+        _errorMessage =
+            'Please select at least 2 valid and accessible PDF files to merge.';
       });
       return;
     }

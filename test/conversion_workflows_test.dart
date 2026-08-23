@@ -53,7 +53,75 @@ void main() {
               'width': methodCall.arguments['width'],
               'height': methodCall.arguments['height'],
               'path': 'test/image.png',
-              'data': Uint8List.fromList([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 10, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5, 0, 1, 13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130]), // A 1x1 valid PNG file bytes
+              'data': Uint8List.fromList([
+                137,
+                80,
+                78,
+                71,
+                13,
+                10,
+                26,
+                10,
+                0,
+                0,
+                0,
+                13,
+                73,
+                72,
+                68,
+                82,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                1,
+                8,
+                6,
+                0,
+                0,
+                0,
+                31,
+                21,
+                196,
+                137,
+                0,
+                0,
+                0,
+                10,
+                73,
+                68,
+                65,
+                84,
+                120,
+                156,
+                99,
+                0,
+                1,
+                0,
+                0,
+                5,
+                0,
+                1,
+                13,
+                10,
+                45,
+                180,
+                0,
+                0,
+                0,
+                0,
+                73,
+                69,
+                78,
+                68,
+                174,
+                66,
+                96,
+                130
+              ]), // A 1x1 valid PNG file bytes
             };
           default:
             return null;
@@ -86,7 +154,8 @@ void main() {
         ),
       );
     }
-    final file = File('$tempDirPath/test_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
+    final file = File(
+        '$tempDirPath/test_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file.path;
   }
@@ -94,8 +163,77 @@ void main() {
   // Helper to generate a mock image file
   Future<String> createTestImage() async {
     // 1x1 valid PNG file
-    final bytes = Uint8List.fromList([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 10, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5, 0, 1, 13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130]);
-    final file = File('$tempDirPath/test_img_${DateTime.now().millisecondsSinceEpoch}.png');
+    final bytes = Uint8List.fromList([
+      137,
+      80,
+      78,
+      71,
+      13,
+      10,
+      26,
+      10,
+      0,
+      0,
+      0,
+      13,
+      73,
+      72,
+      68,
+      82,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      8,
+      6,
+      0,
+      0,
+      0,
+      31,
+      21,
+      196,
+      137,
+      0,
+      0,
+      0,
+      10,
+      73,
+      68,
+      65,
+      84,
+      120,
+      156,
+      99,
+      0,
+      1,
+      0,
+      0,
+      5,
+      0,
+      1,
+      13,
+      10,
+      45,
+      180,
+      0,
+      0,
+      0,
+      0,
+      73,
+      69,
+      78,
+      68,
+      174,
+      66,
+      96,
+      130
+    ]);
+    final file = File(
+        '$tempDirPath/test_img_${DateTime.now().millisecondsSinceEpoch}.png');
     await file.writeAsBytes(bytes);
     return file.path;
   }
@@ -110,7 +248,8 @@ void main() {
       expect(txtFile.lengthSync(), greaterThan(0));
 
       final extractedText = txtFile.readAsStringSync();
-      final normalizedText = extractedText.replaceAll(RegExp(r'\s+'), ' ').trim();
+      final normalizedText =
+          extractedText.replaceAll(RegExp(r'\s+'), ' ').trim();
       expect(normalizedText.contains('Hello PDF Text'), isTrue);
 
       await File(pdfPath).delete();
@@ -124,12 +263,14 @@ void main() {
           build: (pw.Context context) => pw.Container(),
         ),
       );
-      final pdfPath = '$tempDirPath/scanned_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final pdfPath =
+          '$tempDirPath/scanned_${DateTime.now().millisecondsSinceEpoch}.pdf';
       await File(pdfPath).writeAsBytes(await pdf.save());
 
       await expectLater(
         pdfService.convertPdfToTxt(pdfPath: pdfPath),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'PDF_TO_TXT_NO_TEXT')),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_TO_TXT_NO_TEXT')),
       );
 
       await File(pdfPath).delete();
@@ -138,17 +279,20 @@ void main() {
     test('Throws on missing file', () async {
       await expectLater(
         pdfService.convertPdfToTxt(pdfPath: '$tempDirPath/missing.pdf'),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'PDF_TO_TXT_INPUT_NOT_FOUND')),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_TO_TXT_INPUT_NOT_FOUND')),
       );
     });
 
     test('Throws on corrupt/invalid file', () async {
-      final corruptFile = File('$tempDirPath/corrupt_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      final corruptFile = File(
+          '$tempDirPath/corrupt_${DateTime.now().millisecondsSinceEpoch}.pdf');
       corruptFile.writeAsStringSync('Defo not a PDF');
 
       await expectLater(
         pdfService.convertPdfToTxt(pdfPath: corruptFile.path),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'PDF_TO_TXT_INVALID_PDF')),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_TO_TXT_INVALID_PDF')),
       );
 
       await corruptFile.delete();
@@ -157,10 +301,13 @@ void main() {
 
   group('TXT to PDF', () {
     test('Successful text to PDF conversion with pagination', () async {
-      final txtFile = File('$tempDirPath/test_txt_${DateTime.now().millisecondsSinceEpoch}.txt');
-      txtFile.writeAsStringSync('Line 1\nLine 2\n' * 50); // long text to trigger pages
+      final txtFile = File(
+          '$tempDirPath/test_txt_${DateTime.now().millisecondsSinceEpoch}.txt');
+      txtFile.writeAsStringSync(
+          'Line 1\nLine 2\n' * 50); // long text to trigger pages
 
-      final pdfPath = await pdfService.convertTxtToPdf(txtPath: txtFile.path, title: 'My Text Doc');
+      final pdfPath = await pdfService.convertTxtToPdf(
+          txtPath: txtFile.path, title: 'My Text Doc');
       final pdfFile = File(pdfPath);
 
       expect(pdfFile.existsSync(), isTrue);
@@ -175,12 +322,14 @@ void main() {
     });
 
     test('Throws on empty TXT', () async {
-      final txtFile = File('$tempDirPath/empty_txt_${DateTime.now().millisecondsSinceEpoch}.txt');
+      final txtFile = File(
+          '$tempDirPath/empty_txt_${DateTime.now().millisecondsSinceEpoch}.txt');
       txtFile.writeAsStringSync('   \n  ');
 
       await expectLater(
         pdfService.convertTxtToPdf(txtPath: txtFile.path, title: 'Empty'),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'TXT_TO_PDF_INPUT_EMPTY')),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'TXT_TO_PDF_INPUT_EMPTY')),
       );
 
       await txtFile.delete();
@@ -188,8 +337,10 @@ void main() {
 
     test('Throws on missing TXT file', () async {
       await expectLater(
-        pdfService.convertTxtToPdf(txtPath: '$tempDirPath/missing.txt', title: 'Missing'),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'TXT_TO_PDF_INPUT_NOT_FOUND')),
+        pdfService.convertTxtToPdf(
+            txtPath: '$tempDirPath/missing.txt', title: 'Missing'),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'TXT_TO_PDF_INPUT_NOT_FOUND')),
       );
     });
   });
@@ -197,7 +348,8 @@ void main() {
   group('Image to PDF', () {
     test('Successful conversion of single image', () async {
       final imgPath = await createTestImage();
-      final pdfPath = await pdfService.convertImagesToPdf(imagePaths: [imgPath]);
+      final pdfPath =
+          await pdfService.convertImagesToPdf(imagePaths: [imgPath]);
       final pdfFile = File(pdfPath);
 
       expect(pdfFile.existsSync(), isTrue);
@@ -214,7 +366,8 @@ void main() {
       final img1 = await createTestImage();
       final img2 = await createTestImage();
 
-      final pdfPath = await pdfService.convertImagesToPdf(imagePaths: [img1, img2]);
+      final pdfPath =
+          await pdfService.convertImagesToPdf(imagePaths: [img1, img2]);
       final pdfFile = File(pdfPath);
 
       expect(pdfFile.existsSync(), isTrue);
@@ -231,17 +384,20 @@ void main() {
     test('Throws on missing image path', () async {
       await expectLater(
         pdfService.convertImagesToPdf(imagePaths: ['$tempDirPath/missing.png']),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'IMAGE_TO_PDF_INPUT_NOT_FOUND')),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'IMAGE_TO_PDF_INPUT_NOT_FOUND')),
       );
     });
 
     test('Throws on corrupt image file', () async {
-      final corruptImg = File('$tempDirPath/corrupt_img_${DateTime.now().millisecondsSinceEpoch}.png');
+      final corruptImg = File(
+          '$tempDirPath/corrupt_img_${DateTime.now().millisecondsSinceEpoch}.png');
       corruptImg.writeAsStringSync('Definitely not PNG bytes');
 
       await expectLater(
         pdfService.convertImagesToPdf(imagePaths: [corruptImg.path]),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'IMAGE_TO_PDF_INVALID_IMAGE')),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'IMAGE_TO_PDF_INVALID_IMAGE')),
       );
 
       await corruptImg.delete();
@@ -250,9 +406,11 @@ void main() {
 
   group('PDF to Image', () {
     test('Successful PDF to Image conversion', () async {
-      final pdfPath = await createTestPdf(pageTexts: ['Page 1 Content', 'Page 2 Content']);
-      
-      final imagePaths = await pdfService.convertPdfToImages(pdfPath: pdfPath, startPage: 1, endPage: 2);
+      final pdfPath =
+          await createTestPdf(pageTexts: ['Page 1 Content', 'Page 2 Content']);
+
+      final imagePaths = await pdfService.convertPdfToImages(
+          pdfPath: pdfPath, startPage: 1, endPage: 2);
       expect(imagePaths.length, equals(2));
 
       for (int i = 0; i < imagePaths.length; i++) {
@@ -269,13 +427,17 @@ void main() {
       final pdfPath = await createTestPdf(pageTexts: ['Page 1 Content']);
 
       await expectLater(
-        pdfService.convertPdfToImages(pdfPath: pdfPath, startPage: 2, endPage: 1),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'PDF_TO_IMAGE_INVALID_PAGE_RANGE')),
+        pdfService.convertPdfToImages(
+            pdfPath: pdfPath, startPage: 2, endPage: 1),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_TO_IMAGE_INVALID_PAGE_RANGE')),
       );
 
       await expectLater(
-        pdfService.convertPdfToImages(pdfPath: pdfPath, startPage: 0, endPage: 1),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'PDF_TO_IMAGE_INVALID_PAGE_RANGE')),
+        pdfService.convertPdfToImages(
+            pdfPath: pdfPath, startPage: 0, endPage: 1),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_TO_IMAGE_INVALID_PAGE_RANGE')),
       );
 
       await File(pdfPath).delete();
@@ -284,7 +446,8 @@ void main() {
     test('Throws on missing PDF', () async {
       await expectLater(
         pdfService.convertPdfToImages(pdfPath: '$tempDirPath/missing.pdf'),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'PDF_TO_IMAGE_INPUT_NOT_FOUND')),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_TO_IMAGE_INPUT_NOT_FOUND')),
       );
     });
   });

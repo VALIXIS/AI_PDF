@@ -88,7 +88,8 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
       }
       if (_endPage < _startPage || _endPage > _totalPages!) {
         setState(() {
-          _errorMessage = 'End page must be between start page and $_totalPages.';
+          _errorMessage =
+              'End page must be between start page and $_totalPages.';
         });
         return;
       }
@@ -126,7 +127,10 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('PdfServiceException: ', '');
+        _errorMessage = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('PdfServiceException: ', '');
         _isLoading = false;
       });
     }
@@ -187,7 +191,8 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                          const Icon(Icons.check_circle,
+                              color: Colors.green, size: 28),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -195,7 +200,9 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                               children: [
                                 const Text(
                                   'Conversion Successful!',
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13.5),
                                 ),
                                 Text(
                                   'Generated ${_successImagePaths!.length} image files.',
@@ -257,10 +264,12 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                             right: 8,
                             child: Container(
                               color: Colors.black54,
-                              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 2, horizontal: 6),
                               child: Text(
                                 'Page ${index + _startPage}',
-                                style: const TextStyle(color: Colors.white, fontSize: 11),
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 11),
                                 textAlign: TextAlign.center,
                               ),
                             ),
@@ -292,7 +301,9 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                             children: [
                               Text(
                                 _fileService.getFileName(_selectedFile!),
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13.5),
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
@@ -318,7 +329,10 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                 // Page Range Controls
                 Text(
                   'Page Range to Render',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 10),
 
@@ -328,7 +342,8 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Start Page', style: Theme.of(context).textTheme.bodySmall),
+                          Text('Start Page',
+                              style: Theme.of(context).textTheme.bodySmall),
                           const SizedBox(height: 4),
                           TextField(
                             enabled: !_isLoading,
@@ -355,7 +370,8 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('End Page', style: Theme.of(context).textTheme.bodySmall),
+                          Text('End Page',
+                              style: Theme.of(context).textTheme.bodySmall),
                           const SizedBox(height: 4),
                           TextField(
                             enabled: !_isLoading,
@@ -398,7 +414,8 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                   child: ToolEmptyState(
                     icon: Icons.picture_as_pdf,
                     title: 'No PDF Selected',
-                    subtitle: 'Choose a PDF document to render its pages as image files',
+                    subtitle:
+                        'Choose a PDF document to render its pages as image files',
                     actionLabel: 'Select PDF',
                     onAction: _isLoading ? null : _pickPdf,
                   ),
