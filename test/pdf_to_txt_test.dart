@@ -9,18 +9,26 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late PdfService pdfService;
+  late Directory tempDir;
   late String tempDirPath;
 
-  setUpAll(() {
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('pdf_to_txt_test_');
+    tempDirPath = tempDir.path;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (MethodCall methodCall) async {
-        return Directory.systemTemp.path;
+        return tempDirPath;
       },
     );
     pdfService = PdfService();
-    tempDirPath = Directory.systemTemp.path;
+  });
+
+  tearDownAll(() async {
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
   });
 
   // Helper to generate a multi-page test PDF with text
@@ -140,8 +148,8 @@ void main() {
           '$tempDirPath/empty_page_${DateTime.now().millisecondsSinceEpoch}.pdf';
       await File(inputPath).writeAsBytes(await pdf.save());
 
-      expect(
-        () async => await pdfService.convertPdfToTxt(pdfPath: inputPath),
+      await expectLater(
+        pdfService.convertPdfToTxt(pdfPath: inputPath),
         throwsA(isA<Exception>()),
       );
 
@@ -150,8 +158,8 @@ void main() {
     });
 
     test('Throws exception on missing input PDF file', () async {
-      expect(
-        () async => await pdfService.convertPdfToTxt(
+      await expectLater(
+        pdfService.convertPdfToTxt(
             pdfPath: '$tempDirPath/non_existent.pdf'),
         throwsA(isA<Exception>()),
       );
@@ -162,8 +170,8 @@ void main() {
           '$tempDirPath/corrupt_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await corruptFile.writeAsString('This is not a PDF file');
 
-      expect(
-        () async => await pdfService.convertPdfToTxt(pdfPath: corruptFile.path),
+      await expectLater(
+        pdfService.convertPdfToTxt(pdfPath: corruptFile.path),
         throwsA(isA<Exception>()),
       );
 
@@ -176,8 +184,8 @@ void main() {
           '$tempDirPath/empty_${DateTime.now().millisecondsSinceEpoch}.pdf');
       await emptyFile.writeAsBytes([]);
 
-      expect(
-        () async => await pdfService.convertPdfToTxt(pdfPath: emptyFile.path),
+      await expectLater(
+        pdfService.convertPdfToTxt(pdfPath: emptyFile.path),
         throwsA(isA<Exception>()),
       );
 
