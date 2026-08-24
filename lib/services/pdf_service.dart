@@ -17,6 +17,7 @@ class PdfService {
   Future<String> generatePdfFromText({
     required String title,
     required String content,
+    String? customOutputPath,
   }) async {
     try {
       final pdf = pw.Document();
@@ -58,12 +59,13 @@ class PdfService {
       );
 
       // Save PDF to file
-      final output = await getApplicationDocumentsDirectory();
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName = FileService().formatOutputFileName(
         baseName: title,
         extension: 'pdf',
       );
-      final targetPath = path.join(output.path, fileName);
+      final targetPath = path.join(dirPath, fileName);
       final pdfBytes = await pdf.save();
 
       final resultPath =
@@ -802,7 +804,11 @@ class PdfService {
           code: 'TXT_TO_PDF_INPUT_EMPTY');
     }
 
-    return await generatePdfFromText(title: title, content: content);
+    return await generatePdfFromText(
+      title: title, 
+      content: content, 
+      customOutputPath: customOutputPath
+    );
   }
 
   /// Converts a list of image files to a single PDF document
