@@ -7,6 +7,7 @@ import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
+import 'package:hive/hive.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -18,9 +19,14 @@ void main() {
 
   setUpAll(() async {
     tempDir = await Directory.systemTemp.createTemp('file_validation_test_');
+    Hive.init(tempDir.path);
+    if (!Hive.isAdapterRegistered(0)) {
+      Hive.registerAdapter(HistoryEntryAdapter());
+    }
   });
 
   tearDownAll(() async {
+    await Hive.close();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }
@@ -50,7 +56,9 @@ void main() {
       expect(type, equals(DetectedFileType.pdf));
     });
 
-    test('2. Valid PDF file with spaces in its name and no extension is accepted', () async {
+    test(
+        '2. Valid PDF file with spaces in its name and no extension is accepted',
+        () async {
       final path = await createValidPdf('my valid resume 2026');
       final isPdf = await fileService.isPdfFile(path);
       final type = await fileService.detectFileType(path);
@@ -59,7 +67,9 @@ void main() {
       expect(type, equals(DetectedFileType.pdf));
     });
 
-    test('3. Unsupported file type (e.g. random binary/executable) is rejected gracefully', () async {
+    test(
+        '3. Unsupported file type (e.g. random binary/executable) is rejected gracefully',
+        () async {
       final file = File('${tempDir.path}/unsupported.bin');
       await file.writeAsBytes([0x7F, 0x45, 0x4C, 0x46, 0x01, 0x01, 0x01, 0x00]);
 
@@ -76,17 +86,21 @@ void main() {
       final file = File('${tempDir.path}/zero_bytes.pdf');
       await file.writeAsBytes([]);
 
-      final isAccessible = await fileService.isFileValidAndAccessible(file.path);
+      final isAccessible =
+          await fileService.isFileValidAndAccessible(file.path);
       final isPdf = await fileService.isPdfFile(file.path);
 
       expect(isAccessible, isFalse);
       expect(isPdf, isFalse);
     });
 
-    test('5. Corrupt/malformed PDF file does not crash the app and throws PdfServiceException', () async {
+    test(
+        '5. Corrupt/malformed PDF file does not crash the app and throws PdfServiceException',
+        () async {
       final file = File('${tempDir.path}/corrupt.pdf');
       // Truncated header that looks like PDF start but contains junk body
-      await file.writeAsString('%PDF-1.4\n%junk_corrupted_data_without_objects');
+      await file
+          .writeAsString('%PDF-1.4\n%junk_corrupted_data_without_objects');
 
       expect(
         () async => await pdfService.getPdfPageCount(file.path),
@@ -97,7 +111,8 @@ void main() {
     test('6. Missing file does not crash the app', () async {
       const missingPath = '/non_existent_directory/missing_file.pdf';
       final exists = await fileService.fileExists(missingPath);
-      final accessible = await fileService.isFileValidAndAccessible(missingPath);
+      final accessible =
+          await fileService.isFileValidAndAccessible(missingPath);
       final isPdf = await fileService.isPdfFile(missingPath);
 
       expect(exists, isFalse);
@@ -110,9 +125,12 @@ void main() {
       );
     });
 
-    test('7. File with incorrect extension (plain text named .pdf) is handled safely', () async {
+    test(
+        '7. File with incorrect extension (plain text named .pdf) is handled safely',
+        () async {
       final file = File('${tempDir.path}/fake_doc.pdf');
-      await file.writeAsString('This is just plain text content, not a PDF document.');
+      await file.writeAsString(
+          'This is just plain text content, not a PDF document.');
 
       final isPdf = await fileService.isPdfFile(file.path);
       final isText = await fileService.isTextFile(file.path);
@@ -121,13 +139,16 @@ void main() {
       expect(isText, isTrue);
     });
 
-    test('8. Invalid/empty path strings are handled safely without exceptions', () async {
+    test('8. Invalid/empty path strings are handled safely without exceptions',
+        () async {
       expect(await fileService.isFileValidAndAccessible(''), isFalse);
       expect(await fileService.isPdfFile(''), isFalse);
-      expect(await fileService.detectFileType(''), equals(DetectedFileType.unknown));
+      expect(await fileService.detectFileType(''),
+          equals(DetectedFileType.unknown));
     });
 
-    test('9. Failed validation does not create a false history entry in Hive', () async {
+    test('9. Failed validation does not create a false history entry in Hive',
+        () async {
       final missingPath = '${tempDir.path}/non_existent_history_file.pdf';
       final entry = HistoryEntry(
         id: 'test_missing_id',
@@ -160,7 +181,9 @@ void main() {
       expect(fetched?.filePath, equals(validPath));
     });
 
-    test('11. Large files are read via header bytes (<=1024 bytes) without full memory load', () async {
+    test(
+        '11. Large files are read via header bytes (<=1024 bytes) without full memory load',
+        () async {
       final file = File('${tempDir.path}/large_mock.pdf');
       final sink = file.openWrite();
       sink.write('%PDF-1.7\n');
@@ -170,7 +193,8 @@ void main() {
       sink.add(padding);
       await sink.close();
 
-      final header = await fileService.readFileHeader(file.path, maxBytes: 1024);
+      final header =
+          await fileService.readFileHeader(file.path, maxBytes: 1024);
       final isPdf = await fileService.isPdfFile(file.path);
 
       expect(header.length, equals(1024));

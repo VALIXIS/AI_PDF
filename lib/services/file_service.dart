@@ -12,7 +12,8 @@ enum DetectedFileType {
 
 class FileService {
   /// Safely reads at most [maxBytes] from [filePath] without loading the entire file into memory.
-  Future<List<int>> readFileHeader(String filePath, {int maxBytes = 1024}) async {
+  Future<List<int>> readFileHeader(String filePath,
+      {int maxBytes = 1024}) async {
     if (filePath.isEmpty) return [];
     try {
       final file = File(filePath);
@@ -114,18 +115,29 @@ class FileService {
       bool hasNull = header.contains(0x00);
       if (!hasNull) {
         final ext = getExtension(filePath).toLowerCase();
-        if (ext == '.txt' || ext == '.csv' || ext == '.json' || ext == '.md' || ext == '.log' || ext.isEmpty) {
+        if (ext == '.txt' ||
+            ext == '.csv' ||
+            ext == '.json' ||
+            ext == '.md' ||
+            ext == '.log' ||
+            ext.isEmpty) {
           return DetectedFileType.text;
         }
       }
 
       // Fallback check by extension if header signature is non-standard
       final ext = getExtension(filePath).toLowerCase();
-      if (ext == '.pdf') return DetectedFileType.pdf;
-      if (ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp' || ext == '.gif' || ext == '.bmp') {
+      if (ext == '.jpg' ||
+          ext == '.jpeg' ||
+          ext == '.png' ||
+          ext == '.webp' ||
+          ext == '.gif' ||
+          ext == '.bmp') {
         return DetectedFileType.image;
       }
-      if (ext == '.txt') return DetectedFileType.text;
+      if (ext == '.txt' || ext == '.pdf') {
+        if (!hasNull) return DetectedFileType.text;
+      }
 
       return DetectedFileType.unknown;
     } catch (_) {
@@ -180,7 +192,8 @@ class FileService {
         if (await isPdfFile(p)) {
           return p;
         } else {
-          throw Exception('The selected file is empty, corrupt, missing, or not a valid PDF.');
+          throw Exception(
+              'The selected file is empty, corrupt, missing, or not a valid PDF.');
         }
       }
       return null;
@@ -238,10 +251,12 @@ class FileService {
           if (!await isPdfFile(normalized)) continue;
         } else if (extSet.contains('txt')) {
           if (!await isTextFile(normalized)) continue;
-        } else if (extSet.any((e) => ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'].contains(e))) {
+        } else if (extSet.any(
+            (e) => ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'].contains(e))) {
           if (!await isImageFile(normalized)) continue;
         } else {
-          final ext = getExtension(normalized).replaceAll('.', '').toLowerCase();
+          final ext =
+              getExtension(normalized).replaceAll('.', '').toLowerCase();
           if (!extSet.contains(ext)) continue;
         }
       }
@@ -266,7 +281,8 @@ class FileService {
         if (await isTextFile(p)) {
           return p;
         } else {
-          throw Exception('The selected file is empty, missing, or not a valid text file.');
+          throw Exception(
+              'The selected file is empty, missing, or not a valid text file.');
         }
       }
       return null;

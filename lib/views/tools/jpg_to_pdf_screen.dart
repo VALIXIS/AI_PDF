@@ -39,7 +39,8 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
         }
         if (validImages.isEmpty) {
           setState(() {
-            _errorMessage = 'Selected image file(s) are empty, corrupt, or invalid.';
+            _errorMessage =
+                'Selected image file(s) are empty, corrupt, or invalid.';
           });
           return;
         }
@@ -75,14 +76,16 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
       final pdf = pw.Document();
       for (final f in _images) {
         if (!await FileService().isImageFile(f.path)) {
-          throw Exception('Image file is missing, empty, corrupt, or invalid: ${FileService().getFileName(f.path)}');
+          throw Exception(
+              'Image file is missing, empty, corrupt, or invalid: ${FileService().getFileName(f.path)}');
         }
         final bytes = await f.readAsBytes();
         pw.MemoryImage img;
         try {
           img = pw.MemoryImage(bytes);
         } catch (e) {
-          throw Exception('Corrupt image format: ${FileService().getFileName(f.path)}');
+          throw Exception(
+              'Corrupt image format: ${FileService().getFileName(f.path)}');
         }
         pdf.addPage(pw.Page(
           pageFormat: _pageFormat,

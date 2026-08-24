@@ -26,8 +26,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadHistoryCount() async {
-    final count = await StorageService().getHistoryCount();
-    if (mounted) setState(() => _historyCount = count);
+    try {
+      final count = await StorageService().getHistoryCount();
+      if (mounted) setState(() => _historyCount = count);
+    } catch (_) {
+      if (mounted) setState(() => _historyCount = 0);
+    }
   }
 
   @override
@@ -39,153 +43,188 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textCol = isDark ? Colors.white : const Color(0xFF0F172A);
+    final bgCol = isDark ? const Color(0xFF0A0E1A) : const Color(0xFFF8FAFC);
     final subtitleColor =
         isDark ? const Color(0xFF8B949E) : const Color(0xFF64748B);
     final sectionColor =
         isDark ? const Color(0xFF8B949E) : const Color(0xFF94A3B8);
 
     return Scaffold(
+      backgroundColor: bgCol,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(
+          'Settings',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: textCol,
+            letterSpacing: -0.3,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textCol),
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        children: [
-          // ── Appearance ────────────────────────────────────────────
-          _SectionHeader(label: 'APPEARANCE', color: sectionColor),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF14141E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF1F1F2E)
-                      : const Color(0xFFE5E7EB)),
-            ),
-            child: _SettingsTile(
-              icon: Icons.dark_mode_rounded,
-              iconColor: const Color(0xFF6366F1),
-              title: 'Dark Mode',
-              subtitle: _isDark ? 'Currently on' : 'Currently off',
-              trailing: Switch.adaptive(
-                value: _isDark,
-                activeThumbColor: kPrimary,
-                activeTrackColor: kPrimary.withValues(alpha: 0.4),
-                onChanged: (_) => themeNotifier.toggle(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: isDark
+                ? const [
+                    Color(0xFF0A0E1A),
+                    Color(0xFF0F172A),
+                    Color(0xFF0A0A10),
+                  ]
+                : const [
+                    Color(0xFFF8FAFC),
+                    Color(0xFFF1F5F9),
+                    Color(0xFFE2E8F0),
+                  ],
+          ),
+        ),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            children: [
+              // ── Appearance ────────────────────────────────────────────
+              _SectionHeader(label: 'APPEARANCE', color: sectionColor),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF14141E) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF1F1F2E)
+                          : const Color(0xFFE5E7EB)),
+                ),
+                child: _SettingsTile(
+                  icon: Icons.dark_mode_rounded,
+                  iconColor: const Color(0xFF6366F1),
+                  title: 'Dark Mode',
+                  subtitle: _isDark ? 'Currently on' : 'Currently off',
+                  trailing: Switch.adaptive(
+                    value: _isDark,
+                    activeThumbColor: kPrimary,
+                    activeTrackColor: kPrimary.withValues(alpha: 0.4),
+                    onChanged: (_) => themeNotifier.toggle(),
+                  ),
+                  isLast: true,
+                ),
               ),
-              isLast: true,
-            ),
-          ),
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-          // ── AI Assistant ──────────────────────────────────────────
-          _SectionHeader(label: 'AI ASSISTANT', color: sectionColor),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF14141E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF1F1F2E)
-                      : const Color(0xFFE5E7EB)),
-            ),
-            child: const Column(
-              children: [
-                _SettingsTile(
-                  icon: Icons.auto_awesome_rounded,
-                  iconColor: Color(0xFF7C3AED),
-                  title: 'AI Provider Engine',
-                  subtitle:
-                      'Google Gemini 2.5 Flash (Resilient Fallback Active)',
+              // ── AI Assistant ──────────────────────────────────────────
+              _SectionHeader(label: 'AI ASSISTANT', color: sectionColor),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF14141E) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF1F1F2E)
+                          : const Color(0xFFE5E7EB)),
                 ),
-                _SettingsTile(
-                  icon: Icons.document_scanner_rounded,
-                  iconColor: Color(0xFF0284C7),
-                  title: 'Multi-Format Understanding',
-                  subtitle: 'Full PDF, DOCX, and TXT contextual extraction',
-                  isLast: true,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // ── Data ─────────────────────────────────────────────────
-          _SectionHeader(label: 'DATA & STORAGE', color: sectionColor),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF14141E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF1F1F2E)
-                      : const Color(0xFFE5E7EB)),
-            ),
-            child: Column(
-              children: [
-                _SettingsTile(
-                  icon: Icons.history_rounded,
-                  iconColor: const Color(0xFF06B6D4),
-                  title: 'History Records',
-                  subtitle:
-                      '$_historyCount saved file${_historyCount == 1 ? '' : 's'}',
-                  trailing: Icon(
-                    Icons.chevron_right_rounded,
-                    color: subtitleColor,
-                  ),
-                  onTap: () => Navigator.of(context).pushNamed('/history'),
-                ),
-                _SettingsTile(
-                  icon: Icons.delete_sweep_rounded,
-                  iconColor: const Color(0xFFEF4444),
-                  title: 'Clear History',
-                  subtitle: 'Remove all saved PDF records',
-                  onTap: () => _confirmClearHistory(context),
-                  isLast: true,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // ── About ────────────────────────────────────────────────
-          _SectionHeader(label: 'ABOUT', color: sectionColor),
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF14141E) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: isDark
-                      ? const Color(0xFF1F1F2E)
-                      : const Color(0xFFE5E7EB)),
-            ),
-            child: Column(
-              children: [
-                _SettingsTile(
-                  leadingWidget: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.asset(
-                      'assets/ICON.png',
-                      width: 38,
-                      height: 38,
-                      fit: BoxFit.contain,
+                child: const Column(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.auto_awesome_rounded,
+                      iconColor: Color(0xFF7C3AED),
+                      title: 'AI Provider Engine',
+                      subtitle:
+                          'Google Gemini 2.5 Flash (Resilient Fallback Active)',
                     ),
-                  ),
-                  title: 'PDF AI Toolkit',
-                  subtitle: 'Version 1.0.0+1 (Founder Edition)',
+                    _SettingsTile(
+                      icon: Icons.document_scanner_rounded,
+                      iconColor: Color(0xFF0284C7),
+                      title: 'Multi-Format Understanding',
+                      subtitle: 'Full PDF, DOCX, and TXT contextual extraction',
+                      isLast: true,
+                    ),
+                  ],
                 ),
-                _SettingsTile(
-                  icon: Icons.shield_rounded,
-                  iconColor: const Color(0xFF10B981),
-                  title: 'Privacy & Security',
-                  subtitle:
-                      'Local document parsing with zero persistent cloud storage',
-                  isLast: true,
+              ),
+              const SizedBox(height: 24),
+
+              // ── Data ─────────────────────────────────────────────────
+              _SectionHeader(label: 'DATA & STORAGE', color: sectionColor),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF14141E) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF1F1F2E)
+                          : const Color(0xFFE5E7EB)),
                 ),
-              ],
-            ),
+                child: Column(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.history_rounded,
+                      iconColor: const Color(0xFF06B6D4),
+                      title: 'History Records',
+                      subtitle:
+                          '$_historyCount saved file${_historyCount == 1 ? '' : 's'}',
+                      trailing: Icon(
+                        Icons.chevron_right_rounded,
+                        color: subtitleColor,
+                      ),
+                      onTap: () => Navigator.of(context).pushNamed('/history'),
+                    ),
+                    _SettingsTile(
+                      icon: Icons.delete_sweep_rounded,
+                      iconColor: const Color(0xFFEF4444),
+                      title: 'Clear History',
+                      subtitle: 'Remove all saved PDF records',
+                      onTap: () => _confirmClearHistory(context),
+                      isLast: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── About ────────────────────────────────────────────────
+              _SectionHeader(label: 'ABOUT', color: sectionColor),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF14141E) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF1F1F2E)
+                          : const Color(0xFFE5E7EB)),
+                ),
+                child: Column(
+                  children: [
+                    _SettingsTile(
+                      leadingWidget: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          'assets/ICON.png',
+                          width: 38,
+                          height: 38,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      title: 'PDF AI Toolkit',
+                      subtitle: 'Version 1.0.0+1 (Founder Edition)',
+                    ),
+                    _SettingsTile(
+                      icon: Icons.shield_rounded,
+                      iconColor: const Color(0xFF10B981),
+                      title: 'Privacy & Security',
+                      subtitle:
+                          'Local document parsing with zero persistent cloud storage',
+                      isLast: true,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -46,7 +46,8 @@ Fenced code block line 2
 Horizontal rule above.
 ''';
 
-      final inputPath = '$tempDirPath/test_${DateTime.now().millisecondsSinceEpoch}.md';
+      final inputPath =
+          '$tempDirPath/test_${DateTime.now().millisecondsSinceEpoch}.md';
       final inputFile = File(inputPath);
       await inputFile.writeAsString(markdownContent);
       final originalLength = inputFile.lengthSync();
@@ -67,13 +68,15 @@ Horizontal rule above.
       expect(inputFile.readAsStringSync(), equals(markdownContent));
 
       // Reopen and check validity with Syncfusion
-      final sf.PdfDocument document = sf.PdfDocument(inputBytes: outputFile.readAsBytesSync());
+      final sf.PdfDocument document =
+          sf.PdfDocument(inputBytes: outputFile.readAsBytesSync());
       try {
         expect(document.pages.count, greaterThan(0));
-        
+
         final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(document);
         final String extractedText = extractor.extractText();
-        final String normalized = extractedText.replaceAll(RegExp(r'\s+'), ' ').trim();
+        final String normalized =
+            extractedText.replaceAll(RegExp(r'\s+'), ' ').trim();
 
         // Verify key semantic content exists in the generated PDF
         expect(normalized.contains('Markdown Test Document'), isTrue);
@@ -96,24 +99,30 @@ Horizontal rule above.
     });
 
     test('Throws PdfServiceException on empty input Markdown file', () async {
-      final emptyFilePath = '$tempDirPath/empty_${DateTime.now().millisecondsSinceEpoch}.md';
+      final emptyFilePath =
+          '$tempDirPath/empty_${DateTime.now().millisecondsSinceEpoch}.md';
       final emptyFile = File(emptyFilePath);
       await emptyFile.writeAsString('');
 
       await expectLater(
-        pdfService.convertMarkdownToPdf(markdownPath: emptyFilePath, title: 'Empty'),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'MARKDOWN_TO_PDF_INPUT_EMPTY')),
+        pdfService.convertMarkdownToPdf(
+            markdownPath: emptyFilePath, title: 'Empty'),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'MARKDOWN_TO_PDF_INPUT_EMPTY')),
       );
 
       await emptyFile.delete();
     });
 
     test('Throws PdfServiceException on missing input Markdown file', () async {
-      final missingPath = '$tempDirPath/missing_${DateTime.now().millisecondsSinceEpoch}.md';
+      final missingPath =
+          '$tempDirPath/missing_${DateTime.now().millisecondsSinceEpoch}.md';
 
       await expectLater(
-        pdfService.convertMarkdownToPdf(markdownPath: missingPath, title: 'Missing'),
-        throwsA(isA<PdfServiceException>().having((e) => e.code, 'code', 'MARKDOWN_TO_PDF_INPUT_NOT_FOUND')),
+        pdfService.convertMarkdownToPdf(
+            markdownPath: missingPath, title: 'Missing'),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'MARKDOWN_TO_PDF_INPUT_NOT_FOUND')),
       );
     });
   });

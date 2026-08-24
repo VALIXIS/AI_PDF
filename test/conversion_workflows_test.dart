@@ -18,7 +18,8 @@ void main() {
   final List<MethodCall> methodChannelLog = <MethodCall>[];
 
   setUpAll(() async {
-    tempDir = await Directory.systemTemp.createTemp('conversion_workflows_test_');
+    tempDir =
+        await Directory.systemTemp.createTemp('conversion_workflows_test_');
     tempDirPath = tempDir.path;
 
     // Mock path_provider

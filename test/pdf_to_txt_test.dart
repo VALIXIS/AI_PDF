@@ -159,8 +159,7 @@ void main() {
 
     test('Throws exception on missing input PDF file', () async {
       await expectLater(
-        pdfService.convertPdfToTxt(
-            pdfPath: '$tempDirPath/non_existent.pdf'),
+        pdfService.convertPdfToTxt(pdfPath: '$tempDirPath/non_existent.pdf'),
         throwsA(isA<Exception>()),
       );
     });

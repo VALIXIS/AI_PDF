@@ -170,7 +170,8 @@ class PdfService {
           code: 'PDF_INPUT_NOT_FOUND');
     }
     if (!await fs.isPdfFile(pdfPath)) {
-      throw PdfServiceException('File is empty, corrupt, or not a valid PDF: $pdfPath',
+      throw PdfServiceException(
+          'File is empty, corrupt, or not a valid PDF: $pdfPath',
           code: 'PDF_CORRUPT_OR_INVALID');
     }
     final bytes = await File(pdfPath).readAsBytes();
@@ -201,7 +202,8 @@ class PdfService {
             code: 'PDF_INPUT_NOT_FOUND');
       }
       if (!await fs.isPdfFile(filePath)) {
-        throw PdfServiceException('File is empty, corrupt, or not a valid PDF: $filePath',
+        throw PdfServiceException(
+            'File is empty, corrupt, or not a valid PDF: $filePath',
             code: 'PDF_CORRUPT_OR_INVALID');
       }
     }
@@ -256,7 +258,8 @@ class PdfService {
         extension: 'pdf',
       );
       final targetPath = path.join(dirPath, fileName);
-      final resultPath = await FileService().safeWriteBytes(targetPath, mergedBytes);
+      final resultPath =
+          await FileService().safeWriteBytes(targetPath, mergedBytes);
 
       if (!await fs.isFileValidAndAccessible(resultPath)) {
         throw PdfServiceException('Failed to generate valid merged PDF output.',
@@ -287,7 +290,8 @@ class PdfService {
           code: 'PDF_INPUT_NOT_FOUND');
     }
     if (!await fs.isPdfFile(pdfPath)) {
-      throw PdfServiceException('File is empty, corrupt, or not a valid PDF: $pdfPath',
+      throw PdfServiceException(
+          'File is empty, corrupt, or not a valid PDF: $pdfPath',
           code: 'PDF_CORRUPT_OR_INVALID');
     }
     final bytes = await File(pdfPath).readAsBytes();
@@ -303,7 +307,8 @@ class PdfService {
             code: 'PDF_EMPTY_PAGES');
       }
       if (startPage < 1) {
-        throw PdfServiceException('Start page must be at least 1 (got $startPage).',
+        throw PdfServiceException(
+            'Start page must be at least 1 (got $startPage).',
             code: 'PDF_INVALID_PAGE_RANGE');
       }
       if (endPage > totalPages) {
@@ -348,7 +353,8 @@ class PdfService {
         extension: 'pdf',
       );
       final targetPath = path.join(dirPath, fileName);
-      final resultPath = await FileService().safeWriteBytes(targetPath, outputBytes);
+      final resultPath =
+          await FileService().safeWriteBytes(targetPath, outputBytes);
 
       if (!await fs.isFileValidAndAccessible(resultPath)) {
         throw PdfServiceException('Failed to generate valid split PDF output.',
@@ -377,7 +383,8 @@ class PdfService {
           code: 'PDF_INPUT_NOT_FOUND');
     }
     if (!await fs.isPdfFile(pdfPath)) {
-      throw PdfServiceException('Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
+      throw PdfServiceException(
+          'Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
           code: 'PDF_CORRUPT_OR_INVALID');
     }
     final bytes = await File(pdfPath).readAsBytes();
@@ -431,10 +438,12 @@ class PdfService {
         extension: 'pdf',
       );
       final targetPath = path.join(dirPath, fileName);
-      final resultPath = await FileService().safeWriteBytes(targetPath, outputBytes);
+      final resultPath =
+          await FileService().safeWriteBytes(targetPath, outputBytes);
 
       if (!await fs.isFileValidAndAccessible(resultPath)) {
-        throw PdfServiceException('Failed to generate valid compressed PDF output.',
+        throw PdfServiceException(
+            'Failed to generate valid compressed PDF output.',
             code: 'PDF_COMPRESS_OUTPUT_INVALID');
       }
       return resultPath;
@@ -460,7 +469,8 @@ class PdfService {
             code: 'PDF_INPUT_NOT_FOUND');
       }
       if (!await fs.isPdfFile(pdfPath)) {
-        throw PdfServiceException('Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
+        throw PdfServiceException(
+            'Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
             code: 'PDF_CORRUPT_OR_INVALID');
       }
 
@@ -520,9 +530,11 @@ class PdfService {
         );
         final targetPath = path.join(dirPath, fileName);
 
-        final resultPath = await FileService().safeWriteBytes(targetPath, outputBytes);
+        final resultPath =
+            await FileService().safeWriteBytes(targetPath, outputBytes);
         if (!await fs.isFileValidAndAccessible(resultPath)) {
-          throw PdfServiceException('Failed to generate valid rotated PDF output.',
+          throw PdfServiceException(
+              'Failed to generate valid rotated PDF output.',
               code: 'PDF_ROTATE_OUTPUT_INVALID');
         }
         return resultPath;
@@ -852,10 +864,7 @@ class PdfService {
     }
 
     return await generatePdfFromText(
-      title: title, 
-      content: content, 
-      customOutputPath: customOutputPath
-    );
+        title: title, content: content, customOutputPath: customOutputPath);
   }
 
   /// Converts a list of image files to a single PDF document
@@ -1069,13 +1078,13 @@ class PdfService {
 
     try {
       final pdf = pw.Document();
-      
+
       // Parse markdown to AST
       final md.Document document = md.Document(
         extensionSet: md.ExtensionSet.gitHubFlavored,
       );
       final List<md.Node> nodes = document.parseLines(content.split('\n'));
-      
+
       // Render AST nodes to PDF widgets
       final renderer = MarkdownPdfRenderer();
       final widgets = renderer.render(nodes);
@@ -1090,7 +1099,9 @@ class PdfService {
               pw.Container(
                 padding: const pw.EdgeInsets.only(bottom: 12),
                 decoration: const pw.BoxDecoration(
-                  border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+                  border: pw.Border(
+                      bottom:
+                          pw.BorderSide(color: PdfColors.grey300, width: 1)),
                 ),
                 margin: const pw.EdgeInsets.only(bottom: 20),
                 child: pw.Row(
@@ -1128,7 +1139,8 @@ class PdfService {
       final targetPath = path.join(dirPath, fileName);
       final pdfBytes = await pdf.save();
 
-      final resultPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
+      final resultPath =
+          await FileService().safeWriteBytes(targetPath, pdfBytes);
 
       // Validate output
       final outputFile = File(resultPath);
@@ -1224,7 +1236,8 @@ class MarkdownPdfRenderer {
         case 'blockquote':
           return pw.Container(
             decoration: const pw.BoxDecoration(
-              border: pw.Border(left: pw.BorderSide(color: PdfColors.grey400, width: 3)),
+              border: pw.Border(
+                  left: pw.BorderSide(color: PdfColors.grey400, width: 3)),
             ),
             padding: const pw.EdgeInsets.only(left: 12, top: 4, bottom: 4),
             margin: const pw.EdgeInsets.only(bottom: 12, top: 4),
@@ -1275,8 +1288,8 @@ class MarkdownPdfRenderer {
     return null;
   }
 
-  pw.Widget _renderHeader(
-      md.Element node, double fontSize, pw.FontWeight fontWeight, double bottomMargin) {
+  pw.Widget _renderHeader(md.Element node, double fontSize,
+      pw.FontWeight fontWeight, double bottomMargin) {
     return pw.Container(
       margin: pw.EdgeInsets.only(top: 16, bottom: bottomMargin),
       child: pw.RichText(
@@ -1288,7 +1301,8 @@ class MarkdownPdfRenderer {
     );
   }
 
-  pw.Widget _renderListItem(md.Node node, {required bool isOrdered, int? index}) {
+  pw.Widget _renderListItem(md.Node node,
+      {required bool isOrdered, int? index}) {
     if (node is! md.Element || node.tag != 'li') {
       final childWidget = _renderNode(node);
       return childWidget ?? pw.SizedBox();
@@ -1329,7 +1343,8 @@ class MarkdownPdfRenderer {
     return spans;
   }
 
-  void _renderInlineNode(md.Node node, List<pw.InlineSpan> spans, pw.TextStyle style) {
+  void _renderInlineNode(
+      md.Node node, List<pw.InlineSpan> spans, pw.TextStyle style) {
     if (node is md.Text) {
       spans.add(pw.TextSpan(text: node.text, style: style));
     } else if (node is md.Element) {

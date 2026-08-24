@@ -7,6 +7,8 @@ import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late PdfService pdfService;
   late Directory tempDir;
 
@@ -25,10 +27,73 @@ void main() {
   File createDummyImage(String fileName) {
     final file = File('${tempDir.path}/$fileName');
     final bytes = Uint8List.fromList([
-      137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1,
-      0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 10, 73, 68, 65, 84,
-      120, 156, 99, 0, 1, 0, 0, 5, 0, 1, 13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78,
-      68, 174, 66, 96, 130
+      137,
+      80,
+      78,
+      71,
+      13,
+      10,
+      26,
+      10,
+      0,
+      0,
+      0,
+      13,
+      73,
+      72,
+      68,
+      82,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      8,
+      6,
+      0,
+      0,
+      0,
+      31,
+      21,
+      196,
+      137,
+      0,
+      0,
+      0,
+      10,
+      73,
+      68,
+      65,
+      84,
+      120,
+      156,
+      99,
+      0,
+      1,
+      0,
+      0,
+      5,
+      0,
+      1,
+      13,
+      10,
+      45,
+      180,
+      0,
+      0,
+      0,
+      0,
+      73,
+      69,
+      78,
+      68,
+      174,
+      66,
+      96,
+      130
     ]);
     file.writeAsBytesSync(bytes);
     return file;
@@ -68,13 +133,13 @@ void main() {
         content: 'Content 1',
         customOutputPath: tempDir.path,
       );
-      
+
       final source2 = await pdfService.generatePdfFromText(
         title: 'Source2',
         content: 'Content 2',
         customOutputPath: tempDir.path,
       );
-      
+
       twoPagePdf = await pdfService.mergePdfs(
         [sourcePdf, source2],
         customOutputPath: tempDir.path,
@@ -98,12 +163,12 @@ void main() {
         endPage: 1,
         customOutputPath: tempDir.path,
       );
-      
+
       final file = File(splitPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(splitPath), equals(1));
     });
-    
+
     test('splitPdf throws exception for invalid range', () async {
       expect(
         () => pdfService.splitPdf(
@@ -122,7 +187,7 @@ void main() {
         customOutputPath: tempDir.path,
         compressionLevel: 'high',
       );
-      
+
       final file = File(compressedPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(compressedPath), equals(1));
@@ -134,7 +199,7 @@ void main() {
         rotationAngle: 90,
         customOutputPath: tempDir.path,
       );
-      
+
       final file = File(rotatedPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(rotatedPath), equals(1));
@@ -149,35 +214,43 @@ void main() {
         color: Colors.red,
         customOutputPath: tempDir.path,
       );
-      
+
       final file = File(watermarkedPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(watermarkedPath), equals(1));
     });
-    
+
     test('saveEditedPdf applies text and image annotations', () async {
       final dummyImg = createDummyImage('test_anno.png');
       final annotations = {
         0: [
-          Annotation(
-            kind: AnnotationKind.text,
-            x: 0.1, y: 0.1, width: 0.5, height: 0.1,
-            text: 'Test Annotation', color: Colors.black, fontSize: 12,
+          Annotation.text(
+            id: 'anno_1',
+            x: 0.1,
+            y: 0.1,
+            width: 0.5,
+            height: 0.1,
+            text: 'Test Annotation',
+            color: Colors.black,
+            fontSize: 12,
           ),
-          Annotation(
-            kind: AnnotationKind.image,
-            x: 0.5, y: 0.5, width: 0.2, height: 0.2,
+          Annotation.image(
+            id: 'anno_2',
+            x: 0.5,
+            y: 0.5,
+            width: 0.2,
+            height: 0.2,
             imageBytes: dummyImg.readAsBytesSync(),
           ),
         ]
       };
-      
+
       final editedPath = await pdfService.saveEditedPdf(
         sourcePdfPath: sourcePdf,
         annotationsByPage: annotations,
         customOutputPath: tempDir.path,
       );
-      
+
       final file = File(editedPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(editedPath), equals(1));
@@ -192,27 +265,28 @@ void main() {
         title: 'From TXT',
         customOutputPath: tempDir.path,
       );
-      
+
       expect(await File(pdfPath).exists(), isTrue);
       expect(await pdfService.getPdfPageCount(pdfPath), equals(1));
     });
-    
+
     test('convertPdfToTxt extracts text to a file', () async {
       final pdfPath = await pdfService.generatePdfFromText(
         title: 'ExtractMe',
         content: 'Hello World',
         customOutputPath: tempDir.path,
       );
-      
+
       final txtPath = await pdfService.convertPdfToTxt(
         pdfPath: pdfPath,
         customOutputPath: tempDir.path,
       );
-      
+
       final file = File(txtPath);
       expect(await file.exists(), isTrue);
       final content = await file.readAsString();
-      expect(content.contains('Hello World') || content.contains('ExtractMe'), isTrue);
+      expect(content.contains('Hello World') || content.contains('ExtractMe'),
+          isTrue);
     });
 
     test('extractPdfText returns text directly', () async {
@@ -221,24 +295,27 @@ void main() {
         content: 'Direct Extraction',
         customOutputPath: tempDir.path,
       );
-      
+
       final content = await pdfService.extractPdfText(pdfPath);
-      expect(content.contains('Direct Extraction') || content.contains('ExtractMe2'), isTrue);
+      expect(
+          content.contains('Direct Extraction') ||
+              content.contains('ExtractMe2'),
+          isTrue);
     });
 
     test('convertImagesToPdf creates PDF from images', () async {
       final img1 = createDummyImage('img1.png');
       final img2 = createDummyImage('img2.png');
-      
+
       final pdfPath = await pdfService.convertImagesToPdf(
         imagePaths: [img1.path, img2.path],
         customOutputPath: tempDir.path,
       );
-      
+
       expect(await File(pdfPath).exists(), isTrue);
       expect(await pdfService.getPdfPageCount(pdfPath), equals(2));
     });
-    
+
     test('convertPdfToImages extracts images from PDF', () async {
       // NOTE: pdfx might throw MissingPluginException during headless tests.
       // We wrap it in a try-catch to document the limitation while validating logic.
@@ -248,16 +325,16 @@ void main() {
           content: 'Page 1',
           customOutputPath: tempDir.path,
         );
-        
+
         final imagePaths = await pdfService.convertPdfToImages(
           pdfPath: pdfPath,
           customOutputPath: tempDir.path,
         );
-        
+
         expect(imagePaths.length, equals(1));
         expect(await File(imagePaths.first).exists(), isTrue);
       } catch (e) {
-        // If it fails because of missing plugin or platform exception, we ignore it 
+        // If it fails because of missing plugin or platform exception, we ignore it
         // because the test logic is still valid for environments that support the plugin natively.
         if (!e.toString().contains('MissingPluginException')) {
           rethrow;
@@ -272,40 +349,41 @@ void main() {
         () => pdfService.getPdfPageCount('${tempDir.path}/non_existent.pdf'),
         throwsException,
       );
-      
+
       expect(
         () => pdfService.mergePdfs(['${tempDir.path}/non_existent.pdf']),
         throwsException,
       );
-      
+
       expect(
         () => pdfService.splitPdf(
           pdfPath: '${tempDir.path}/non_existent.pdf',
-          startPage: 1, endPage: 1,
+          startPage: 1,
+          endPage: 1,
         ),
         throwsException,
       );
     });
-    
+
     test('empty files throw specific exceptions', () async {
       final emptyFile = File('${tempDir.path}/empty.pdf');
       emptyFile.writeAsBytesSync([]);
-      
+
       expect(
         () => pdfService.getPdfPageCount(emptyFile.path),
         throwsException,
       );
-      
+
       expect(
         () => pdfService.convertPdfToTxt(pdfPath: emptyFile.path),
         throwsA(isA<PdfServiceException>()),
       );
     });
-    
+
     test('corrupted files throw exceptions', () async {
       final corruptFile = File('${tempDir.path}/corrupt.pdf');
       corruptFile.writeAsStringSync('This is not a PDF file');
-      
+
       expect(
         () => pdfService.getPdfPageCount(corruptFile.path),
         throwsException,
