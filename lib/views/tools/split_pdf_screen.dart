@@ -83,21 +83,31 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
       return;
     }
 
-    if (_startPage < 1) {
+    final start = int.tryParse(_startController.text);
+    final end = int.tryParse(_endController.text);
+
+    if (start == null || end == null) {
+      setState(() {
+        _errorMessage = 'Please enter valid page numbers.';
+      });
+      return;
+    }
+
+    if (start < 1) {
       setState(() {
         _errorMessage = 'Start page must be 1 or greater.';
       });
       return;
     }
 
-    if (_totalPages != null && _endPage > _totalPages!) {
+    if (_totalPages != null && end > _totalPages!) {
       setState(() {
         _errorMessage = 'End page cannot exceed total pages (${_totalPages!}).';
       });
       return;
     }
 
-    if (_startPage > _endPage) {
+    if (start > end) {
       setState(() {
         _errorMessage = 'Start page cannot be greater than end page.';
       });
@@ -105,6 +115,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
     }
 
     setState(() {
+      _startPage = start;
+      _endPage = end;
       _isLoading = true;
       _errorMessage = null;
       _successPath = null;
@@ -122,8 +134,8 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
 
       final filePath = await _pdfService.splitPdf(
         pdfPath: _selectedFile!,
-        startPage: _startPage,
-        endPage: _endPage,
+        startPage: start,
+        endPage: end,
       );
 
       final entry = HistoryEntry(

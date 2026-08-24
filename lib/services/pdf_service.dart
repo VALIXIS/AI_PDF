@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfx/pdfx.dart' as pdfx;
@@ -13,6 +14,58 @@ import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 
 class PdfService {
+  /// Safely validates a PDF file and loads a Syncfusion PdfDocument.
+  /// Throws descriptive [PdfServiceException] for any file or PDF structural errors.
+  Future<syncfusion.PdfDocument> _openPdfDocument(String pdfPath) async {
+    if (pdfPath.trim().isEmpty) {
+      throw PdfServiceException('PDF file path cannot be empty.', code: 'PDF_PATH_EMPTY');
+    }
+    final file = File(pdfPath);
+    if (!await file.exists()) {
+      throw PdfServiceException('File not found: $pdfPath', code: 'PDF_FILE_NOT_FOUND');
+    }
+    final List<int> bytes;
+    try {
+      bytes = await file.readAsBytes();
+    } catch (e) {
+      throw PdfServiceException('Failed to read PDF file bytes: $pdfPath', code: 'PDF_READ_FAILED', details: e);
+    }
+    if (bytes.isEmpty) {
+      throw PdfServiceException('File is empty: $pdfPath', code: 'PDF_FILE_EMPTY');
+    }
+
+    // Check PDF header signature (%PDF-)
+    final int headerLength = bytes.length < 1024 ? bytes.length : 1024;
+    final String headerText = String.fromCharCodes(bytes.sublist(0, headerLength));
+    if (!headerText.contains('%PDF-')) {
+      throw PdfServiceException('File is not a valid PDF document or contains invalid header: $pdfPath', code: 'PDF_INVALID_SIGNATURE');
+    }
+
+    try {
+      final document = syncfusion.PdfDocument(inputBytes: bytes);
+      if (document.pages.count == 0) {
+        document.dispose();
+        throw PdfServiceException('Source PDF contains no pages: $pdfPath', code: 'PDF_EMPTY_PAGES');
+      }
+      return document;
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('password') || errStr.contains('encrypted') || errStr.contains('protection')) {
+        throw PdfServiceException(
+          'PDF file is encrypted or password-protected and cannot be processed.',
+          code: 'PDF_ENCRYPTED',
+          details: e,
+        );
+      }
+      throw PdfServiceException(
+        'PDF document is corrupted or malformed: $pdfPath',
+        code: 'PDF_CORRUPT',
+        details: e,
+      );
+    }
+  }
+
   /// Generates a PDF from formatted text
   Future<String> generatePdfFromText({
     required String title,
@@ -161,20 +214,14 @@ class PdfService {
 
   /// Gets the total page count of a PDF file
   Future<int> getPdfPageCount(String pdfPath) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
-      throw Exception('File not found: $pdfPath');
-    }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw Exception('File is empty: $pdfPath');
-    }
     syncfusion.PdfDocument? document;
     try {
-      document = syncfusion.PdfDocument(inputBytes: bytes);
+      document = await _openPdfDocument(pdfPath);
       return document.pages.count;
     } catch (e) {
-      throw Exception('Failed to read PDF page count: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to read PDF page count: $e',
+          code: 'PAGE_COUNT_FAILURE', details: e);
     } finally {
       document?.dispose();
     }
@@ -184,7 +231,8 @@ class PdfService {
   Future<String> mergePdfs(List<String> pdfPaths,
       {String? customOutputPath}) async {
     if (pdfPaths.isEmpty) {
-      throw Exception('No PDF files selected to merge.');
+      throw PdfServiceException('No PDF files selected to merge.',
+          code: 'MERGE_NO_FILES');
     }
 
     syncfusion.PdfDocument? outputDocument;
@@ -193,24 +241,11 @@ class PdfService {
       outputDocument = syncfusion.PdfDocument();
 
       for (final filePath in pdfPaths) {
-        final file = File(filePath);
-        if (!await file.exists()) {
-          throw Exception('File not found: $filePath');
-        }
-        final bytes = await file.readAsBytes();
-        if (bytes.isEmpty) {
-          throw Exception('File is empty: $filePath');
-        }
-
         final syncfusion.PdfDocument sourceDocument =
-            syncfusion.PdfDocument(inputBytes: bytes);
+            await _openPdfDocument(filePath);
         openedDocuments.add(sourceDocument);
 
         final int pageCount = sourceDocument.pages.count;
-        if (pageCount == 0) {
-          throw Exception('Source PDF contains no pages: $filePath');
-        }
-
         for (int i = 0; i < pageCount; i++) {
           final syncfusion.PdfPage sourcePage = sourceDocument.pages[i];
           final syncfusion.PdfTemplate template = sourcePage.createTemplate();
@@ -245,7 +280,9 @@ class PdfService {
       final targetPath = path.join(dirPath, fileName);
       return await FileService().safeWriteBytes(targetPath, mergedBytes);
     } catch (e) {
-      throw Exception('Failed to merge PDFs: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to merge PDFs: $e',
+          code: 'MERGE_FAILURE', details: e);
     } finally {
       for (final doc in openedDocuments) {
         doc.dispose();
@@ -261,34 +298,25 @@ class PdfService {
     required int endPage,
     String? customOutputPath,
   }) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
-      throw Exception('File not found: $pdfPath');
-    }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw Exception('File is empty: $pdfPath');
-    }
-
     syncfusion.PdfDocument? sourceDocument;
     syncfusion.PdfDocument? outputDocument;
     try {
-      sourceDocument = syncfusion.PdfDocument(inputBytes: bytes);
+      sourceDocument = await _openPdfDocument(pdfPath);
       final int totalPages = sourceDocument.pages.count;
 
-      if (totalPages == 0) {
-        throw Exception('Source PDF contains no pages.');
-      }
       if (startPage < 1) {
-        throw Exception('Start page must be at least 1 (got $startPage).');
+        throw PdfServiceException('Start page must be at least 1 (got $startPage).',
+            code: 'SPLIT_INVALID_START');
       }
       if (endPage > totalPages) {
-        throw Exception(
-            'End page ($endPage) exceeds total pages in document ($totalPages).');
+        throw PdfServiceException(
+            'End page ($endPage) exceeds total pages in document ($totalPages).',
+            code: 'SPLIT_INVALID_END');
       }
       if (startPage > endPage) {
-        throw Exception(
-            'Start page ($startPage) cannot be greater than end page ($endPage).');
+        throw PdfServiceException(
+            'Start page ($startPage) cannot be greater than end page ($endPage).',
+            code: 'SPLIT_INVALID_RANGE');
       }
 
       outputDocument = syncfusion.PdfDocument();
@@ -324,7 +352,9 @@ class PdfService {
       final targetPath = path.join(dirPath, fileName);
       return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
-      throw Exception('Failed to split PDF: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to split PDF: $e',
+          code: 'SPLIT_FAILURE', details: e);
     } finally {
       sourceDocument?.dispose();
       outputDocument?.dispose();
@@ -337,21 +367,11 @@ class PdfService {
     String? customOutputPath,
     String compressionLevel = 'medium',
   }) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
-      throw PdfServiceException(
-          'Input file not found for compression: $pdfPath');
-    }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw PdfServiceException('Input PDF file is empty: $pdfPath');
-    }
-
     syncfusion.PdfDocument? sourceDoc;
     syncfusion.PdfDocument? outputDoc;
 
     try {
-      sourceDoc = syncfusion.PdfDocument(inputBytes: bytes);
+      sourceDoc = await _openPdfDocument(pdfPath);
       outputDoc = syncfusion.PdfDocument();
 
       syncfusion.PdfCompressionLevel level;
@@ -399,7 +419,8 @@ class PdfService {
       return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
       if (e is PdfServiceException) rethrow;
-      throw PdfServiceException('Failed to compress PDF: $e', details: e);
+      throw PdfServiceException('Failed to compress PDF: $e',
+          code: 'COMPRESS_FAILURE', details: e);
     } finally {
       sourceDoc?.dispose();
       outputDoc?.dispose();
@@ -412,77 +433,68 @@ class PdfService {
     required int rotationAngle,
     String? customOutputPath,
   }) async {
+    sf.PdfDocument? document;
     try {
-      final file = File(pdfPath);
-      if (!await file.exists()) {
-        throw Exception('Input file does not exist');
-      }
-
-      final bytes = await file.readAsBytes();
-      if (bytes.isEmpty) {
-        throw Exception('Input PDF file is empty');
-      }
-
       // Load existing document
-      final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
+      document = await _openPdfDocument(pdfPath);
 
-      try {
-        for (int i = 0; i < document.pages.count; i++) {
-          final sf.PdfPage page = document.pages[i];
+      for (int i = 0; i < document.pages.count; i++) {
+        final sf.PdfPage page = document.pages[i];
 
-          // Get current page rotation
-          final currentRotation = page.rotation;
+        // Get current page rotation
+        final currentRotation = page.rotation;
 
-          // Convert enum to degrees
-          int currentDegrees = 0;
-          switch (currentRotation) {
-            case sf.PdfPageRotateAngle.rotateAngle0:
-              currentDegrees = 0;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle90:
-              currentDegrees = 90;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle180:
-              currentDegrees = 180;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle270:
-              currentDegrees = 270;
-              break;
-          }
-
-          // Calculate new degrees (additive and normalized to 0, 90, 180, 270)
-          final newDegrees = (currentDegrees + rotationAngle) % 360;
-
-          // Set new rotation angle
-          if (newDegrees == 90) {
-            page.rotation = sf.PdfPageRotateAngle.rotateAngle90;
-          } else if (newDegrees == 180) {
-            page.rotation = sf.PdfPageRotateAngle.rotateAngle180;
-          } else if (newDegrees == 270) {
-            page.rotation = sf.PdfPageRotateAngle.rotateAngle270;
-          } else {
-            page.rotation = sf.PdfPageRotateAngle.rotateAngle0;
-          }
+        // Convert enum to degrees
+        int currentDegrees = 0;
+        switch (currentRotation) {
+          case sf.PdfPageRotateAngle.rotateAngle0:
+            currentDegrees = 0;
+            break;
+          case sf.PdfPageRotateAngle.rotateAngle90:
+            currentDegrees = 90;
+            break;
+          case sf.PdfPageRotateAngle.rotateAngle180:
+            currentDegrees = 180;
+            break;
+          case sf.PdfPageRotateAngle.rotateAngle270:
+            currentDegrees = 270;
+            break;
         }
 
-        // Save rotated PDF to file
-        final List<int> outputBytes = await document.save();
-        final String dirPath =
-            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final String baseName = path.basenameWithoutExtension(pdfPath);
-        final fileName = FileService().formatOutputFileName(
-          baseName: baseName,
-          suffix: 'rotated_${rotationAngle}',
-          extension: 'pdf',
-        );
-        final targetPath = path.join(dirPath, fileName);
+        // Calculate new degrees (additive and normalized to 0, 90, 180, 270)
+        final newDegrees = (currentDegrees + rotationAngle) % 360;
 
-        return await FileService().safeWriteBytes(targetPath, outputBytes);
-      } finally {
-        document.dispose();
+        // Set new rotation angle
+        if (newDegrees == 90) {
+          page.rotation = sf.PdfPageRotateAngle.rotateAngle90;
+        } else if (newDegrees == 180) {
+          page.rotation = sf.PdfPageRotateAngle.rotateAngle180;
+        } else if (newDegrees == 270) {
+          page.rotation = sf.PdfPageRotateAngle.rotateAngle270;
+        } else {
+          page.rotation = sf.PdfPageRotateAngle.rotateAngle0;
+        }
       }
+
+      // Save rotated PDF to file
+      final List<int> outputBytes = await document.save();
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final String baseName = path.basenameWithoutExtension(pdfPath);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'rotated_${rotationAngle}',
+        extension: 'pdf',
+      );
+      final targetPath = path.join(dirPath, fileName);
+
+      return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
-      throw Exception('Failed to rotate PDF: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to rotate PDF: $e',
+          code: 'ROTATE_FAILURE', details: e);
+    } finally {
+      document?.dispose();
     }
   }
 
@@ -495,96 +507,88 @@ class PdfService {
     required Color color,
     String? customOutputPath,
   }) async {
+    if (watermarkText.isEmpty) {
+      throw PdfServiceException('Watermark text cannot be empty',
+          code: 'WATERMARK_TEXT_EMPTY');
+    }
+
+    sf.PdfDocument? document;
     try {
-      final file = File(pdfPath);
-      if (!await file.exists()) {
-        throw Exception('Input file does not exist');
-      }
-
-      final bytes = await file.readAsBytes();
-      if (bytes.isEmpty) {
-        throw Exception('Input PDF file is empty');
-      }
-
-      if (watermarkText.isEmpty) {
-        throw Exception('Watermark text cannot be empty');
-      }
-
       // Load existing document
-      final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
+      document = await _openPdfDocument(pdfPath);
 
-      try {
-        final double angleInDegrees = angle * 180 / 3.141592653589793;
-        final sf.PdfFont font = sf.PdfStandardFont(
-          sf.PdfFontFamily.helvetica,
-          50,
-          style: sf.PdfFontStyle.bold,
-        );
+      final double angleInDegrees = angle * 180 / 3.141592653589793;
+      final sf.PdfFont font = sf.PdfStandardFont(
+        sf.PdfFontFamily.helvetica,
+        50,
+        style: sf.PdfFontStyle.bold,
+      );
 
-        final sf.PdfBrush brush = sf.PdfSolidBrush(
-          sf.PdfColor(
-            (color.r * 255).round(),
-            (color.g * 255).round(),
-            (color.b * 255).round(),
+      final sf.PdfBrush brush = sf.PdfSolidBrush(
+        sf.PdfColor(
+          (color.r * 255).round(),
+          (color.g * 255).round(),
+          (color.b * 255).round(),
+        ),
+      );
+
+      for (int i = 0; i < document.pages.count; i++) {
+        final sf.PdfPage page = document.pages[i];
+        final sf.PdfGraphics graphics = page.graphics;
+
+        // Save current graphics state
+        final sf.PdfGraphicsState state = graphics.save();
+
+        // Set transparency/opacity
+        graphics.setTransparency(opacity);
+
+        // Translate origin to the center of the page
+        graphics.translateTransform(
+            page.size.width / 2, page.size.height / 2);
+
+        // Apply rotation in degrees
+        graphics.rotateTransform(angleInDegrees);
+
+        // Measure text size to center it
+        final Size textSize = font.measureString(watermarkText);
+
+        // Draw the text centered around the new origin (0, 0)
+        graphics.drawString(
+          watermarkText,
+          font,
+          brush: brush,
+          bounds: Rect.fromLTWH(
+            -textSize.width / 2,
+            -textSize.height / 2,
+            textSize.width,
+            textSize.height,
           ),
         );
 
-        for (int i = 0; i < document.pages.count; i++) {
-          final sf.PdfPage page = document.pages[i];
-          final sf.PdfGraphics graphics = page.graphics;
-
-          // Save current graphics state
-          final sf.PdfGraphicsState state = graphics.save();
-
-          // Set transparency/opacity
-          graphics.setTransparency(opacity);
-
-          // Translate origin to the center of the page
-          graphics.translateTransform(
-              page.size.width / 2, page.size.height / 2);
-
-          // Apply rotation in degrees
-          graphics.rotateTransform(angleInDegrees);
-
-          // Measure text size to center it
-          final Size textSize = font.measureString(watermarkText);
-
-          // Draw the text centered around the new origin (0, 0)
-          graphics.drawString(
-            watermarkText,
-            font,
-            brush: brush,
-            bounds: Rect.fromLTWH(
-              -textSize.width / 2,
-              -textSize.height / 2,
-              textSize.width,
-              textSize.height,
-            ),
-          );
-
-          // Restore graphics state
-          graphics.restore(state);
-        }
-
-        // Save watermarked PDF
-        final List<int> outputBytes = await document.save();
-
-        final String dirPath =
-            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final String baseName = path.basenameWithoutExtension(pdfPath);
-        final fileName = FileService().formatOutputFileName(
-          baseName: baseName,
-          suffix: 'watermarked',
-          extension: 'pdf',
-        );
-        final targetPath = path.join(dirPath, fileName);
-
-        return await FileService().safeWriteBytes(targetPath, outputBytes);
-      } finally {
-        document.dispose();
+        // Restore graphics state
+        graphics.restore(state);
       }
+
+      // Save watermarked PDF
+      final List<int> outputBytes = await document.save();
+
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final String baseName = path.basenameWithoutExtension(pdfPath);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'watermarked',
+        extension: 'pdf',
+      );
+      final targetPath = path.join(dirPath, fileName);
+
+      return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
-      throw Exception('Failed to apply watermark: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to apply watermark: $e',
+          code: 'WATERMARK_FAILURE', details: e);
+    } finally {
+      document?.dispose();
     }
   }
 
@@ -597,22 +601,10 @@ class PdfService {
     required Map<int, List<Annotation>> annotationsByPage,
     String? customOutputPath,
   }) async {
-    final file = File(sourcePdfPath);
-    if (!await file.exists()) {
-      throw Exception('Source PDF file not found: $sourcePdfPath');
-    }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw Exception('Source PDF file is empty: $sourcePdfPath');
-    }
-
     sf.PdfDocument? document;
     try {
-      document = sf.PdfDocument(inputBytes: bytes);
+      document = await _openPdfDocument(sourcePdfPath);
       final int pageCount = document.pages.count;
-      if (pageCount == 0) {
-        throw Exception('Source PDF contains no pages: $sourcePdfPath');
-      }
 
       for (final entry in annotationsByPage.entries) {
         final int pageIndex = entry.key;
@@ -698,7 +690,9 @@ class PdfService {
 
       return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
-      throw Exception('Failed to save edited PDF: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to save edited PDF: $e',
+          code: 'SAVE_EDITED_FAILURE', details: e);
     } finally {
       document?.dispose();
     }
@@ -709,28 +703,9 @@ class PdfService {
     required String pdfPath,
     String? customOutputPath,
   }) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
-      throw PdfServiceException('Input PDF file not found: $pdfPath',
-          code: 'PDF_TO_TXT_INPUT_NOT_FOUND');
-    }
-
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw PdfServiceException('Input PDF file is empty: $pdfPath',
-          code: 'PDF_TO_TXT_INPUT_EMPTY');
-    }
-
-    // Load existing document
     sf.PdfDocument? document;
     try {
-      document = sf.PdfDocument(inputBytes: bytes);
-    } catch (e) {
-      throw PdfServiceException('Invalid or corrupt PDF file: $e',
-          code: 'PDF_TO_TXT_INVALID_PDF', details: e);
-    }
-
-    try {
+      document = await _openPdfDocument(pdfPath);
       final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(document);
       final String extractedText = extractor.extractText();
 
@@ -753,7 +728,17 @@ class PdfService {
       return await FileService()
           .safeWriteBytes(targetPath, utf8.encode(extractedText));
     } catch (e) {
-      if (e is PdfServiceException) rethrow;
+      if (e is PdfServiceException) {
+        String newCode = e.code ?? 'PDF_TO_TXT_FAILURE';
+        if (e.code == 'PDF_FILE_NOT_FOUND') {
+          newCode = 'PDF_TO_TXT_INPUT_NOT_FOUND';
+        } else if (e.code == 'PDF_FILE_EMPTY') {
+          newCode = 'PDF_TO_TXT_INPUT_EMPTY';
+        } else if (e.code == 'PDF_CORRUPT' || e.code == 'PDF_INVALID_SIGNATURE' || e.code == 'PDF_ENCRYPTED') {
+          newCode = 'PDF_TO_TXT_INVALID_PDF';
+        }
+        throw PdfServiceException(e.message, code: newCode, details: e.details);
+      }
       throw PdfServiceException('Failed to extract text: $e',
           code: 'PDF_TO_TXT_FAILURE', details: e);
     } finally {
@@ -763,24 +748,17 @@ class PdfService {
 
   /// Extracts text from a PDF document and returns the raw string
   Future<String> extractPdfText(String pdfPath) async {
+    sf.PdfDocument? document;
     try {
-      final file = File(pdfPath);
-      if (!await file.exists()) {
-        throw Exception('File does not exist: $pdfPath');
-      }
-      final bytes = await file.readAsBytes();
-      if (bytes.isEmpty) {
-        return '';
-      }
-      final document = sf.PdfDocument(inputBytes: bytes);
-      try {
-        final extractor = sf.PdfTextExtractor(document);
-        return extractor.extractText();
-      } finally {
-        document.dispose();
-      }
+      document = await _openPdfDocument(pdfPath);
+      final extractor = sf.PdfTextExtractor(document);
+      return extractor.extractText();
     } catch (e) {
-      throw Exception('Failed to extract text: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to extract text: $e',
+          code: 'EXTRACT_TEXT_FAILURE', details: e);
+    } finally {
+      document?.dispose();
     }
   }
 
@@ -904,34 +882,28 @@ class PdfService {
     int? endPage, // 1-indexed
     double scale = 2.0,
   }) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
-      throw PdfServiceException('Input PDF file not found: $pdfPath',
-          code: 'PDF_TO_IMAGE_INPUT_NOT_FOUND');
-    }
-
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw PdfServiceException('Input PDF file is empty: $pdfPath',
-          code: 'PDF_TO_IMAGE_INPUT_EMPTY');
-    }
-
-    // Verify it is a valid PDF
     syncfusion.PdfDocument? testDoc;
     int pageCount = 0;
     try {
-      testDoc = syncfusion.PdfDocument(inputBytes: bytes);
+      // Validate PDF structure and details
+      testDoc = await _openPdfDocument(pdfPath);
       pageCount = testDoc.pages.count;
     } catch (e) {
-      throw PdfServiceException('Invalid or corrupt PDF file: $e',
-          code: 'PDF_TO_IMAGE_INVALID_PDF', details: e);
+      if (e is PdfServiceException) {
+        String newCode = e.code ?? 'PDF_TO_IMAGE_FAILURE';
+        if (e.code == 'PDF_FILE_NOT_FOUND') {
+          newCode = 'PDF_TO_IMAGE_INPUT_NOT_FOUND';
+        } else if (e.code == 'PDF_FILE_EMPTY') {
+          newCode = 'PDF_TO_IMAGE_INPUT_EMPTY';
+        } else if (e.code == 'PDF_CORRUPT' || e.code == 'PDF_INVALID_SIGNATURE' || e.code == 'PDF_ENCRYPTED') {
+          newCode = 'PDF_TO_IMAGE_INVALID_PDF';
+        }
+        throw PdfServiceException(e.message, code: newCode, details: e.details);
+      }
+      throw PdfServiceException('Failed to render PDF to images: $e',
+          code: 'PDF_TO_IMAGE_FAILURE', details: e);
     } finally {
       testDoc?.dispose();
-    }
-
-    if (pageCount == 0) {
-      throw PdfServiceException('PDF document contains no pages',
-          code: 'PDF_TO_IMAGE_EMPTY_PDF');
     }
 
     final int start = startPage ?? 1;

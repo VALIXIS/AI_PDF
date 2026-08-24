@@ -79,14 +79,24 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
       return;
     }
 
+    final start = int.tryParse(_startController.text);
+    final end = int.tryParse(_endController.text);
+
+    if (start == null || end == null) {
+      setState(() {
+        _errorMessage = 'Please enter valid page numbers.';
+      });
+      return;
+    }
+
     if (_totalPages != null) {
-      if (_startPage < 1 || _startPage > _totalPages!) {
+      if (start < 1 || start > _totalPages!) {
         setState(() {
           _errorMessage = 'Start page must be between 1 and $_totalPages.';
         });
         return;
       }
-      if (_endPage < _startPage || _endPage > _totalPages!) {
+      if (end < start || end > _totalPages!) {
         setState(() {
           _errorMessage =
               'End page must be between start page and $_totalPages.';
@@ -96,6 +106,8 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
     }
 
     setState(() {
+      _startPage = start;
+      _endPage = end;
       _isLoading = true;
       _errorMessage = null;
       _successImagePaths = null;
@@ -104,8 +116,8 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
     try {
       final imagePaths = await _pdfService.convertPdfToImages(
         pdfPath: _selectedFile!,
-        startPage: _startPage,
-        endPage: _endPage,
+        startPage: start,
+        endPage: end,
       );
 
       if (imagePaths.isNotEmpty) {

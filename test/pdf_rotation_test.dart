@@ -10,18 +10,26 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late PdfService pdfService;
+  late Directory tempDir;
   late String tempDirPath;
 
-  setUpAll(() {
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('pdf_rotation_test_');
+    tempDirPath = tempDir.path;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (MethodCall methodCall) async {
-        return Directory.systemTemp.path;
+        return tempDirPath;
       },
     );
     pdfService = PdfService();
-    tempDirPath = Directory.systemTemp.path;
+  });
+
+  tearDownAll(() async {
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
   });
 
   // Helper to generate a multi-page test PDF
@@ -118,8 +126,8 @@ void main() {
     });
 
     test('Throws exception on non-existent file', () async {
-      expect(
-        () async => await pdfService.rotatePdf(
+      await expectLater(
+        pdfService.rotatePdf(
           pdfPath: '$tempDirPath/non_existent_file.pdf',
           rotationAngle: 90,
         ),
@@ -131,8 +139,8 @@ void main() {
       final corruptFile = File('$tempDirPath/corrupt.pdf');
       await corruptFile.writeAsString('Definitely not a PDF content');
 
-      expect(
-        () async => await pdfService.rotatePdf(
+      await expectLater(
+        pdfService.rotatePdf(
           pdfPath: corruptFile.path,
           rotationAngle: 90,
         ),
@@ -147,8 +155,8 @@ void main() {
       final emptyFile = File('$tempDirPath/empty.pdf');
       await emptyFile.writeAsBytes([]);
 
-      expect(
-        () async => await pdfService.rotatePdf(
+      await expectLater(
+        pdfService.rotatePdf(
           pdfPath: emptyFile.path,
           rotationAngle: 90,
         ),

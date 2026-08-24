@@ -13,16 +13,20 @@ void main() {
   PdfxPlatform.instance = PdfxPlatformMethodChannel();
 
   late PdfService pdfService;
+  late Directory tempDir;
   late String tempDirPath;
   final List<MethodCall> methodChannelLog = <MethodCall>[];
 
-  setUpAll(() {
+  setUpAll(() async {
+    tempDir = await Directory.systemTemp.createTemp('conversion_workflows_test_');
+    tempDirPath = tempDir.path;
+
     // Mock path_provider
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
       (MethodCall methodCall) async {
-        return Directory.systemTemp.path;
+        return tempDirPath;
       },
     );
 
@@ -130,7 +134,12 @@ void main() {
     );
 
     pdfService = PdfService();
-    tempDirPath = Directory.systemTemp.path;
+  });
+
+  tearDownAll(() async {
+    if (await tempDir.exists()) {
+      await tempDir.delete(recursive: true);
+    }
   });
 
   tearDown(() {
