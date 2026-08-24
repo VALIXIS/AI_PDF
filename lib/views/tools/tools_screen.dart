@@ -15,6 +15,7 @@ import 'package:pdf_ai_toolkit/views/tools/rotate_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/protect_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 
 class ToolItem {
   final String title;
@@ -74,6 +75,14 @@ const List<ToolItem> appTools = [
     icon: Icons.collections_rounded,
     color: Color(0xFF8B5CF6),
     screen: PdfToImageScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
+    title: 'Markdown to PDF',
+    subtitle: 'Convert Markdown to PDF',
+    icon: Icons.description_rounded,
+    color: Color(0xFF6366F1),
+    screen: MarkdownToPdfScreen(),
     category: 'Convert',
   ),
 

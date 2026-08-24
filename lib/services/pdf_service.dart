@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfx/pdfx.dart' as pdfx;
+import 'package:markdown/markdown.dart' as md;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:path_provider/path_provider.dart';
@@ -1039,6 +1040,327 @@ class PdfService {
           code: 'PDF_TO_IMAGE_FAILURE', details: e);
     } finally {
       await doc?.close();
+    }
+  }
+
+  /// Converts a Markdown file to a styled PDF file
+  Future<String> convertMarkdownToPdf({
+    required String markdownPath,
+    required String title,
+    String? customOutputPath,
+  }) async {
+    final file = File(markdownPath);
+    if (!await file.exists()) {
+      throw PdfServiceException('Input Markdown file not found: $markdownPath',
+          code: 'MARKDOWN_TO_PDF_INPUT_NOT_FOUND');
+    }
+
+    final content = await file.readAsString(encoding: utf8);
+    if (content.trim().isEmpty) {
+      throw PdfServiceException('Input Markdown file is empty',
+          code: 'MARKDOWN_TO_PDF_INPUT_EMPTY');
+    }
+
+    try {
+      final pdf = pw.Document();
+      
+      // Parse markdown to AST
+      final md.Document document = md.Document(
+        extensionSet: md.ExtensionSet.gitHubFlavored,
+      );
+      final List<md.Node> nodes = document.parseLines(content.split('\n'));
+      
+      // Render AST nodes to PDF widgets
+      final renderer = MarkdownPdfRenderer();
+      final widgets = renderer.render(nodes);
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              // Document Title Header
+              pw.Container(
+                padding: const pw.EdgeInsets.only(bottom: 12),
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+                ),
+                margin: const pw.EdgeInsets.only(bottom: 20),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      title,
+                      style: pw.TextStyle(
+                        fontSize: 22,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                    pw.Text(
+                      'Generated: ${DateTime.now().toString().split(' ')[0]}',
+                      style: const pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...widgets,
+            ];
+          },
+        ),
+      );
+
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName =
+          'markdown_converted_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final targetPath = path.join(dirPath, fileName);
+      final pdfBytes = await pdf.save();
+
+      final resultPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
+
+      // Validate output
+      final outputFile = File(resultPath);
+      if (!await outputFile.exists()) {
+        throw PdfServiceException('Failed to create PDF output file',
+            code: 'MARKDOWN_TO_PDF_OUTPUT_NOT_FOUND');
+      }
+      if (await outputFile.length() == 0) {
+        throw PdfServiceException('Generated PDF file is empty',
+            code: 'MARKDOWN_TO_PDF_OUTPUT_EMPTY');
+      }
+
+      // Verify the generated PDF can be reopened/read
+      syncfusion.PdfDocument? testDoc;
+      try {
+        testDoc = syncfusion.PdfDocument(inputBytes: pdfBytes);
+        if (testDoc.pages.count == 0) {
+          throw Exception('Generated PDF contains no pages');
+        }
+      } catch (e) {
+        throw PdfServiceException('Generated PDF is corrupt or invalid: $e',
+            code: 'MARKDOWN_TO_PDF_INVALID_OUTPUT', details: e);
+      } finally {
+        testDoc?.dispose();
+      }
+
+      return resultPath;
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to convert Markdown to PDF: $e',
+          code: 'MARKDOWN_TO_PDF_FAILURE', details: e);
+    }
+  }
+}
+
+class MarkdownPdfRenderer {
+  List<pw.Widget> render(List<md.Node> nodes) {
+    final List<pw.Widget> widgets = [];
+    for (final node in nodes) {
+      final widget = _renderNode(node);
+      if (widget != null) {
+        widgets.add(widget);
+      }
+    }
+    return widgets;
+  }
+
+  pw.Widget? _renderNode(md.Node node) {
+    if (node is md.Text) {
+      return pw.Paragraph(
+        text: node.text,
+        style: const pw.TextStyle(fontSize: 11),
+      );
+    } else if (node is md.Element) {
+      switch (node.tag) {
+        case 'h1':
+          return _renderHeader(node, 24, pw.FontWeight.bold, 16);
+        case 'h2':
+          return _renderHeader(node, 18, pw.FontWeight.bold, 12);
+        case 'h3':
+          return _renderHeader(node, 14, pw.FontWeight.bold, 10);
+        case 'h4':
+        case 'h5':
+        case 'h6':
+          return _renderHeader(node, 12, pw.FontWeight.bold, 8);
+        case 'p':
+          return pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 8),
+            child: pw.RichText(
+              text: pw.TextSpan(
+                style: const pw.TextStyle(fontSize: 11, lineSpacing: 2),
+                children: _renderInlineSpans(node.children ?? []),
+              ),
+            ),
+          );
+        case 'ul':
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: (node.children ?? [])
+                .map((li) => _renderListItem(li, isOrdered: false))
+                .toList(),
+          );
+        case 'ol':
+          int index = 1;
+          final listItems = <pw.Widget>[];
+          for (final li in (node.children ?? [])) {
+            listItems.add(_renderListItem(li, isOrdered: true, index: index++));
+          }
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: listItems,
+          );
+        case 'blockquote':
+          return pw.Container(
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(left: pw.BorderSide(color: PdfColors.grey400, width: 3)),
+            ),
+            padding: const pw.EdgeInsets.only(left: 12, top: 4, bottom: 4),
+            margin: const pw.EdgeInsets.only(bottom: 12, top: 4),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: (node.children ?? [])
+                  .map((child) => _renderNode(child))
+                  .whereType<pw.Widget>()
+                  .toList(),
+            ),
+          );
+        case 'pre':
+          final codeText = node.textContent.trim();
+          return pw.Container(
+            width: double.infinity,
+            decoration: const pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            padding: const pw.EdgeInsets.all(8),
+            margin: const pw.EdgeInsets.only(bottom: 12),
+            child: pw.Text(
+              codeText,
+              style: pw.TextStyle(
+                font: pw.Font.courier(),
+                fontSize: 9,
+                color: PdfColors.grey800,
+              ),
+            ),
+          );
+        case 'hr':
+          return pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(vertical: 16),
+            child: pw.Divider(color: PdfColors.grey300, thickness: 1),
+          );
+        default:
+          if (node.children != null && node.children!.isNotEmpty) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: node.children!
+                  .map((child) => _renderNode(child))
+                  .whereType<pw.Widget>()
+                  .toList(),
+            );
+          }
+      }
+    }
+    return null;
+  }
+
+  pw.Widget _renderHeader(
+      md.Element node, double fontSize, pw.FontWeight fontWeight, double bottomMargin) {
+    return pw.Container(
+      margin: pw.EdgeInsets.only(top: 16, bottom: bottomMargin),
+      child: pw.RichText(
+        text: pw.TextSpan(
+          style: pw.TextStyle(fontSize: fontSize, fontWeight: fontWeight),
+          children: _renderInlineSpans(node.children ?? []),
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _renderListItem(md.Node node, {required bool isOrdered, int? index}) {
+    if (node is! md.Element || node.tag != 'li') {
+      final childWidget = _renderNode(node);
+      return childWidget ?? pw.SizedBox();
+    }
+
+    final childrenSpans = _renderInlineSpans(node.children ?? []);
+
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(left: 12, bottom: 4),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: 16,
+            padding: const pw.EdgeInsets.only(top: 4),
+            child: isOrdered
+                ? pw.Text('$index.', style: const pw.TextStyle(fontSize: 11))
+                : pw.Bullet(),
+          ),
+          pw.Expanded(
+            child: pw.RichText(
+              text: pw.TextSpan(
+                style: const pw.TextStyle(fontSize: 11),
+                children: childrenSpans,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<pw.InlineSpan> _renderInlineSpans(List<md.Node> nodes) {
+    final List<pw.InlineSpan> spans = [];
+    for (final node in nodes) {
+      _renderInlineNode(node, spans, const pw.TextStyle());
+    }
+    return spans;
+  }
+
+  void _renderInlineNode(md.Node node, List<pw.InlineSpan> spans, pw.TextStyle style) {
+    if (node is md.Text) {
+      spans.add(pw.TextSpan(text: node.text, style: style));
+    } else if (node is md.Element) {
+      switch (node.tag) {
+        case 'strong':
+          final newStyle = style.copyWith(fontWeight: pw.FontWeight.bold);
+          for (final child in (node.children ?? [])) {
+            _renderInlineNode(child, spans, newStyle);
+          }
+          break;
+        case 'em':
+          final newStyle = style.copyWith(fontStyle: pw.FontStyle.italic);
+          for (final child in (node.children ?? [])) {
+            _renderInlineNode(child, spans, newStyle);
+          }
+          break;
+        case 'code':
+          final newStyle = style.copyWith(
+            font: pw.Font.courier(),
+            color: PdfColors.red700,
+          );
+          spans.add(pw.TextSpan(text: node.textContent, style: newStyle));
+          break;
+        case 'a':
+          final newStyle = style.copyWith(
+            color: PdfColors.blue,
+            decoration: pw.TextDecoration.underline,
+          );
+          for (final child in (node.children ?? [])) {
+            _renderInlineNode(child, spans, newStyle);
+          }
+          break;
+        default:
+          for (final child in (node.children ?? [])) {
+            _renderInlineNode(child, spans, style);
+          }
+      }
     }
   }
 }
