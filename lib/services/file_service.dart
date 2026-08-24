@@ -3,7 +3,170 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
 
+enum DetectedFileType {
+  pdf,
+  image,
+  text,
+  unknown,
+}
+
 class FileService {
+  /// Safely reads at most [maxBytes] from [filePath] without loading the entire file into memory.
+  Future<List<int>> readFileHeader(String filePath, {int maxBytes = 1024}) async {
+    if (filePath.isEmpty) return [];
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return [];
+      final length = await file.length();
+      if (length == 0) return [];
+
+      final bytesToRead = length < maxBytes ? length : maxBytes;
+      final stream = file.openRead(0, bytesToRead);
+      final builder = <int>[];
+      await for (final chunk in stream) {
+        builder.addAll(chunk);
+        if (builder.length >= bytesToRead) break;
+      }
+      return builder.length > bytesToRead
+          ? builder.sublist(0, bytesToRead)
+          : builder;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Detects the file type based primarily on header magic byte signatures,
+  /// falling back to file extension only if header analysis is inconclusive.
+  Future<DetectedFileType> detectFileType(String filePath) async {
+    if (filePath.isEmpty) return DetectedFileType.unknown;
+
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return DetectedFileType.unknown;
+      final length = await file.length();
+      if (length == 0) return DetectedFileType.unknown;
+
+      final header = await readFileHeader(filePath, maxBytes: 1024);
+      if (header.isEmpty) return DetectedFileType.unknown;
+
+      // 1. PDF Check: '%PDF-' (0x25, 0x50, 0x44, 0x46, 0x2D) anywhere in initial 1024 bytes
+      for (int i = 0; i <= header.length - 5; i++) {
+        if (header[i] == 0x25 &&
+            header[i + 1] == 0x50 &&
+            header[i + 2] == 0x44 &&
+            header[i + 3] == 0x46 &&
+            header[i + 4] == 0x2D) {
+          return DetectedFileType.pdf;
+        }
+      }
+
+      // 2. JPEG Check: 0xFF, 0xD8, 0xFF
+      if (header.length >= 3 &&
+          header[0] == 0xFF &&
+          header[1] == 0xD8 &&
+          header[2] == 0xFF) {
+        return DetectedFileType.image;
+      }
+
+      // 3. PNG Check: 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+      if (header.length >= 8 &&
+          header[0] == 0x89 &&
+          header[1] == 0x50 &&
+          header[2] == 0x4E &&
+          header[3] == 0x47 &&
+          header[4] == 0x0D &&
+          header[5] == 0x0A &&
+          header[6] == 0x1A &&
+          header[7] == 0x0A) {
+        return DetectedFileType.image;
+      }
+
+      // 4. WEBP Check: 'RIFF' at 0..3 and 'WEBP' at 8..11
+      if (header.length >= 12 &&
+          header[0] == 0x52 &&
+          header[1] == 0x49 &&
+          header[2] == 0x46 &&
+          header[3] == 0x46 &&
+          header[8] == 0x57 &&
+          header[9] == 0x45 &&
+          header[10] == 0x42 &&
+          header[11] == 0x50) {
+        return DetectedFileType.image;
+      }
+
+      // 5. GIF Check: 'GIF87a' or 'GIF89a'
+      if (header.length >= 6 &&
+          header[0] == 0x47 &&
+          header[1] == 0x49 &&
+          header[2] == 0x46 &&
+          header[3] == 0x38 &&
+          (header[4] == 0x37 || header[4] == 0x39) &&
+          header[5] == 0x61) {
+        return DetectedFileType.image;
+      }
+
+      // 6. BMP Check: 'BM' (0x42, 0x4D)
+      if (header.length >= 2 && header[0] == 0x42 && header[1] == 0x4D) {
+        return DetectedFileType.image;
+      }
+
+      // 7. Plain Text Check: Header contains no null bytes (0x00)
+      bool hasNull = header.contains(0x00);
+      if (!hasNull) {
+        final ext = getExtension(filePath).toLowerCase();
+        if (ext == '.txt' || ext == '.csv' || ext == '.json' || ext == '.md' || ext == '.log' || ext.isEmpty) {
+          return DetectedFileType.text;
+        }
+      }
+
+      // Fallback check by extension if header signature is non-standard
+      final ext = getExtension(filePath).toLowerCase();
+      if (ext == '.pdf') return DetectedFileType.pdf;
+      if (ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp' || ext == '.gif' || ext == '.bmp') {
+        return DetectedFileType.image;
+      }
+      if (ext == '.txt') return DetectedFileType.text;
+
+      return DetectedFileType.unknown;
+    } catch (_) {
+      return DetectedFileType.unknown;
+    }
+  }
+
+  /// Checks whether [filePath] is an accessible, non-empty file that is a valid PDF document.
+  Future<bool> isPdfFile(String filePath) async {
+    if (!await isFileValidAndAccessible(filePath)) return false;
+    final type = await detectFileType(filePath);
+    return type == DetectedFileType.pdf;
+  }
+
+  /// Checks whether [filePath] is an accessible, non-empty file that is a supported image.
+  Future<bool> isImageFile(String filePath) async {
+    if (!await isFileValidAndAccessible(filePath)) return false;
+    final type = await detectFileType(filePath);
+    return type == DetectedFileType.image;
+  }
+
+  /// Checks whether [filePath] is an accessible, non-empty file that is plain text.
+  Future<bool> isTextFile(String filePath) async {
+    if (!await isFileValidAndAccessible(filePath)) return false;
+    final type = await detectFileType(filePath);
+    return type == DetectedFileType.text;
+  }
+
+  /// Checks if file exists, is accessible, and has size > 0 (not a zero-byte file).
+  Future<bool> isFileValidAndAccessible(String filePath) async {
+    if (filePath.trim().isEmpty) return false;
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return false;
+      final stat = await file.stat();
+      return stat.size > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Picks single PDF file safely
   Future<String?> pickPdfFile() async {
     try {
@@ -14,12 +177,15 @@ class FileService {
 
       if (result != null && result.files.single.path != null) {
         final p = result.files.single.path!;
-        if (await isFileAccessible(p)) {
+        if (await isPdfFile(p)) {
           return p;
+        } else {
+          throw Exception('The selected file is empty, corrupt, missing, or not a valid PDF.');
         }
       }
       return null;
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Failed to pick PDF file: $e');
     }
   }
@@ -40,6 +206,7 @@ class FileService {
       }
       return [];
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Failed to pick PDF files: $e');
     }
   }
@@ -47,7 +214,7 @@ class FileService {
   /// Validates a list of selected file paths:
   /// - Removes duplicates preserving order
   /// - Removes missing or inaccessible files
-  /// - Optional extension filtering
+  /// - Filters zero-byte or corrupt files using magic byte detection
   Future<List<String>> validateSelectedFiles(
     List<String> filePaths, {
     List<String>? allowedExtensions,
@@ -60,19 +227,27 @@ class FileService {
       final normalized = normalizePath(rawPath);
       if (seenNormalized.contains(normalized)) continue;
 
+      if (!await isFileValidAndAccessible(normalized)) continue;
+
       if (allowedExtensions != null && allowedExtensions.isNotEmpty) {
-        final ext =
-            path.extension(normalized).replaceAll('.', '').toLowerCase();
-        final allowed = allowedExtensions
+        final extSet = allowedExtensions
             .map((e) => e.replaceAll('.', '').toLowerCase())
             .toSet();
-        if (!allowed.contains(ext)) continue;
+
+        if (extSet.contains('pdf')) {
+          if (!await isPdfFile(normalized)) continue;
+        } else if (extSet.contains('txt')) {
+          if (!await isTextFile(normalized)) continue;
+        } else if (extSet.any((e) => ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'].contains(e))) {
+          if (!await isImageFile(normalized)) continue;
+        } else {
+          final ext = getExtension(normalized).replaceAll('.', '').toLowerCase();
+          if (!extSet.contains(ext)) continue;
+        }
       }
 
-      if (await isFileAccessible(normalized)) {
-        validPaths.add(normalized);
-        seenNormalized.add(normalized);
-      }
+      validPaths.add(normalized);
+      seenNormalized.add(normalized);
     }
 
     return validPaths;
@@ -88,12 +263,15 @@ class FileService {
 
       if (result != null && result.files.single.path != null) {
         final p = result.files.single.path!;
-        if (await isFileAccessible(p)) {
+        if (await isTextFile(p)) {
           return p;
+        } else {
+          throw Exception('The selected file is empty, missing, or not a valid text file.');
         }
       }
       return null;
     } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Failed to pick text file: $e');
     }
   }

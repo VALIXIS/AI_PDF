@@ -227,10 +227,10 @@ void main() {
           await Directory.systemTemp.createTemp('validate_files_test_');
       try {
         final f1 = File('${tempDir.path}/valid1.pdf');
-        await f1.writeAsString('pdf 1');
+        await f1.writeAsString('%PDF-1.4 pdf 1');
 
         final f2 = File('${tempDir.path}/valid2.pdf');
-        await f2.writeAsString('pdf 2');
+        await f2.writeAsString('%PDF-1.4 pdf 2');
 
         final pathsToValidate = [
           f1.path,

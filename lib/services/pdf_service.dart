@@ -161,20 +161,23 @@ class PdfService {
 
   /// Gets the total page count of a PDF file
   Future<int> getPdfPageCount(String pdfPath) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
-      throw Exception('File not found: $pdfPath');
+    final fs = FileService();
+    if (!await fs.isFileAccessible(pdfPath)) {
+      throw PdfServiceException('File not found: $pdfPath',
+          code: 'PDF_INPUT_NOT_FOUND');
     }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw Exception('File is empty: $pdfPath');
+    if (!await fs.isPdfFile(pdfPath)) {
+      throw PdfServiceException('File is empty, corrupt, or not a valid PDF: $pdfPath',
+          code: 'PDF_CORRUPT_OR_INVALID');
     }
+    final bytes = await File(pdfPath).readAsBytes();
     syncfusion.PdfDocument? document;
     try {
       document = syncfusion.PdfDocument(inputBytes: bytes);
       return document.pages.count;
     } catch (e) {
-      throw Exception('Failed to read PDF page count: $e');
+      throw PdfServiceException('Failed to read PDF page count: $e',
+          code: 'PDF_CORRUPT_OR_INVALID', details: e);
     } finally {
       document?.dispose();
     }
@@ -184,7 +187,20 @@ class PdfService {
   Future<String> mergePdfs(List<String> pdfPaths,
       {String? customOutputPath}) async {
     if (pdfPaths.isEmpty) {
-      throw Exception('No PDF files selected to merge.');
+      throw PdfServiceException('No PDF files selected to merge.',
+          code: 'PDF_MERGE_EMPTY_SELECTION');
+    }
+
+    final fs = FileService();
+    for (final filePath in pdfPaths) {
+      if (!await fs.isFileAccessible(filePath)) {
+        throw PdfServiceException('File not found: $filePath',
+            code: 'PDF_INPUT_NOT_FOUND');
+      }
+      if (!await fs.isPdfFile(filePath)) {
+        throw PdfServiceException('File is empty, corrupt, or not a valid PDF: $filePath',
+            code: 'PDF_CORRUPT_OR_INVALID');
+      }
     }
 
     syncfusion.PdfDocument? outputDocument;
@@ -193,14 +209,7 @@ class PdfService {
       outputDocument = syncfusion.PdfDocument();
 
       for (final filePath in pdfPaths) {
-        final file = File(filePath);
-        if (!await file.exists()) {
-          throw Exception('File not found: $filePath');
-        }
-        final bytes = await file.readAsBytes();
-        if (bytes.isEmpty) {
-          throw Exception('File is empty: $filePath');
-        }
+        final bytes = await File(filePath).readAsBytes();
 
         final syncfusion.PdfDocument sourceDocument =
             syncfusion.PdfDocument(inputBytes: bytes);
@@ -208,7 +217,8 @@ class PdfService {
 
         final int pageCount = sourceDocument.pages.count;
         if (pageCount == 0) {
-          throw Exception('Source PDF contains no pages: $filePath');
+          throw PdfServiceException('Source PDF contains no pages: $filePath',
+              code: 'PDF_EMPTY_PAGES');
         }
 
         for (int i = 0; i < pageCount; i++) {
@@ -243,9 +253,16 @@ class PdfService {
         extension: 'pdf',
       );
       final targetPath = path.join(dirPath, fileName);
-      return await FileService().safeWriteBytes(targetPath, mergedBytes);
+      final resultPath = await FileService().safeWriteBytes(targetPath, mergedBytes);
+
+      if (!await fs.isFileValidAndAccessible(resultPath)) {
+        throw PdfServiceException('Failed to generate valid merged PDF output.',
+            code: 'PDF_MERGE_OUTPUT_INVALID');
+      }
+      return resultPath;
     } catch (e) {
-      throw Exception('Failed to merge PDFs: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to merge PDFs: $e', details: e);
     } finally {
       for (final doc in openedDocuments) {
         doc.dispose();
@@ -261,14 +278,16 @@ class PdfService {
     required int endPage,
     String? customOutputPath,
   }) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
-      throw Exception('File not found: $pdfPath');
+    final fs = FileService();
+    if (!await fs.isFileAccessible(pdfPath)) {
+      throw PdfServiceException('File not found: $pdfPath',
+          code: 'PDF_INPUT_NOT_FOUND');
     }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw Exception('File is empty: $pdfPath');
+    if (!await fs.isPdfFile(pdfPath)) {
+      throw PdfServiceException('File is empty, corrupt, or not a valid PDF: $pdfPath',
+          code: 'PDF_CORRUPT_OR_INVALID');
     }
+    final bytes = await File(pdfPath).readAsBytes();
 
     syncfusion.PdfDocument? sourceDocument;
     syncfusion.PdfDocument? outputDocument;
@@ -277,18 +296,22 @@ class PdfService {
       final int totalPages = sourceDocument.pages.count;
 
       if (totalPages == 0) {
-        throw Exception('Source PDF contains no pages.');
+        throw PdfServiceException('Source PDF contains no pages.',
+            code: 'PDF_EMPTY_PAGES');
       }
       if (startPage < 1) {
-        throw Exception('Start page must be at least 1 (got $startPage).');
+        throw PdfServiceException('Start page must be at least 1 (got $startPage).',
+            code: 'PDF_INVALID_PAGE_RANGE');
       }
       if (endPage > totalPages) {
-        throw Exception(
-            'End page ($endPage) exceeds total pages in document ($totalPages).');
+        throw PdfServiceException(
+            'End page ($endPage) exceeds total pages in document ($totalPages).',
+            code: 'PDF_INVALID_PAGE_RANGE');
       }
       if (startPage > endPage) {
-        throw Exception(
-            'Start page ($startPage) cannot be greater than end page ($endPage).');
+        throw PdfServiceException(
+            'Start page ($startPage) cannot be greater than end page ($endPage).',
+            code: 'PDF_INVALID_PAGE_RANGE');
       }
 
       outputDocument = syncfusion.PdfDocument();
@@ -322,9 +345,16 @@ class PdfService {
         extension: 'pdf',
       );
       final targetPath = path.join(dirPath, fileName);
-      return await FileService().safeWriteBytes(targetPath, outputBytes);
+      final resultPath = await FileService().safeWriteBytes(targetPath, outputBytes);
+
+      if (!await fs.isFileValidAndAccessible(resultPath)) {
+        throw PdfServiceException('Failed to generate valid split PDF output.',
+            code: 'PDF_SPLIT_OUTPUT_INVALID');
+      }
+      return resultPath;
     } catch (e) {
-      throw Exception('Failed to split PDF: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to split PDF: $e', details: e);
     } finally {
       sourceDocument?.dispose();
       outputDocument?.dispose();
@@ -337,15 +367,17 @@ class PdfService {
     String? customOutputPath,
     String compressionLevel = 'medium',
   }) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
+    final fs = FileService();
+    if (!await fs.isFileAccessible(pdfPath)) {
       throw PdfServiceException(
-          'Input file not found for compression: $pdfPath');
+          'Input file not found for compression: $pdfPath',
+          code: 'PDF_INPUT_NOT_FOUND');
     }
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
-      throw PdfServiceException('Input PDF file is empty: $pdfPath');
+    if (!await fs.isPdfFile(pdfPath)) {
+      throw PdfServiceException('Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
+          code: 'PDF_CORRUPT_OR_INVALID');
     }
+    final bytes = await File(pdfPath).readAsBytes();
 
     syncfusion.PdfDocument? sourceDoc;
     syncfusion.PdfDocument? outputDoc;
@@ -396,7 +428,13 @@ class PdfService {
         extension: 'pdf',
       );
       final targetPath = path.join(dirPath, fileName);
-      return await FileService().safeWriteBytes(targetPath, outputBytes);
+      final resultPath = await FileService().safeWriteBytes(targetPath, outputBytes);
+
+      if (!await fs.isFileValidAndAccessible(resultPath)) {
+        throw PdfServiceException('Failed to generate valid compressed PDF output.',
+            code: 'PDF_COMPRESS_OUTPUT_INVALID');
+      }
+      return resultPath;
     } catch (e) {
       if (e is PdfServiceException) rethrow;
       throw PdfServiceException('Failed to compress PDF: $e', details: e);
@@ -412,16 +450,18 @@ class PdfService {
     required int rotationAngle,
     String? customOutputPath,
   }) async {
+    final fs = FileService();
     try {
-      final file = File(pdfPath);
-      if (!await file.exists()) {
-        throw Exception('Input file does not exist');
+      if (!await fs.isFileAccessible(pdfPath)) {
+        throw PdfServiceException('Input file does not exist: $pdfPath',
+            code: 'PDF_INPUT_NOT_FOUND');
+      }
+      if (!await fs.isPdfFile(pdfPath)) {
+        throw PdfServiceException('Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
+            code: 'PDF_CORRUPT_OR_INVALID');
       }
 
-      final bytes = await file.readAsBytes();
-      if (bytes.isEmpty) {
-        throw Exception('Input PDF file is empty');
-      }
+      final bytes = await File(pdfPath).readAsBytes();
 
       // Load existing document
       final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
@@ -477,12 +517,18 @@ class PdfService {
         );
         final targetPath = path.join(dirPath, fileName);
 
-        return await FileService().safeWriteBytes(targetPath, outputBytes);
+        final resultPath = await FileService().safeWriteBytes(targetPath, outputBytes);
+        if (!await fs.isFileValidAndAccessible(resultPath)) {
+          throw PdfServiceException('Failed to generate valid rotated PDF output.',
+              code: 'PDF_ROTATE_OUTPUT_INVALID');
+        }
+        return resultPath;
       } finally {
         document.dispose();
       }
     } catch (e) {
-      throw Exception('Failed to rotate PDF: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to rotate PDF: $e', details: e);
     }
   }
 

@@ -89,19 +89,18 @@ class AiActionDispatcher {
     required List<String> pdfPaths,
     required String command,
   }) async {
-    final nonPdfs = pdfPaths
-        .where((path) => path.split('.').last.toLowerCase() != 'pdf')
-        .toList();
-    if (nonPdfs.isNotEmpty) {
-      final types = nonPdfs
-          .map((path) => path.split('.').last.toUpperCase())
-          .toSet()
-          .join('/');
+    final invalidPdfs = <String>[];
+    for (final path in pdfPaths) {
+      if (!await FileService().isPdfFile(path)) {
+        invalidPdfs.add(path);
+      }
+    }
+    if (invalidPdfs.isNotEmpty) {
       return AiActionResult(
         type: AiActionType.merge,
         isSuccess: false,
         message:
-            'These files are $types documents, not PDFs. PDF merging requires PDF files. Would you like me to compare or summarize these documents instead?',
+            'One or more selected files are missing, empty, corrupt, or not valid PDF files.',
       );
     }
 
@@ -155,14 +154,12 @@ class AiActionDispatcher {
       );
     }
 
-    final extension = pdfPath.split('.').last.toLowerCase();
-    if (extension != 'pdf') {
-      final typeLabel = extension.toUpperCase();
+    if (!await FileService().isPdfFile(pdfPath)) {
       return AiActionResult(
         type: actionType,
         isSuccess: false,
         message:
-            'This file is a $typeLabel document, not a PDF. PDF operations require PDF files. Would you like me to compare or summarize this document instead?',
+            'This file is missing, empty, corrupt, or not a valid PDF document. PDF operations require valid PDF files.',
       );
     }
 

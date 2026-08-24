@@ -200,7 +200,7 @@ class StorageService {
   Future<bool> isEntryFileAccessible(HistoryEntry entry) async {
     try {
       if (entry.filePath.isEmpty) return false;
-      return await FileService().isFileAccessible(entry.filePath);
+      return await FileService().isFileValidAndAccessible(entry.filePath);
     } catch (e) {
       return false;
     }

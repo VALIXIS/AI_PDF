@@ -31,8 +31,20 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
       final picked = await ImagePicker().pickMultiImage(imageQuality: 90);
       if (!mounted) return;
       if (picked.isNotEmpty) {
+        final validImages = <File>[];
+        for (final x in picked) {
+          if (await FileService().isImageFile(x.path)) {
+            validImages.add(File(x.path));
+          }
+        }
+        if (validImages.isEmpty) {
+          setState(() {
+            _errorMessage = 'Selected image file(s) are empty, corrupt, or invalid.';
+          });
+          return;
+        }
         setState(() {
-          _images.addAll(picked.map((x) => File(x.path)));
+          _images.addAll(validImages);
           _errorMessage = null;
           _successPath = null;
         });
@@ -62,8 +74,16 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
     try {
       final pdf = pw.Document();
       for (final f in _images) {
+        if (!await FileService().isImageFile(f.path)) {
+          throw Exception('Image file is missing, empty, corrupt, or invalid: ${FileService().getFileName(f.path)}');
+        }
         final bytes = await f.readAsBytes();
-        final img = pw.MemoryImage(bytes);
+        pw.MemoryImage img;
+        try {
+          img = pw.MemoryImage(bytes);
+        } catch (e) {
+          throw Exception('Corrupt image format: ${FileService().getFileName(f.path)}');
+        }
         pdf.addPage(pw.Page(
           pageFormat: _pageFormat,
           margin: _fitPage ? pw.EdgeInsets.zero : const pw.EdgeInsets.all(20),
