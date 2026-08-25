@@ -69,8 +69,21 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       if (!mounted) return;
       setState(() => _isCapturing = false);
       if (picked.isNotEmpty) {
+        final validPages = <File>[];
+        for (final x in picked) {
+          if (await FileService().isImageFile(x.path)) {
+            validPages.add(File(x.path));
+          }
+        }
+        if (validPages.isEmpty) {
+          setState(() {
+            _errorMessage =
+                'Selected file(s) are not valid image formats. Only JPG, PNG, WEBP, GIF, and BMP are supported.';
+          });
+          return;
+        }
         setState(() {
-          _pages.addAll(picked.map((x) => File(x.path)));
+          _pages.addAll(validPages);
           _errorMessage = null;
           _successPath = null;
         });
@@ -97,6 +110,12 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       if (!mounted) return;
       setState(() => _isCapturing = false);
       if (photo != null) {
+        if (!await FileService().isImageFile(photo.path)) {
+          setState(() {
+            _errorMessage = 'Captured file is not a valid image.';
+          });
+          return;
+        }
         setState(() {
           _pages.add(File(photo.path));
           _errorMessage = null;
