@@ -46,6 +46,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
   }
 
   Future<void> _pickPdf() async {
+    if (_isLoading) return;
     setState(() {
       _errorMessage = null;
       _successImagePaths = null;
@@ -53,8 +54,29 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
 
     try {
       final path = await _fileService.pickPdfFile();
+      if (!mounted) return;
       if (path != null) {
+        final ext = _fileService.getExtension(path).toLowerCase();
+        if (ext == '.doc' || ext == '.docx') {
+          setState(() {
+            _selectedFile = null;
+            _errorMessage =
+                'Word documents ($ext) are not supported for image conversion. Please select a valid PDF (.pdf) file.';
+          });
+          return;
+        }
+
+        if (!await _fileService.isPdfFile(path)) {
+          setState(() {
+            _selectedFile = null;
+            _errorMessage =
+                'Selected file is not a valid PDF document. Please select a valid .pdf file.';
+          });
+          return;
+        }
+
         final pages = await _pdfService.getPdfPageCount(path);
+        if (!mounted) return;
         setState(() {
           _selectedFile = path;
           _totalPages = pages;
@@ -62,9 +84,11 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
           _endPage = pages;
           _startController.text = '1';
           _endController.text = pages.toString();
+          _errorMessage = null;
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = 'Failed to inspect PDF: $e';
       });

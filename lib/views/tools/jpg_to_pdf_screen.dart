@@ -27,26 +27,35 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
   bool _fitPage = true;
 
   Future<void> _pickImages() async {
+    if (_isLoading) return;
     try {
       final picked = await ImagePicker().pickMultiImage(imageQuality: 90);
       if (!mounted) return;
       if (picked.isNotEmpty) {
         final validImages = <File>[];
+        int unsupportedCount = 0;
         for (final x in picked) {
           if (await FileService().isImageFile(x.path)) {
             validImages.add(File(x.path));
+          } else {
+            unsupportedCount++;
           }
         }
         if (validImages.isEmpty) {
           setState(() {
             _errorMessage =
-                'Selected image file(s) are empty, corrupt, or invalid.';
+                'Selected file(s) are unsupported, corrupt, or empty. Only valid image files (JPG, PNG, WEBP, GIF, BMP) are supported.';
           });
           return;
         }
         setState(() {
           _images.addAll(validImages);
-          _errorMessage = null;
+          if (unsupportedCount > 0) {
+            _errorMessage =
+                '$unsupportedCount unsupported file(s) were skipped. Added ${validImages.length} valid image(s).';
+          } else {
+            _errorMessage = null;
+          }
           _successPath = null;
         });
       }
@@ -135,7 +144,7 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
     final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('JPG / Images to PDF')),
+      appBar: AppBar(title: const Text('Images to PDF')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -181,47 +190,50 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                   .titleSmall
                   ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: border)),
-            child: Column(children: [
-              Row(children: [
-                const Text('Page size',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                const Spacer(),
-                DropdownButton<PdfPageFormat>(
-                  value: _pageFormat,
-                  underline: const SizedBox(),
-                  items: const [
-                    DropdownMenuItem(
-                        value: PdfPageFormat.a4, child: Text('A4')),
-                    DropdownMenuItem(
-                        value: PdfPageFormat.letter, child: Text('Letter')),
-                    DropdownMenuItem(
-                        value: PdfPageFormat.a3, child: Text('A3')),
-                  ],
-                  onChanged: _isLoading
-                      ? null
-                      : (v) {
-                          if (v != null) setState(() => _pageFormat = v);
-                        },
+          Material(
+            color: bg,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: BorderSide(color: border),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(children: [
+                Row(children: [
+                  const Text('Page size',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  DropdownButton<PdfPageFormat>(
+                    value: _pageFormat,
+                    underline: const SizedBox(),
+                    items: const [
+                      DropdownMenuItem(
+                          value: PdfPageFormat.a4, child: Text('A4')),
+                      DropdownMenuItem(
+                          value: PdfPageFormat.letter, child: Text('Letter')),
+                      DropdownMenuItem(
+                          value: PdfPageFormat.a3, child: Text('A3')),
+                    ],
+                    onChanged: _isLoading
+                        ? null
+                        : (v) {
+                            if (v != null) setState(() => _pageFormat = v);
+                          },
+                  ),
+                ]),
+                const Divider(),
+                SwitchListTile.adaptive(
+                  title: const Text('Fit to page',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Scale image to fill page'),
+                  value: _fitPage,
+                  activeThumbColor: primary,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged:
+                      _isLoading ? null : (v) => setState(() => _fitPage = v),
                 ),
               ]),
-              const Divider(),
-              SwitchListTile.adaptive(
-                title: const Text('Fit to page',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Scale image to fill page'),
-                value: _fitPage,
-                activeThumbColor: primary,
-                contentPadding: EdgeInsets.zero,
-                onChanged:
-                    _isLoading ? null : (v) => setState(() => _fitPage = v),
-              ),
-            ]),
+            ),
           ),
           const SizedBox(height: 20),
 
