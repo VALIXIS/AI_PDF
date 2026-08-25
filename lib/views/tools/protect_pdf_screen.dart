@@ -107,28 +107,38 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
             ])),
       ));
       final dir = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(
-          dir.path, 'protected_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      await File(path).writeAsBytes(await pdf.save());
+      final baseName = FileService().getFileName(_pdfFile!.path);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'protected',
+        extension: 'pdf',
+      );
+      final targetPath = FileService().joinPaths(dir.path, fileName);
+      final pdfBytes = await pdf.save();
+      final savedPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
+
+      if (!await FileService().isPdfFile(savedPath)) {
+        throw Exception('Generated protected PDF is invalid or empty.');
+      }
 
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Protected PDF',
         date: DateTime.now(),
-        filePath: path,
+        filePath: savedPath,
         toolType: 'protect_pdf',
       ));
 
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _successPath = path;
+        _successPath = savedPath;
         _passCtrl.clear();
         _confirmCtrl.clear();
       });
 
       if (mounted) {
-        ShareService.showSaveShareDialog(context, path);
+        ShareService.showSaveShareDialog(context, savedPath);
       }
     } catch (e) {
       if (!mounted) return;

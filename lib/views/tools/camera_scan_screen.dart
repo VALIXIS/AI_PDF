@@ -137,26 +137,35 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         ));
       }
       final dir = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(
-          dir.path, 'scan_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      await File(path).writeAsBytes(await pdf.save());
+      final fileName = FileService().formatOutputFileName(
+        baseName: 'scan',
+        suffix: '${DateTime.now().millisecondsSinceEpoch}',
+        extension: 'pdf',
+      );
+      final targetPath = FileService().joinPaths(dir.path, fileName);
+      final pdfBytes = await pdf.save();
+      final savedPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
+
+      if (!await FileService().isPdfFile(savedPath)) {
+        throw Exception('Generated scanner PDF file is invalid or unreadable.');
+      }
 
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Scan (${_pages.length} pages)',
         date: DateTime.now(),
-        filePath: path,
+        filePath: savedPath,
         toolType: 'scan_to_pdf',
       ));
 
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _successPath = path;
+        _successPath = savedPath;
       });
 
       if (mounted) {
-        ShareService.showSaveShareDialog(context, path);
+        ShareService.showSaveShareDialog(context, savedPath);
       }
     } catch (e) {
       if (!mounted) return;

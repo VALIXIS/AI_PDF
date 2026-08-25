@@ -26,6 +26,20 @@ class ShareService {
       builder: (ctx) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final bg = isDark ? const Color(0xFF14141E) : Colors.white;
+        final ext = FileService().getExtension(path).toLowerCase();
+        String titleText = 'Document Ready!';
+        String shareText = 'Here is my document file.';
+        if (ext == '.pdf') {
+          titleText = 'PDF Ready!';
+          shareText = 'Here is my PDF file.';
+        } else if (ext == '.txt' || ext == '.md') {
+          titleText = 'Text File Ready!';
+          shareText = 'Here is my text document.';
+        } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'].contains(ext)) {
+          titleText = 'Image Ready!';
+          shareText = 'Here is my image file.';
+        }
+
         return Container(
           decoration: BoxDecoration(
               color: bg,
@@ -44,9 +58,9 @@ class ShareService {
                           color: Colors.grey.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(2))),
                   const SizedBox(height: 20),
-                  const Text('PDF Ready!',
+                  Text(titleText,
                       style:
-                          TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                          const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
                   Text('Where would you like to save it?',
                       style: TextStyle(
@@ -60,7 +74,7 @@ class ShareService {
                       try {
                         if (await FileService().isFileAccessible(path)) {
                           await Share.shareXFiles([XFile(path)],
-                              text: 'Here is my PDF file.');
+                              text: shareText);
                         } else if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(

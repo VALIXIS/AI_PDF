@@ -9,6 +9,7 @@ import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
@@ -73,32 +74,12 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
     });
 
     try {
-      final pdf = pw.Document();
-      for (final f in _images) {
-        if (!await FileService().isImageFile(f.path)) {
-          throw Exception(
-              'Image file is missing, empty, corrupt, or invalid: ${FileService().getFileName(f.path)}');
-        }
-        final bytes = await f.readAsBytes();
-        pw.MemoryImage img;
-        try {
-          img = pw.MemoryImage(bytes);
-        } catch (e) {
-          throw Exception(
-              'Corrupt image format: ${FileService().getFileName(f.path)}');
-        }
-        pdf.addPage(pw.Page(
-          pageFormat: _pageFormat,
-          margin: _fitPage ? pw.EdgeInsets.zero : const pw.EdgeInsets.all(20),
-          build: (_) => _fitPage
-              ? pw.Image(img, fit: pw.BoxFit.contain)
-              : pw.Center(child: pw.Image(img, fit: pw.BoxFit.contain)),
-        ));
-      }
-      final dir = await getApplicationDocumentsDirectory();
-      final path = FileService().joinPaths(
-          dir.path, 'images_${DateTime.now().millisecondsSinceEpoch}.pdf');
-      await File(path).writeAsBytes(await pdf.save());
+      final imagePaths = _images.map((f) => f.path).toList();
+      final path = await PdfService().convertImagesToPdf(
+        imagePaths: imagePaths,
+        pageFormat: _pageFormat,
+        fitPage: _fitPage,
+      );
 
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
@@ -120,7 +101,7 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('PdfServiceException: ', '');
         _isLoading = false;
       });
     }
