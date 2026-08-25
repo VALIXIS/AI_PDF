@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/share_service.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -143,7 +147,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
         onTap: () {
-          _showEntryOptions(context, entry);
+          _openEntry(entry);
         },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
@@ -252,13 +256,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               PopupMenuButton<String>(
                 onSelected: (value) {
-                  if (value == 'delete') {
+                  if (value == 'open') {
+                    _openEntry(entry);
+                  } else if (value == 'delete') {
                     _deleteEntry(entry);
                   } else if (value == 'share') {
                     _shareEntry(entry);
+                  } else if (value == 'info') {
+                    _showEntryOptions(context, entry);
                   }
                 },
                 itemBuilder: (BuildContext context) => [
+                  const PopupMenuItem(
+                    value: 'open',
+                    child: Row(
+                      children: [
+                        Icon(Icons.open_in_new, size: 20),
+                        SizedBox(width: 12),
+                        Text('Open'),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem(
                     value: 'share',
                     child: Row(
@@ -266,6 +284,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Icon(Icons.share, size: 20),
                         SizedBox(width: 12),
                         Text('Share'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'info',
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 20),
+                        SizedBox(width: 12),
+                        Text('Details'),
                       ],
                     ),
                   ),
@@ -286,6 +314,91 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _openEntry(HistoryEntry entry) async {
+    final accessible = await _storageService.isEntryFileAccessible(entry);
+    if (!accessible) {
+      if (mounted) {
+        setState(() {
+          _inaccessibleEntryIds.add(entry.id);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File no longer exists on device: ${entry.filePath}'),
+            backgroundColor: Colors.orange,
+            action: SnackBarAction(
+              label: 'Remove',
+              textColor: Colors.white,
+              onPressed: () => _deleteEntry(entry),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final ext = FileService().getExtension(entry.filePath).toLowerCase();
+    if (ext == '.pdf') {
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PdfEditorScreen(initialFilePath: entry.filePath),
+        ),
+      );
+    } else if (ext == '.txt' || ext == '.md') {
+      try {
+        final content = await File(entry.filePath).readAsString();
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(entry.title),
+            content: SingleChildScrollView(
+              child: SelectableText(content),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not read text file: $e')),
+        );
+      }
+    } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'].contains(ext)) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                title: Text(entry.title),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              InteractiveViewer(
+                child: Image.file(File(entry.filePath)),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      if (!mounted) return;
+      ShareService.showSaveShareDialog(context, entry.filePath);
+    }
   }
 
   void _showEntryOptions(BuildContext context, HistoryEntry entry) {
@@ -332,6 +445,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Row(
               children: [
                 Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _openEntry(entry);
+                    },
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Open'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
@@ -341,16 +465,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     label: const Text('Share'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _deleteEntry(entry);
-                    },
-                    icon: const Icon(Icons.delete),
-                    label: const Text('Delete'),
-                  ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _deleteEntry(entry);
+                  },
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  tooltip: 'Delete',
                 ),
               ],
             ),

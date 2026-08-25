@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
@@ -396,14 +397,9 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
     }
   }
 
-  void _shareTxtFile() {
-    if (_txtPath != null) {
-      SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(_txtPath!)],
-          text: 'Here is the extracted text file.',
-        ),
-      );
+  void _shareTxtFile() async {
+    if (_txtPath != null && mounted) {
+      ShareService.showSaveShareDialog(context, _txtPath!);
     }
   }
 }

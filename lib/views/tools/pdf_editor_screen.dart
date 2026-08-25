@@ -14,7 +14,8 @@ import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class PdfEditorScreen extends StatefulWidget {
-  const PdfEditorScreen({Key? key}) : super(key: key);
+  final String? initialFilePath;
+  const PdfEditorScreen({Key? key, this.initialFilePath}) : super(key: key);
   @override
   State<PdfEditorScreen> createState() => _PdfEditorScreenState();
 }
@@ -35,6 +36,53 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   final _textEditCtrl = TextEditingController();
   String? _errorMessage;
   String? _successPath;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialFilePath != null && widget.initialFilePath!.isNotEmpty) {
+      _loadInitialFile(widget.initialFilePath!);
+    }
+  }
+
+  Future<void> _loadInitialFile(String path) async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+    try {
+      if (!await FileService().isFileAccessible(path)) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _errorMessage = 'Selected file does not exist or is inaccessible';
+        });
+        return;
+      }
+      final file = File(path);
+      final doc = await pdfx.PdfDocument.openFile(file.path);
+      final pdfCtrl = pdfx.PdfController(
+        document: pdfx.PdfDocument.openFile(file.path),
+        initialPage: 1,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pdfFile = file;
+        _document = doc;
+        _pdfController = pdfCtrl;
+        _pageCount = doc.pagesCount;
+        _currentPage = 0;
+        _loading = false;
+        _errorMessage = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Could not open PDF: $e';
+      });
+    }
+  }
 
   @override
   void dispose() {
