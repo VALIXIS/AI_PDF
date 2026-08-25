@@ -111,7 +111,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
     try {
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'docx', 'txt'],
+        allowedExtensions: ['pdf', 'docx', 'txt', 'md', 'markdown', 'html', 'htm'],
         allowMultiple: true,
       );
       if (result == null || result.files.isEmpty) return;

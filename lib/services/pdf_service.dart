@@ -1174,6 +1174,117 @@ class PdfService {
           code: 'MARKDOWN_TO_PDF_FAILURE', details: e);
     }
   }
+
+  /// Converts an HTML file to a styled PDF file
+  Future<String> convertHtmlToPdf({
+    required String htmlPath,
+    required String title,
+    String? customOutputPath,
+  }) async {
+    final file = File(htmlPath);
+    if (!await file.exists()) {
+      throw PdfServiceException('Input HTML file not found: $htmlPath',
+          code: 'HTML_TO_PDF_INPUT_NOT_FOUND');
+    }
+
+    final content = await file.readAsString(encoding: utf8);
+    if (content.trim().isEmpty) {
+      throw PdfServiceException('Input HTML file is empty',
+          code: 'HTML_TO_PDF_INPUT_EMPTY');
+    }
+
+    try {
+      final pdf = pw.Document();
+
+      // Render HTML elements to PDF widgets
+      final renderer = HtmlPdfRenderer();
+      final widgets = renderer.render(content);
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              // Document Title Header
+              pw.Container(
+                padding: const pw.EdgeInsets.only(bottom: 12),
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(
+                      bottom:
+                          pw.BorderSide(color: PdfColors.grey300, width: 1)),
+                ),
+                margin: const pw.EdgeInsets.only(bottom: 20),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      title,
+                      style: pw.TextStyle(
+                        fontSize: 22,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                    pw.Text(
+                      'Generated: ${DateTime.now().toString().split(' ')[0]}',
+                      style: const pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...widgets,
+            ];
+          },
+        ),
+      );
+
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName =
+          'html_converted_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final targetPath = path.join(dirPath, fileName);
+      final pdfBytes = await pdf.save();
+
+      final resultPath =
+          await FileService().safeWriteBytes(targetPath, pdfBytes);
+
+      // Validate output
+      final outputFile = File(resultPath);
+      if (!await outputFile.exists()) {
+        throw PdfServiceException('Failed to create PDF output file',
+            code: 'HTML_TO_PDF_OUTPUT_NOT_FOUND');
+      }
+      if (await outputFile.length() == 0) {
+        throw PdfServiceException('Generated PDF file is empty',
+            code: 'HTML_TO_PDF_OUTPUT_EMPTY');
+      }
+
+      // Verify the generated PDF can be reopened/read
+      syncfusion.PdfDocument? testDoc;
+      try {
+        testDoc = syncfusion.PdfDocument(inputBytes: pdfBytes);
+        if (testDoc.pages.count == 0) {
+          throw Exception('Generated PDF contains no pages');
+        }
+      } catch (e) {
+        throw PdfServiceException('Generated PDF is corrupt or invalid: $e',
+            code: 'HTML_TO_PDF_INVALID_OUTPUT', details: e);
+      } finally {
+        testDoc?.dispose();
+      }
+
+      return resultPath;
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to convert HTML to PDF: $e',
+          code: 'HTML_TO_PDF_FAILURE', details: e);
+    }
+  }
 }
 
 class MarkdownPdfRenderer {
@@ -1383,5 +1494,253 @@ class MarkdownPdfRenderer {
           }
       }
     }
+  }
+}
+
+class HtmlPdfRenderer {
+  List<pw.Widget> render(String htmlContent) {
+    final List<pw.Widget> widgets = [];
+    
+    // Preprocess: strip comments and document structural wrappers
+    var sanitized = htmlContent.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+    sanitized = sanitized.replaceAll(RegExp(r'<style[^>]*>.*?<\/style>', caseSensitive: false, dotAll: true), '');
+    sanitized = sanitized.replaceAll(RegExp(r'<script[^>]*>.*?<\/script>', caseSensitive: false, dotAll: true), '');
+    sanitized = sanitized.replaceAll(RegExp(r'<head[^>]*>.*?<\/head>', caseSensitive: false, dotAll: true), '');
+    sanitized = sanitized.replaceAll(RegExp(r'<\/?(html|body|doctype)[^>]*>', caseSensitive: false), '');
+    
+    final regExp = RegExp(
+      r'<(h1|h2|h3|h4|h5|h6|p|ul|ol|blockquote|pre|hr)([^>]*)>(.*?)<\/\1>',
+      caseSensitive: false,
+      dotAll: true,
+    );
+    
+    final matches = regExp.allMatches(sanitized);
+    if (matches.isEmpty) {
+      final lines = sanitized.split('\n');
+      for (final line in lines) {
+        if (line.trim().isNotEmpty) {
+          widgets.add(pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 8),
+            child: pw.RichText(
+              text: pw.TextSpan(
+                style: const pw.TextStyle(fontSize: 11, lineSpacing: 2),
+                text: line.trim(),
+              ),
+            ),
+          ));
+        }
+      }
+      return widgets;
+    }
+
+    for (final match in matches) {
+      final tag = match.group(1)!.toLowerCase();
+      final content = match.group(3)!;
+      
+      switch (tag) {
+        case 'h1':
+          widgets.add(_renderHeader(content, 24, pw.FontWeight.bold, 16));
+          break;
+        case 'h2':
+          widgets.add(_renderHeader(content, 18, pw.FontWeight.bold, 12));
+          break;
+        case 'h3':
+          widgets.add(_renderHeader(content, 14, pw.FontWeight.bold, 10));
+          break;
+        case 'h4':
+        case 'h5':
+        case 'h6':
+          widgets.add(_renderHeader(content, 12, pw.FontWeight.bold, 8));
+          break;
+        case 'p':
+          widgets.add(pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 8),
+            child: pw.RichText(
+              text: pw.TextSpan(
+                style: const pw.TextStyle(fontSize: 11, lineSpacing: 2),
+                children: _renderInlineSpans(content),
+              ),
+            ),
+          ));
+          break;
+        case 'ul':
+          widgets.add(pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: _parseListItems(content, isOrdered: false),
+          ));
+          break;
+        case 'ol':
+          widgets.add(pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: _parseListItems(content, isOrdered: true),
+          ));
+          break;
+        case 'blockquote':
+          widgets.add(pw.Container(
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(left: pw.BorderSide(color: PdfColors.grey400, width: 3)),
+            ),
+            padding: const pw.EdgeInsets.only(left: 12, top: 4, bottom: 4),
+            margin: const pw.EdgeInsets.only(bottom: 12, top: 4),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: HtmlPdfRenderer().render(content),
+            ),
+          ));
+          break;
+        case 'pre':
+          var codeText = content;
+          if (codeText.toLowerCase().contains('<code')) {
+            final codeMatch = RegExp(r'<code[^>]*>(.*?)<\/code>', caseSensitive: false, dotAll: true).firstMatch(codeText);
+            if (codeMatch != null) {
+              codeText = codeMatch.group(1)!;
+            }
+          }
+          widgets.add(pw.Container(
+            width: double.infinity,
+            decoration: const pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+            ),
+            padding: const pw.EdgeInsets.all(8),
+            margin: const pw.EdgeInsets.only(bottom: 12),
+            child: pw.Text(
+              codeText.trim(),
+              style: pw.TextStyle(
+                font: pw.Font.courier(),
+                fontSize: 9,
+                color: PdfColors.grey800,
+              ),
+            ),
+          ));
+          break;
+        case 'hr':
+          widgets.add(pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(vertical: 16),
+            child: pw.Divider(color: PdfColors.grey300, thickness: 1),
+          ));
+          break;
+      }
+    }
+    
+    return widgets;
+  }
+
+  pw.Widget _renderHeader(String innerHtml, double fontSize, pw.FontWeight fontWeight, double bottomMargin) {
+    return pw.Container(
+      margin: pw.EdgeInsets.only(top: 16, bottom: bottomMargin),
+      child: pw.RichText(
+        text: pw.TextSpan(
+          style: pw.TextStyle(fontSize: fontSize, fontWeight: fontWeight),
+          children: _renderInlineSpans(innerHtml),
+        ),
+      ),
+    );
+  }
+
+  List<pw.Widget> _parseListItems(String innerHtml, {required bool isOrdered}) {
+    final listItems = <pw.Widget>[];
+    final liReg = RegExp(r'<li[^>]*>(.*?)<\/li>', caseSensitive: false, dotAll: true);
+    final liMatches = liReg.allMatches(innerHtml);
+    int index = 1;
+    
+    for (final match in liMatches) {
+      final content = match.group(1)!;
+      listItems.add(
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(left: 12, bottom: 4),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Container(
+                width: 16,
+                padding: const pw.EdgeInsets.only(top: 4),
+                child: isOrdered
+                    ? pw.Text('$index.', style: const pw.TextStyle(fontSize: 11))
+                    : pw.Bullet(),
+              ),
+              pw.Expanded(
+                child: pw.RichText(
+                  text: pw.TextSpan(
+                    style: const pw.TextStyle(fontSize: 11),
+                    children: _renderInlineSpans(content),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      index++;
+    }
+    
+    return listItems;
+  }
+
+  List<pw.InlineSpan> _renderInlineSpans(String text) {
+    final List<pw.InlineSpan> spans = [];
+    
+    final inlineReg = RegExp(
+      r'<(strong|b|em|i|code|a)([^>]*)>(.*?)<\/1>|([^<]+)',
+      caseSensitive: false,
+      dotAll: true,
+    );
+    
+    final matches = inlineReg.allMatches(text);
+    if (matches.isEmpty && text.isNotEmpty) {
+      spans.add(pw.TextSpan(text: text));
+      return spans;
+    }
+    
+    for (final match in matches) {
+      final tag = match.group(1)?.toLowerCase();
+      final content = match.group(3);
+      final plainText = match.group(4);
+      
+      if (plainText != null && plainText.isNotEmpty) {
+        spans.add(pw.TextSpan(text: plainText));
+      } else if (tag != null && content != null) {
+        switch (tag) {
+          case 'strong':
+          case 'b':
+            spans.add(pw.TextSpan(
+              text: content,
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ));
+            break;
+          case 'em':
+          case 'i':
+            spans.add(pw.TextSpan(
+              text: content,
+              style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+            ));
+            break;
+          case 'code':
+            spans.add(pw.TextSpan(
+              text: content,
+              style: pw.TextStyle(
+                font: pw.Font.courier(),
+                color: PdfColors.red700,
+              ),
+            ));
+            break;
+          case 'a':
+            spans.add(pw.TextSpan(
+              text: content,
+              style: const pw.TextStyle(
+                color: PdfColors.blue,
+                decoration: pw.TextDecoration.underline,
+              ),
+            ));
+            break;
+        }
+      }
+    }
+    
+    if (spans.isEmpty && text.isNotEmpty) {
+      spans.add(pw.TextSpan(text: text));
+    }
+    
+    return spans;
   }
 }
