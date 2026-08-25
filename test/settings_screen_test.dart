@@ -48,5 +48,7 @@ void main() {
     expect(find.text('History Records'), findsOneWidget);
     expect(find.text('ABOUT'), findsOneWidget);
     expect(find.text('PDF AI Toolkit'), findsOneWidget);
+    expect(find.text('Privacy & Security'), findsOneWidget);
+    expect(find.byIcon(Icons.open_in_new_rounded), findsOneWidget);
   });
 }

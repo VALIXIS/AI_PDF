@@ -330,9 +330,9 @@ testWidgets('AI screen displays input field', (WidgetTester tester) async {
 - [ ] Versioning updated
 
 ### App Store Requirements
-- [ ] Privacy policy
+- [x] Privacy policy (https://metspy9069.github.io/AI_PDF/privacy-policy/)
 - [ ] Terms of service
-- [ ] Data collection disclosure
+- [x] Data collection disclosure (Documented in production Privacy Policy)
 - [ ] Testing on multiple devices
 - [ ] Accessibility compliance
 

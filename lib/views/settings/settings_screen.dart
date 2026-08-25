@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary;
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 
@@ -32,6 +34,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (_) {
       if (mounted) setState(() => _historyCount = 0);
     }
+  }
+
+  static const String _privacyPolicyUrl =
+      'https://metspy9069.github.io/AI_PDF/privacy-policy/';
+
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse(_privacyPolicyUrl);
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        final fallbackLaunched = await launchUrl(uri);
+        if (!fallbackLaunched && mounted) {
+          _showLaunchErrorSnackBar();
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        _showLaunchErrorSnackBar();
+      }
+    }
+  }
+
+  void _showLaunchErrorSnackBar() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          'Could not open browser. Privacy Policy: $_privacyPolicyUrl',
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        action: SnackBarAction(
+          label: 'Copy URL',
+          onPressed: () {
+            Clipboard.setData(const ClipboardData(text: _privacyPolicyUrl));
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -177,7 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       iconColor: const Color(0xFFEF4444),
                       title: 'Clear History',
                       subtitle: 'Remove all saved PDF records',
-                      onTap: () => _confirmClearHistory(context),
+                      onTap: _confirmClearHistory,
                       isLast: true,
                     ),
                   ],
@@ -217,6 +260,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: 'Privacy & Security',
                       subtitle:
                           'Local document parsing with zero persistent cloud storage',
+                      trailing: Icon(
+                        Icons.open_in_new_rounded,
+                        size: 18,
+                        color: subtitleColor,
+                      ),
+                      onTap: _openPrivacyPolicy,
                       isLast: true,
                     ),
                   ],
@@ -229,21 +278,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _confirmClearHistory(BuildContext context) {
+  void _confirmClearHistory() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Clear History'),
         content: Text(
             'This will remove all $_historyCount saved records. This action cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogCtx);
               await StorageService().clearAllHistory();
               if (!mounted) return;
               setState(() => _historyCount = 0);
