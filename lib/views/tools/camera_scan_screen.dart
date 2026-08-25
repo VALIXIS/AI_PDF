@@ -163,7 +163,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
       );
       final targetPath = FileService().joinPaths(dir.path, fileName);
       final pdfBytes = await pdf.save();
-      final savedPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
+      final savedPath =
+          await FileService().safeWriteBytes(targetPath, pdfBytes);
 
       if (!await FileService().isPdfFile(savedPath)) {
         throw Exception('Generated scanner PDF file is invalid or unreadable.');

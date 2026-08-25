@@ -115,7 +115,8 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
       );
       final targetPath = FileService().joinPaths(dir.path, fileName);
       final pdfBytes = await pdf.save();
-      final savedPath = await FileService().safeWriteBytes(targetPath, pdfBytes);
+      final savedPath =
+          await FileService().safeWriteBytes(targetPath, pdfBytes);
 
       if (!await FileService().isPdfFile(savedPath)) {
         throw Exception('Generated protected PDF is invalid or empty.');

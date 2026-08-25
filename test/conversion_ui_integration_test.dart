@@ -29,7 +29,8 @@ void main() {
   });
 
   group('Conversion Screens UI & State Workflow Tests', () {
-    testWidgets('TextToPdfScreen renders empty fields and validates empty inputs',
+    testWidgets(
+        'TextToPdfScreen renders empty fields and validates empty inputs',
         (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(

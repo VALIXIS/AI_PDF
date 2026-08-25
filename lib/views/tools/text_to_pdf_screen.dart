@@ -65,10 +65,21 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
         return;
       }
 
-      final supportedTextExts = ['.txt', '.text', '.md', '.markdown', '.csv', '.log', '.json', '.xml', ''];
+      final supportedTextExts = [
+        '.txt',
+        '.text',
+        '.md',
+        '.markdown',
+        '.csv',
+        '.log',
+        '.json',
+        '.xml',
+        ''
+      ];
       final fileType = await _fileService.detectFileType(path);
 
-      if (!supportedTextExts.contains(ext) && fileType != DetectedFileType.text) {
+      if (!supportedTextExts.contains(ext) &&
+          fileType != DetectedFileType.text) {
         setState(() {
           _errorMessage =
               'Unsupported file format: "$ext". Only plain text (.txt, .md, .csv, .log) files are supported. Please select a valid text file.';
@@ -95,9 +106,11 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
       setState(() {
         _importedFileName = fileName;
         _textController.text = content;
-        if (_titleController.text.trim().isEmpty || _titleController.text == 'Document') {
+        if (_titleController.text.trim().isEmpty ||
+            _titleController.text == 'Document') {
           final dotIdx = fileName.lastIndexOf('.');
-          _titleController.text = dotIdx != -1 ? fileName.substring(0, dotIdx) : fileName;
+          _titleController.text =
+              dotIdx != -1 ? fileName.substring(0, dotIdx) : fileName;
         }
         _errorMessage = null;
       });
@@ -115,7 +128,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
 
     if (title.isEmpty || content.isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter both a title and content to generate a PDF.';
+        _errorMessage =
+            'Please enter both a title and content to generate a PDF.';
       });
       return;
     }
@@ -153,7 +167,10 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('PdfServiceException: ', '');
+        _errorMessage = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('PdfServiceException: ', '');
         _isLoading = false;
       });
     }
@@ -212,7 +229,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
               if (_errorMessage != null)
                 ToolErrorBanner(
                   message: _errorMessage!,
-                  onRetry: (_titleController.text.isNotEmpty && _textController.text.isNotEmpty)
+                  onRetry: (_titleController.text.isNotEmpty &&
+                          _textController.text.isNotEmpty)
                       ? _generatePdf
                       : null,
                   onDismiss: () => setState(() => _errorMessage = null),
@@ -243,7 +261,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
               // Imported File Indicator
               if (_importedFileName != null) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
@@ -251,7 +270,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.insert_drive_file_rounded, size: 18, color: primary),
+                      Icon(Icons.insert_drive_file_rounded,
+                          size: 18, color: primary),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -286,7 +306,10 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
               // Title Field
               Text(
                 'PDF Title',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -309,16 +332,21 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                 children: [
                   Text(
                     'Content',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const Spacer(),
                   if (!_isLoading)
                     TextButton.icon(
                       onPressed: _pickTextFile,
                       icon: const Icon(Icons.upload_file_rounded, size: 16),
-                      label: const Text('Load from .txt/.md', style: TextStyle(fontSize: 12)),
+                      label: const Text('Load from .txt/.md',
+                          style: TextStyle(fontSize: 12)),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
@@ -331,7 +359,8 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                 maxLines: 10,
                 minLines: 6,
                 decoration: const InputDecoration(
-                  hintText: 'Enter text to convert to PDF or import a text file...',
+                  hintText:
+                      'Enter text to convert to PDF or import a text file...',
                 ),
                 onChanged: (_) {
                   if (_errorMessage != null) {

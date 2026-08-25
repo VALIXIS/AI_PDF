@@ -110,7 +110,10 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('PdfServiceException: ', '');
+        _errorMessage = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('PdfServiceException: ', '');
         _isLoading = false;
       });
     }

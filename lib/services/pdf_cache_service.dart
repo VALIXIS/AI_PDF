@@ -67,10 +67,21 @@ class PdfCacheService {
     } else if (extension == 'html' || extension == 'htm') {
       final rawHtml = await _fileService.readTextFile(filePath);
       var clean = rawHtml.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
-      clean = clean.replaceAll(RegExp(r'<style[^>]*>.*?<\/style>', caseSensitive: false, dotAll: true), '');
-      clean = clean.replaceAll(RegExp(r'<script[^>]*>.*?<\/script>', caseSensitive: false, dotAll: true), '');
-      clean = clean.replaceAll(RegExp(r'<head[^>]*>.*?<\/head>', caseSensitive: false, dotAll: true), '');
-      text = clean.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+      clean = clean.replaceAll(
+          RegExp(r'<style[^>]*>.*?<\/style>',
+              caseSensitive: false, dotAll: true),
+          '');
+      clean = clean.replaceAll(
+          RegExp(r'<script[^>]*>.*?<\/script>',
+              caseSensitive: false, dotAll: true),
+          '');
+      clean = clean.replaceAll(
+          RegExp(r'<head[^>]*>.*?<\/head>', caseSensitive: false, dotAll: true),
+          '');
+      text = clean
+          .replaceAll(RegExp(r'<[^>]*>'), '')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
       count = (text.length / 2000).ceil().clamp(1, 1000);
     } else {
       throw Exception('Unsupported file format: .$extension');

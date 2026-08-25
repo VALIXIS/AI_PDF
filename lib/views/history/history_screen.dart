@@ -371,7 +371,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           SnackBar(content: Text('Could not read text file: $e')),
         );
       }
-    } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'].contains(ext)) {
+    } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp']
+        .contains(ext)) {
       if (!mounted) return;
       showDialog(
         context: context,

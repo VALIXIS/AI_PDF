@@ -35,7 +35,8 @@ class ShareService {
         } else if (ext == '.txt' || ext == '.md') {
           titleText = 'Text File Ready!';
           shareText = 'Here is my text document.';
-        } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'].contains(ext)) {
+        } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp']
+            .contains(ext)) {
           titleText = 'Image Ready!';
           shareText = 'Here is my image file.';
         }
@@ -59,8 +60,8 @@ class ShareService {
                           borderRadius: BorderRadius.circular(2))),
                   const SizedBox(height: 20),
                   Text(titleText,
-                      style:
-                          const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
                   Text('Where would you like to save it?',
                       style: TextStyle(

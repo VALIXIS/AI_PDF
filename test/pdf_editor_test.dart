@@ -900,10 +900,12 @@ void main() {
 
       final annotations = <int, List<Annotation>>{
         0: [
-          Annotation.text(id: 'imp-p0', x: 0.1, y: 0.1, text: 'ImportAnnotationPage1'),
+          Annotation.text(
+              id: 'imp-p0', x: 0.1, y: 0.1, text: 'ImportAnnotationPage1'),
         ],
         2: [
-          Annotation.text(id: 'imp-p2', x: 0.1, y: 0.1, text: 'ImportAnnotationPage3'),
+          Annotation.text(
+              id: 'imp-p2', x: 0.1, y: 0.1, text: 'ImportAnnotationPage3'),
         ],
       };
 
@@ -922,9 +924,15 @@ void main() {
       expect(savedDoc.pages.count, equals(3));
 
       final extractor = syncfusion.PdfTextExtractor(savedDoc);
-      final p0 = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
-      final p1 = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
-      final p2 = extractor.extractText(startPageIndex: 2, endPageIndex: 2).replaceAll(RegExp(r'\s+'), ' ');
+      final p0 = extractor
+          .extractText(startPageIndex: 0, endPageIndex: 0)
+          .replaceAll(RegExp(r'\s+'), ' ');
+      final p1 = extractor
+          .extractText(startPageIndex: 1, endPageIndex: 1)
+          .replaceAll(RegExp(r'\s+'), ' ');
+      final p2 = extractor
+          .extractText(startPageIndex: 2, endPageIndex: 2)
+          .replaceAll(RegExp(r'\s+'), ' ');
 
       expect(p0, contains('ImportedExternal Page1 Content'));
       expect(p0, contains('ImportAnnotationPage1'));

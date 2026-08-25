@@ -31,7 +31,8 @@ void main() {
     aiController = AiController();
     tempDirPath = Directory.systemTemp.path;
 
-    hiveTempDir = await Directory.systemTemp.createTemp('html_to_pdf_hive_test_');
+    hiveTempDir =
+        await Directory.systemTemp.createTemp('html_to_pdf_hive_test_');
     Hive.init(hiveTempDir.path);
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(HistoryEntryAdapter());
@@ -161,7 +162,9 @@ Fenced HTML code block line 2
   });
 
   group('Workflow Integration Tests', () {
-    test('detectActionType correctly identifies Markdown/HTML conversion commands', () {
+    test(
+        'detectActionType correctly identifies Markdown/HTML conversion commands',
+        () {
       expect(actionDispatcher.detectActionType('convert markdown to pdf'),
           equals(AiActionType.markdownToPdf));
       expect(actionDispatcher.detectActionType('convert md'),
@@ -175,9 +178,12 @@ Fenced HTML code block line 2
           equals(AiActionType.htmlToPdf));
     });
 
-    test('executeAction successfully handles md and html files directly', () async {
-      final mdPath = '$tempDirPath/test_${DateTime.now().millisecondsSinceEpoch}.md';
-      final htmlPath = '$tempDirPath/test_${DateTime.now().millisecondsSinceEpoch}.html';
+    test('executeAction successfully handles md and html files directly',
+        () async {
+      final mdPath =
+          '$tempDirPath/test_${DateTime.now().millisecondsSinceEpoch}.md';
+      final htmlPath =
+          '$tempDirPath/test_${DateTime.now().millisecondsSinceEpoch}.html';
 
       await File(mdPath).writeAsString('# Markdown Text');
       await File(htmlPath).writeAsString('<p>HTML Text</p>');
@@ -210,7 +216,8 @@ Fenced HTML code block line 2
     });
 
     test('processDocumentAction correctly routes md and html paths', () async {
-      final mdPath = '$tempDirPath/test_${DateTime.now().millisecondsSinceEpoch}.md';
+      final mdPath =
+          '$tempDirPath/test_${DateTime.now().millisecondsSinceEpoch}.md';
       await File(mdPath).writeAsString('# Hello Markdown');
 
       final result = await aiController.processDocumentAction(

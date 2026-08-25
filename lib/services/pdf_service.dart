@@ -680,7 +680,8 @@ class PdfService {
       document = sf.PdfDocument(inputBytes: bytes);
       final int pageCount = document.pages.count;
       if (pageCount == 0) {
-        throw PdfServiceException('Source PDF contains no pages: $sourcePdfPath',
+        throw PdfServiceException(
+            'Source PDF contains no pages: $sourcePdfPath',
             code: 'PDF_EDITOR_EMPTY_PAGES');
       }
 
@@ -1532,20 +1533,29 @@ class MarkdownPdfRenderer {
 class HtmlPdfRenderer {
   List<pw.Widget> render(String htmlContent) {
     final List<pw.Widget> widgets = [];
-    
+
     // Preprocess: strip comments and document structural wrappers
-    var sanitized = htmlContent.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
-    sanitized = sanitized.replaceAll(RegExp(r'<style[^>]*>.*?<\/style>', caseSensitive: false, dotAll: true), '');
-    sanitized = sanitized.replaceAll(RegExp(r'<script[^>]*>.*?<\/script>', caseSensitive: false, dotAll: true), '');
-    sanitized = sanitized.replaceAll(RegExp(r'<head[^>]*>.*?<\/head>', caseSensitive: false, dotAll: true), '');
-    sanitized = sanitized.replaceAll(RegExp(r'<\/?(html|body|doctype)[^>]*>', caseSensitive: false), '');
-    
+    var sanitized =
+        htmlContent.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+    sanitized = sanitized.replaceAll(
+        RegExp(r'<style[^>]*>.*?<\/style>', caseSensitive: false, dotAll: true),
+        '');
+    sanitized = sanitized.replaceAll(
+        RegExp(r'<script[^>]*>.*?<\/script>',
+            caseSensitive: false, dotAll: true),
+        '');
+    sanitized = sanitized.replaceAll(
+        RegExp(r'<head[^>]*>.*?<\/head>', caseSensitive: false, dotAll: true),
+        '');
+    sanitized = sanitized.replaceAll(
+        RegExp(r'<\/?(html|body|doctype)[^>]*>', caseSensitive: false), '');
+
     final regExp = RegExp(
       r'<(h1|h2|h3|h4|h5|h6|p|ul|ol|blockquote|pre|hr)([^>]*)>(.*?)<\/\1>',
       caseSensitive: false,
       dotAll: true,
     );
-    
+
     final matches = regExp.allMatches(sanitized);
     if (matches.isEmpty) {
       final lines = sanitized.split('\n');
@@ -1568,7 +1578,7 @@ class HtmlPdfRenderer {
     for (final match in matches) {
       final tag = match.group(1)!.toLowerCase();
       final content = match.group(3)!;
-      
+
       switch (tag) {
         case 'h1':
           widgets.add(_renderHeader(content, 24, pw.FontWeight.bold, 16));
@@ -1610,7 +1620,8 @@ class HtmlPdfRenderer {
         case 'blockquote':
           widgets.add(pw.Container(
             decoration: const pw.BoxDecoration(
-              border: pw.Border(left: pw.BorderSide(color: PdfColors.grey400, width: 3)),
+              border: pw.Border(
+                  left: pw.BorderSide(color: PdfColors.grey400, width: 3)),
             ),
             padding: const pw.EdgeInsets.only(left: 12, top: 4, bottom: 4),
             margin: const pw.EdgeInsets.only(bottom: 12, top: 4),
@@ -1623,7 +1634,9 @@ class HtmlPdfRenderer {
         case 'pre':
           var codeText = content;
           if (codeText.toLowerCase().contains('<code')) {
-            final codeMatch = RegExp(r'<code[^>]*>(.*?)<\/code>', caseSensitive: false, dotAll: true).firstMatch(codeText);
+            final codeMatch = RegExp(r'<code[^>]*>(.*?)<\/code>',
+                    caseSensitive: false, dotAll: true)
+                .firstMatch(codeText);
             if (codeMatch != null) {
               codeText = codeMatch.group(1)!;
             }
@@ -1654,11 +1667,12 @@ class HtmlPdfRenderer {
           break;
       }
     }
-    
+
     return widgets;
   }
 
-  pw.Widget _renderHeader(String innerHtml, double fontSize, pw.FontWeight fontWeight, double bottomMargin) {
+  pw.Widget _renderHeader(String innerHtml, double fontSize,
+      pw.FontWeight fontWeight, double bottomMargin) {
     return pw.Container(
       margin: pw.EdgeInsets.only(top: 16, bottom: bottomMargin),
       child: pw.RichText(
@@ -1672,10 +1686,11 @@ class HtmlPdfRenderer {
 
   List<pw.Widget> _parseListItems(String innerHtml, {required bool isOrdered}) {
     final listItems = <pw.Widget>[];
-    final liReg = RegExp(r'<li[^>]*>(.*?)<\/li>', caseSensitive: false, dotAll: true);
+    final liReg =
+        RegExp(r'<li[^>]*>(.*?)<\/li>', caseSensitive: false, dotAll: true);
     final liMatches = liReg.allMatches(innerHtml);
     int index = 1;
-    
+
     for (final match in liMatches) {
       final content = match.group(1)!;
       listItems.add(
@@ -1688,7 +1703,8 @@ class HtmlPdfRenderer {
                 width: 16,
                 padding: const pw.EdgeInsets.only(top: 4),
                 child: isOrdered
-                    ? pw.Text('$index.', style: const pw.TextStyle(fontSize: 11))
+                    ? pw.Text('$index.',
+                        style: const pw.TextStyle(fontSize: 11))
                     : pw.Bullet(),
               ),
               pw.Expanded(
@@ -1705,30 +1721,30 @@ class HtmlPdfRenderer {
       );
       index++;
     }
-    
+
     return listItems;
   }
 
   List<pw.InlineSpan> _renderInlineSpans(String text) {
     final List<pw.InlineSpan> spans = [];
-    
+
     final inlineReg = RegExp(
       r'<(strong|b|em|i|code|a)([^>]*)>(.*?)<\/1>|([^<]+)',
       caseSensitive: false,
       dotAll: true,
     );
-    
+
     final matches = inlineReg.allMatches(text);
     if (matches.isEmpty && text.isNotEmpty) {
       spans.add(pw.TextSpan(text: text));
       return spans;
     }
-    
+
     for (final match in matches) {
       final tag = match.group(1)?.toLowerCase();
       final content = match.group(3);
       final plainText = match.group(4);
-      
+
       if (plainText != null && plainText.isNotEmpty) {
         spans.add(pw.TextSpan(text: plainText));
       } else if (tag != null && content != null) {
@@ -1768,11 +1784,11 @@ class HtmlPdfRenderer {
         }
       }
     }
-    
+
     if (spans.isEmpty && text.isNotEmpty) {
       spans.add(pw.TextSpan(text: text));
     }
-    
+
     return spans;
   }
 }

@@ -52,8 +52,12 @@ void main() {
     }
   });
 
-  group('PDF Workflow Lifecycle: Create -> Save -> History -> Resolve -> Export', () {
-    test('Successful text PDF creation records valid history and resolves on disk', () async {
+  group(
+      'PDF Workflow Lifecycle: Create -> Save -> History -> Resolve -> Export',
+      () {
+    test(
+        'Successful text PDF creation records valid history and resolves on disk',
+        () async {
       final outPath = await pdfService.generatePdfFromText(
         title: 'Lifecycle PDF Test',
         content: 'This is a test content for lifecycle verification.',
@@ -87,7 +91,9 @@ void main() {
   });
 
   group('Scanner Workflow Lifecycle: Scan -> Save -> History -> Resolve', () {
-    test('Scanner generated PDF passes safe write, validation, and history recording', () async {
+    test(
+        'Scanner generated PDF passes safe write, validation, and history recording',
+        () async {
       final pdf = pw.Document();
       pdf.addPage(
         pw.Page(
@@ -124,16 +130,81 @@ void main() {
     });
   });
 
-  group('Conversion Workflow Lifecycle: Convert -> Save -> History -> Resolve', () {
+  group('Conversion Workflow Lifecycle: Convert -> Save -> History -> Resolve',
+      () {
     test('JPG to PDF conversion follows reliable lifecycle', () async {
       // Create test PNG image
       final imgBytes = Uint8List.fromList([
-        137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
-        0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137,
-        0, 0, 0, 10, 73, 68, 65, 84, 120, 156, 99, 0, 1, 0, 0, 5, 0, 1,
-        13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+        137,
+        80,
+        78,
+        71,
+        13,
+        10,
+        26,
+        10,
+        0,
+        0,
+        0,
+        13,
+        73,
+        72,
+        68,
+        82,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        8,
+        6,
+        0,
+        0,
+        0,
+        31,
+        21,
+        196,
+        137,
+        0,
+        0,
+        0,
+        10,
+        73,
+        68,
+        65,
+        84,
+        120,
+        156,
+        99,
+        0,
+        1,
+        0,
+        0,
+        5,
+        0,
+        1,
+        13,
+        10,
+        45,
+        180,
+        0,
+        0,
+        0,
+        0,
+        73,
+        69,
+        78,
+        68,
+        174,
+        66,
+        96,
+        130
       ]);
-      final imgPath = fileService.joinPaths(tempDirPath, 'test_img_lifecycle.png');
+      final imgPath =
+          fileService.joinPaths(tempDirPath, 'test_img_lifecycle.png');
       await fileService.safeWriteBytes(imgPath, imgBytes);
 
       // Convert
@@ -189,7 +260,8 @@ void main() {
 
   group('Lifecycle Integrity & Edge Cases', () {
     test('Non-existent or 0-byte file is NOT recorded in history', () async {
-      final fakePath = fileService.joinPaths(tempDirPath, 'non_existent_file.pdf');
+      final fakePath =
+          fileService.joinPaths(tempDirPath, 'non_existent_file.pdf');
       final entry = HistoryEntry(
         id: 'fake_entry_${DateTime.now().millisecondsSinceEpoch}',
         title: 'Fake Document',
@@ -229,7 +301,8 @@ void main() {
       expect(await storageService.isEntryFileAccessible(entry), isFalse);
     });
 
-    test('Duplicate filename generation yields unique non-colliding paths', () async {
+    test('Duplicate filename generation yields unique non-colliding paths',
+        () async {
       final basePath = fileService.joinPaths(tempDirPath, 'duplicate_doc.pdf');
       await fileService.safeWriteBytes(basePath, [1, 2, 3]);
 

@@ -89,8 +89,7 @@ class AiActionDispatcher {
         lower.contains('convert md')) {
       return AiActionType.markdownToPdf;
     }
-    if (lower.contains('html to pdf') ||
-        lower.contains('convert html')) {
+    if (lower.contains('html to pdf') || lower.contains('convert html')) {
       return AiActionType.htmlToPdf;
     }
 
@@ -228,7 +227,8 @@ class AiActionDispatcher {
       return AiActionResult(
         type: AiActionType.markdownToPdf,
         isSuccess: false,
-        message: 'Markdown to PDF conversion requires a selected Markdown (.md) file.',
+        message:
+            'Markdown to PDF conversion requires a selected Markdown (.md) file.',
       );
     }
 
@@ -255,7 +255,8 @@ class AiActionDispatcher {
       return AiActionResult(
         type: AiActionType.markdownToPdf,
         isSuccess: true,
-        message: 'Successfully converted Markdown file "$fileName" to styled PDF!',
+        message:
+            'Successfully converted Markdown file "$fileName" to styled PDF!',
         outputPath: outputPath,
         actionTitle: actionTitle,
       );
@@ -275,7 +276,8 @@ class AiActionDispatcher {
       return AiActionResult(
         type: AiActionType.htmlToPdf,
         isSuccess: false,
-        message: 'HTML to PDF conversion requires a selected HTML (.html) file.',
+        message:
+            'HTML to PDF conversion requires a selected HTML (.html) file.',
       );
     }
 

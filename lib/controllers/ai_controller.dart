@@ -20,7 +20,8 @@ class AiController {
   }) async {
     final type = _actionDispatcher.detectActionType(command);
     final ext = pdfPath.split('.').last.toLowerCase();
-    final isConvertible = ext == 'md' || ext == 'markdown' || ext == 'html' || ext == 'htm';
+    final isConvertible =
+        ext == 'md' || ext == 'markdown' || ext == 'html' || ext == 'htm';
 
     if (type == AiActionType.none && !isConvertible) return null;
     return await _actionDispatcher.executeAction(
