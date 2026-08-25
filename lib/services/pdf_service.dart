@@ -658,13 +658,21 @@ class PdfService {
     required Map<int, List<Annotation>> annotationsByPage,
     String? customOutputPath,
   }) async {
-    final file = File(sourcePdfPath);
-    if (!await file.exists()) {
-      throw Exception('Source PDF file not found: $sourcePdfPath');
+    final fs = FileService();
+    if (!await fs.isFileAccessible(sourcePdfPath)) {
+      throw PdfServiceException('Source PDF file not found: $sourcePdfPath',
+          code: 'PDF_EDITOR_INPUT_NOT_FOUND');
     }
-    final bytes = await file.readAsBytes();
+    if (!await fs.isPdfFile(sourcePdfPath)) {
+      throw PdfServiceException(
+          'Source PDF file is empty or invalid: $sourcePdfPath',
+          code: 'PDF_EDITOR_INPUT_INVALID');
+    }
+
+    final bytes = await File(sourcePdfPath).readAsBytes();
     if (bytes.isEmpty) {
-      throw Exception('Source PDF file is empty: $sourcePdfPath');
+      throw PdfServiceException('Source PDF file is empty: $sourcePdfPath',
+          code: 'PDF_EDITOR_INPUT_EMPTY');
     }
 
     sf.PdfDocument? document;
@@ -672,7 +680,8 @@ class PdfService {
       document = sf.PdfDocument(inputBytes: bytes);
       final int pageCount = document.pages.count;
       if (pageCount == 0) {
-        throw Exception('Source PDF contains no pages: $sourcePdfPath');
+        throw PdfServiceException('Source PDF contains no pages: $sourcePdfPath',
+            code: 'PDF_EDITOR_EMPTY_PAGES');
       }
 
       for (final entry in annotationsByPage.entries) {
@@ -757,9 +766,32 @@ class PdfService {
       );
       final targetPath = path.join(dirPath, fileName);
 
-      return await FileService().safeWriteBytes(targetPath, outputBytes);
+      final resultPath =
+          await FileService().safeWriteBytes(targetPath, outputBytes);
+
+      // Verify the generated output is readable and non-corrupt
+      sf.PdfDocument? testDoc;
+      try {
+        final savedBytes = await File(resultPath).readAsBytes();
+        testDoc = sf.PdfDocument(inputBytes: savedBytes);
+        if (testDoc.pages.count != pageCount) {
+          throw PdfServiceException(
+              'Saved PDF page count (${testDoc.pages.count}) mismatched source ($pageCount)',
+              code: 'PDF_EDITOR_OUTPUT_INVALID');
+        }
+      } catch (e) {
+        if (e is PdfServiceException) rethrow;
+        throw PdfServiceException('Saved PDF output is invalid or corrupt: $e',
+            code: 'PDF_EDITOR_OUTPUT_INVALID', details: e);
+      } finally {
+        testDoc?.dispose();
+      }
+
+      return resultPath;
     } catch (e) {
-      throw Exception('Failed to save edited PDF: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to save edited PDF: $e',
+          code: 'PDF_EDITOR_SAVE_FAILURE', details: e);
     } finally {
       document?.dispose();
     }

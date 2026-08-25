@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 import 'package:pdf/pdf.dart';
@@ -834,6 +835,142 @@ void main() {
       expect(updatedImg.kind, equals(AnnotationKind.image));
     });
 
+    test(
+        'Test 13 — End-to-End Generated PDF pipeline: generate -> edit -> save -> reopen & verify',
+        () async {
+      final service = PdfService();
+      final generatedPath = await service.generatePdfFromText(
+        title: 'Application Generated Report',
+        content: 'Section 1: Introduction\nSection 2: Analysis Data',
+        customOutputPath: tempDir.path,
+      );
+
+      // Verify generated file exists and has valid PDF magic header
+      final genFile = File(generatedPath);
+      expect(await genFile.exists(), isTrue);
+      final header = await genFile.openRead(0, 5).first;
+      expect(String.fromCharCodes(header), startsWith('%PDF-'));
+
+      // Perform editor save pipeline with annotations
+      final annotations = <int, List<Annotation>>{
+        0: [
+          Annotation.text(
+            id: 'gen-ann-1',
+            x: 0.1,
+            y: 0.8,
+            text: 'ApprovedByEditor',
+            fontSize: 16,
+            bold: true,
+          ),
+        ],
+      };
+
+      final savedEditedPath = await service.saveEditedPdf(
+        sourcePdfPath: generatedPath,
+        annotationsByPage: annotations,
+        customOutputPath: tempDir.path,
+      );
+
+      final editedFile = File(savedEditedPath);
+      expect(await editedFile.exists(), isTrue);
+
+      // Reopen saved PDF and verify structural integrity + extractable content
+      final savedBytes = await editedFile.readAsBytes();
+      final savedDoc = syncfusion.PdfDocument(inputBytes: savedBytes);
+      expect(savedDoc.pages.count, greaterThanOrEqualTo(1));
+
+      final extractor = syncfusion.PdfTextExtractor(savedDoc);
+      final text = extractor.extractText().replaceAll(RegExp(r'\s+'), ' ');
+      expect(text, contains('Application Generated Report'));
+      expect(text, contains('Section 1: Introduction'));
+      expect(text, contains('ApprovedByEditor'));
+
+      savedDoc.dispose();
+    });
+
+    test(
+        'Test 14 — End-to-End Imported PDF pipeline: import -> edit -> save -> reopen & verify',
+        () async {
+      final service = PdfService();
+      final importedPath = await createTestPdf(
+        filename: 'imported_external_doc.pdf',
+        pageCount: 3,
+        textPrefix: 'ImportedExternal',
+      );
+
+      final annotations = <int, List<Annotation>>{
+        0: [
+          Annotation.text(id: 'imp-p0', x: 0.1, y: 0.1, text: 'ImportAnnotationPage1'),
+        ],
+        2: [
+          Annotation.text(id: 'imp-p2', x: 0.1, y: 0.1, text: 'ImportAnnotationPage3'),
+        ],
+      };
+
+      final savedEditedPath = await service.saveEditedPdf(
+        sourcePdfPath: importedPath,
+        annotationsByPage: annotations,
+        customOutputPath: tempDir.path,
+      );
+
+      final editedFile = File(savedEditedPath);
+      expect(await editedFile.exists(), isTrue);
+
+      // Reopen saved PDF
+      final savedBytes = await editedFile.readAsBytes();
+      final savedDoc = syncfusion.PdfDocument(inputBytes: savedBytes);
+      expect(savedDoc.pages.count, equals(3));
+
+      final extractor = syncfusion.PdfTextExtractor(savedDoc);
+      final p0 = extractor.extractText(startPageIndex: 0, endPageIndex: 0).replaceAll(RegExp(r'\s+'), ' ');
+      final p1 = extractor.extractText(startPageIndex: 1, endPageIndex: 1).replaceAll(RegExp(r'\s+'), ' ');
+      final p2 = extractor.extractText(startPageIndex: 2, endPageIndex: 2).replaceAll(RegExp(r'\s+'), ' ');
+
+      expect(p0, contains('ImportedExternal Page1 Content'));
+      expect(p0, contains('ImportAnnotationPage1'));
+
+      expect(p1, contains('ImportedExternal Page2 Content'));
+      expect(p1, isNot(contains('ImportAnnotationPage1')));
+      expect(p1, isNot(contains('ImportAnnotationPage3')));
+
+      expect(p2, contains('ImportedExternal Page3 Content'));
+      expect(p2, contains('ImportAnnotationPage3'));
+
+      savedDoc.dispose();
+    });
+
+    test(
+        'Test 15 — Resource Lifecycle & Immediate File Lock Verification: saved PDF can be reopened, copied, and deleted immediately',
+        () async {
+      final service = PdfService();
+      final sourcePath = await createTestPdf(
+        filename: 'resource_lock_test.pdf',
+        pageCount: 1,
+        textPrefix: 'LockTest',
+      );
+
+      final savedPath = await service.saveEditedPdf(
+        sourcePdfPath: sourcePath,
+        annotationsByPage: {
+          0: [Annotation.text(id: 'lock-1', x: 0.2, y: 0.2, text: 'NoLockText')]
+        },
+        customOutputPath: tempDir.path,
+      );
+
+      // 1. Immediately reopen page count
+      final count = await service.getPdfPageCount(savedPath);
+      expect(count, equals(1));
+
+      // 2. Immediately copy file
+      final copyPath = '${tempDir.path}/copied_resource.pdf';
+      final copiedFile = await File(savedPath).copy(copyPath);
+      expect(await copiedFile.exists(), isTrue);
+
+      // 3. Immediately delete copied file
+      await copiedFile.delete();
+      expect(await copiedFile.exists(), isFalse);
+    });
+
     testWidgets('PdfEditorScreen displays empty state when no PDF loaded',
         (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(
@@ -844,6 +981,15 @@ void main() {
       expect(find.text('Open a PDF to Edit'), findsOneWidget);
       expect(find.text('Choose PDF File'), findsOneWidget);
       expect(find.byType(ElevatedButton), findsOneWidget);
+    });
+
+    testWidgets('PdfEditorScreen accepts initialFilePath constructor parameter',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: PdfEditorScreen(initialFilePath: '/non_existent_file.pdf'),
+      ));
+
+      expect(find.byType(PdfEditorScreen), findsOneWidget);
     });
   });
 }

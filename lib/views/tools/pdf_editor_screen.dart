@@ -24,6 +24,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   File? _pdfFile;
   pdfx.PdfDocument? _document;
   pdfx.PdfController? _pdfController;
+  final PageController _pageController = PageController();
   int _pageCount = 0;
   int _currentPage = 0;
   bool _loading = false;
@@ -41,30 +42,59 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   void initState() {
     super.initState();
     if (widget.initialFilePath != null && widget.initialFilePath!.isNotEmpty) {
-      _loadInitialFile(widget.initialFilePath!);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadPdfFile(widget.initialFilePath!);
+      });
     }
   }
 
-  Future<void> _loadInitialFile(String path) async {
-    setState(() {
-      _loading = true;
-      _errorMessage = null;
-    });
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _pdfController?.dispose();
+    _document?.close();
+    _textEditCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPdfFile(String filePath) async {
     try {
-      if (!await FileService().isFileAccessible(path)) {
+      if (!mounted) return;
+      setState(() {
+        _loading = true;
+        _errorMessage = null;
+        _successPath = null;
+      });
+
+      if (_document != null) {
+        await _document?.close();
+      }
+      _pdfController?.dispose();
+
+      _pdfFile = null;
+      _document = null;
+      _pdfController = null;
+      _annotations.clear();
+      _selected = null;
+      _activeTool = null;
+
+      final file = File(filePath);
+      if (!await FileService().isFileAccessible(file.path) ||
+          !await FileService().isPdfFile(file.path)) {
         if (!mounted) return;
         setState(() {
           _loading = false;
-          _errorMessage = 'Selected file does not exist or is inaccessible';
+          _errorMessage = 'Selected file does not exist or is not a valid PDF.';
         });
         return;
       }
-      final file = File(path);
+
       final doc = await pdfx.PdfDocument.openFile(file.path);
       final pdfCtrl = pdfx.PdfController(
-        document: pdfx.PdfDocument.openFile(file.path),
+        document: Future.value(doc),
         initialPage: 1,
       );
+
       if (!mounted) return;
       setState(() {
         _pdfFile = file;
@@ -82,14 +112,6 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _errorMessage = 'Could not open PDF: $e';
       });
     }
-  }
-
-  @override
-  void dispose() {
-    _pdfController?.dispose();
-    _document?.close();
-    _textEditCtrl.dispose();
-    super.dispose();
   }
 
   Future<void> _pickPdf() async {
@@ -100,50 +122,15 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       );
       if (result == null ||
           result.files.isEmpty ||
-          result.files.single.path == null) return;
-      setState(() {
-        _loading = true;
-        _pdfFile = null;
-        _document = null;
-        _pdfController?.dispose();
-        _pdfController = null;
-        _annotations.clear();
-        _selected = null;
-        _errorMessage = null;
-        _successPath = null;
-      });
-
-      final file = File(result.files.single.path!);
-      if (!await FileService().isFileAccessible(file.path)) {
-        if (!mounted) return;
-        setState(() {
-          _loading = false;
-          _errorMessage = 'Selected file does not exist or is inaccessible';
-        });
+          result.files.single.path == null) {
         return;
       }
-
-      final doc = await pdfx.PdfDocument.openFile(file.path);
-      final pdfCtrl = pdfx.PdfController(
-        document: pdfx.PdfDocument.openFile(file.path),
-        initialPage: 1,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _pdfFile = file;
-        _document = doc;
-        _pdfController = pdfCtrl;
-        _pageCount = doc.pagesCount;
-        _currentPage = 0;
-        _loading = false;
-        _errorMessage = null;
-      });
+      await _loadPdfFile(result.files.single.path!);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _errorMessage = 'Could not open PDF: $e';
+        _errorMessage = 'File selection failed: $e';
       });
     }
   }
@@ -245,9 +232,21 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 
   void _nextPage() {
-    if (_pdfController != null && _currentPage < _pageCount - 1) {
-      _pdfController!.animateToPage(
-        _currentPage + 2,
+    if (_currentPage < _pageCount - 1) {
+      final targetPage = _currentPage + 1;
+      setState(() {
+        _currentPage = targetPage;
+        _selected = null;
+      });
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          targetPage,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+        );
+      }
+      _pdfController?.animateToPage(
+        targetPage + 1,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
       );
@@ -255,9 +254,21 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   }
 
   void _prevPage() {
-    if (_pdfController != null && _currentPage > 0) {
-      _pdfController!.animateToPage(
-        _currentPage,
+    if (_currentPage > 0) {
+      final targetPage = _currentPage - 1;
+      setState(() {
+        _currentPage = targetPage;
+        _selected = null;
+      });
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          targetPage,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+        );
+      }
+      _pdfController?.animateToPage(
+        targetPage + 1,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
       );
@@ -565,12 +576,14 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         // Document Canvas View
         Expanded(
           child: PageView.builder(
+            controller: _pageController,
             itemCount: _pageCount,
             onPageChanged: (i) {
               setState(() {
                 _currentPage = i;
                 _selected = null;
               });
+              _pdfController?.jumpToPage(i + 1);
             },
             itemBuilder: (_, idx) => _buildPageCanvas(idx, primary, isDark),
           ),
