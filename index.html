@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Privacy Policy — AI PDF Maker</title>
+  <meta name="description" content="Official Privacy Policy for AI PDF Maker (com.nagas.pdfaitoolkit). Explains local on-device processing, AI features, permissions, and data practices.">
+  <link rel="canonical" href="https://metspy9069.github.io/AI_PDF/privacy-policy/">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-light: #64748b;
+      --border: #e2e8f0;
+      --primary: #e03131;
+      --primary-soft: #fee2e2;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --success: #059669;
+      --success-soft: #d1fae5;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #090d16;
+        --card-bg: #111827;
+        --text-main: #f8fafc;
+        --text-muted: #cbd5e1;
+        --text-light: #94a3b8;
+        --border: #1f2937;
+        --primary: #ff4d4d;
+        --primary-soft: rgba(224, 49, 49, 0.15);
+        --accent: #38bdf8;
+        --accent-soft: rgba(56, 189, 248, 0.15);
+        --success: #34d399;
+        --success-soft: rgba(52, 211, 153, 0.15);
+        --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.65;
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 2.5rem 1.5rem 2rem;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    .badge-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 0.3rem 0.65rem;
+      border-radius: 9999px;
+      background-color: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .badge-accent {
+      background-color: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .badge-success {
+      background-color: var(--success-soft);
+      color: var(--success);
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+      color: var(--text-main);
+    }
+
+    .subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+    }
+
+    .meta-box {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      background-color: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.25rem;
+      font-size: 0.875rem;
+    }
+
+    .meta-item strong {
+      display: block;
+      color: var(--text-light);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.2rem;
+    }
+
+    .meta-item span {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    main {
+      padding: 2.5rem 1.5rem;
+    }
+
+    .toc {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+      box-shadow: var(--shadow);
+    }
+
+    .toc h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: var(--text-main);
+    }
+
+    .toc ol {
+      padding-left: 1.25rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.4rem 1.5rem;
+    }
+
+    .toc a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .toc a:hover {
+      text-decoration: underline;
+    }
+
+    section {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-main);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    p {
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    p:last-child {
+      margin-bottom: 0;
+    }
+
+    ul, ol {
+      color: var(--text-muted);
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    strong {
+      color: var(--text-main);
+    }
+
+    .highlight-box {
+      background-color: var(--bg);
+      border-left: 4px solid var(--primary);
+      padding: 1rem 1.25rem;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin: 1.25rem 0;
+    }
+
+    .highlight-box.accent {
+      border-left-color: var(--accent);
+    }
+
+    .highlight-box.success {
+      border-left-color: var(--success);
+    }
+
+    .highlight-box p {
+      font-size: 0.95rem;
+      margin: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.75rem;
+      text-align: left;
+    }
+
+    th {
+      background-color: var(--bg);
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    td {
+      color: var(--text-muted);
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      background-color: var(--card-bg);
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--text-light);
+    }
+
+    footer p {
+      margin-bottom: 0.5rem;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        color: #000;
+      }
+      section, .toc, header {
+        box-shadow: none;
+        border: 1px solid #ddd;
+      }
+    }
+
+    @media (max-width: 640px) {
+      h1 {
+        font-size: 1.75rem;
+      }
+      section {
+        padding: 1.25rem;
+      }
+      header {
+        padding: 1.5rem 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="badge-bar">
+      <span class="badge">Official Policy</span>
+      <span class="badge badge-accent">Production Ready</span>
+      <span class="badge badge-success">Local-First Architecture</span>
+    </div>
+    <h1>Privacy Policy</h1>
+    <p class="subtitle">Authoritative Privacy Policy for <strong>AI PDF Maker</strong></p>
+    
+    <div class="meta-box">
+      <div class="meta-item">
+        <strong>Application</strong>
+        <span>AI PDF Maker (PDF AI Toolkit)</span>
+      </div>
+      <div class="meta-item">
+        <strong>Android Package</strong>
+        <span>com.nagas.pdfaitoolkit</span>
+      </div>
+      <div class="meta-item">
+        <strong>Developer / Maintainer</strong>
+        <span>metspy9069</span>
+      </div>
+      <div class="meta-item">
+        <strong>Effective Date</strong>
+        <span>August 25, 2026</span>
+      </div>
+      <div class="meta-item" style="grid-column: 1 / -1;">
+        <strong>Canonical Public URL</strong>
+        <span><a href="https://metspy9069.github.io/AI_PDF/privacy-policy/">https://metspy9069.github.io/AI_PDF/privacy-policy/</a></span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <nav class="toc" aria-label="Table of Contents">
+    <h2>Table of Contents</h2>
+    <ol>
+      <li><a href="#introduction">1. Introduction & Developer Identity</a></li>
+      <li><a href="#summary">2. Summary of Data Practices</a></li>
+      <li><a href="#local-processing">3. Local On-Device Processing</a></li>
+      <li><a href="#ai-processing">4. AI Data Processing & Third-Party AI Services</a></li>
+      <li><a href="#permissions">5. Device Permissions</a></li>
+      <li><a href="#storage-retention">6. Local Storage, Retention & Deletion</a></li>
+      <li><a href="#third-party">7. Third-Party Services & SDKs</a></li>
+      <li><a href="#children">8. Children's Privacy</a></li>
+      <li><a href="#security">9. Data Security</a></li>
+      <li><a href="#user-rights">10. User Rights & Data Control</a></li>
+      <li><a href="#changes">11. Changes to This Privacy Policy</a></li>
+      <li><a href="#contact">12. Contact Information</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1. Introduction -->
+  <section id="introduction">
+    <h2>1. Introduction &amp; Developer Identity</h2>
+    <p>
+      This Privacy Policy describes how <strong>AI PDF Maker</strong> (referred to as "the Application", "we", "us", or "our", also identified as <strong>PDF AI Toolkit</strong> in repository sources and package <code>com.nagas.pdfaitoolkit</code>), developed and maintained by <strong>metspy9069</strong>, handles user data, device permissions, local document manipulation, and AI-assisted capabilities.
+    </p>
+    <p>
+      We are committed to user privacy and data minimization. This policy is written with complete factual fidelity to the actual application implementation. We do not engage in covert tracking, unwanted data harvesting, or undisclosed cloud transmission.
+    </p>
+    <div class="highlight-box accent">
+      <p><strong>Canonical Policy Notice:</strong> This webpage represents the single, authoritative Privacy Policy for AI PDF Maker on the Google Play Store and all supported platforms. It is hosted publicly on GitHub Pages without requiring login, software installation, or authentication.</p>
+    </div>
+  </section>
+
+  <!-- 2. Summary -->
+  <section id="summary">
+    <h2>2. Summary of Data Practices</h2>
+    <p>The following table provides a quick, transparent overview of our data practices:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Practice</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Standard PDF Tools</strong></td>
+          <td>100% Local / On-Device</td>
+          <td>Merge, Split, Compress, Rotate, Watermark, Protect, Editor, and Conversions occur entirely on your device.</td>
+        </tr>
+        <tr>
+          <td><strong>AI Features</strong></td>
+          <td>Transmission only upon user action</td>
+          <td>When you invoke AI tools, your text prompt and extracted document text are sent over HTTPS to the selected AI provider (Google Gemini or Hugging Face). Binary PDF files are never uploaded.</td>
+        </tr>
+        <tr>
+          <td><strong>User Accounts</strong></td>
+          <td>None</td>
+          <td>No registration, no login, no emails, passwords, or personal profiles.</td>
+        </tr>
+        <tr>
+          <td><strong>Analytics &amp; Ads</strong></td>
+          <td>None</td>
+          <td>Zero advertising SDKs, zero third-party telemetry, zero tracking cookies.</td>
+        </tr>
+        <tr>
+          <td><strong>Local Storage</strong></td>
+          <td>On-Device Hive Database</td>
+          <td>Stores generated file history records locally. You can delete individual records or clear all history at any time.</td>
+        </tr>
+        <tr>
+          <td><strong>Device Permissions</strong></td>
+          <td>Camera &amp; File Picker</td>
+          <td>Used strictly for document scanning and user-selected file importing.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 3. Local Processing -->
+  <section id="local-processing">
+    <h2>3. Local On-Device Processing</h2>
+    <p>
+      AI PDF Maker is built with a <strong>local-first architecture</strong>. The standard document operations implemented in the application run entirely within the application sandbox on your local device:
+    </p>
+    <ul>
+      <li><strong>Merge PDF:</strong> Combines multiple PDF files selected by the user into a single document on-device.</li>
+      <li><strong>Split PDF:</strong> Extracts specified page ranges from a PDF on-device.</li>
+      <li><strong>Compress PDF:</strong> Optimizes internal PDF content streams and image resolutions on-device.</li>
+      <li><strong>Rotate PDF:</strong> Rotates document pages (90°, 180°, 270°) on-device.</li>
+      <li><strong>Watermark PDF:</strong> Embeds text watermarks on document pages on-device.</li>
+      <li><strong>Protect PDF:</strong> Applies standard encryption and password protection on-device.</li>
+      <li><strong>PDF Editor &amp; Annotation:</strong> Allows adding text notes, freehand drawings, and visual highlights locally.</li>
+      <li><strong>Text to PDF &amp; Markdown to PDF:</strong> Formats and renders plain text or markdown files into PDF documents locally.</li>
+      <li><strong>PDF to Text:</strong> Extracts text content from PDF pages locally on-device.</li>
+      <li><strong>PDF to Image &amp; JPG to PDF:</strong> Renders PDF pages as images or bundles user-selected photos into PDF files locally.</li>
+      <li><strong>Document Scanner:</strong> Captures physical documents via camera or gallery and compiles them into PDF files locally.</li>
+    </ul>
+    <div class="highlight-box success">
+      <p><strong>Zero Cloud Document Storage:</strong> We do not operate any proprietary server or cloud storage for user documents. Your original and processed files remain exclusively on your device unless you explicitly share them via the system share menu.</p>
+    </div>
+  </section>
+
+  <!-- 4. AI Processing -->
+  <section id="ai-processing">
+    <h2>4. AI Data Processing &amp; Third-Party AI Services</h2>
+    <p>
+      AI PDF Maker provides optional generative AI capabilities, including <em>AI to PDF (Study Notes, Summary, Text Cleaning)</em>, <em>AI Refine</em>, <em>Chat with PDF</em>, and <em>Multi-Document Comparison</em>.
+    </p>
+    
+    <h3>What Data is Transmitted</h3>
+    <p>When you explicitly initiate an AI operation or send a message in the AI Companion chat:</p>
+    <ul>
+      <li><strong>User Prompts:</strong> The text instructions or questions you submit.</li>
+      <li><strong>Extracted Document Text:</strong> When using document Q&amp;A, summary, or comparison features, text extracted locally from your chosen document(s) is sent as context for the AI model to generate an answer.</li>
+      <li><strong>Session Context:</strong> The active in-memory conversation history (limited to recent turns) to provide context for follow-up questions.</li>
+    </ul>
+
+    <h3>What Data is NOT Transmitted</h3>
+    <ul>
+      <li><strong>No Binary Files:</strong> Binary PDF files, DOCX files, raw scanned image bytes, and file system paths are <strong>not</strong> uploaded to AI services. Only the extracted textual content is transmitted.</li>
+      <li><strong>No Unselected Files:</strong> Files on your device that you did not specifically open or attach are never accessed or transmitted.</li>
+      <li><strong>No Personal Identifiers:</strong> Your device identifiers, IP address associations, location data, or contact lists are not collected or transmitted by our application logic.</li>
+    </ul>
+
+    <h3>Configured AI Providers</h3>
+    <p>The application communicates directly over secure HTTPS with the following configured AI service providers:</p>
+    <ul>
+      <li>
+        <strong>Primary AI Provider — Google Gemini API (Google LLC):</strong><br>
+        Endpoint: <code>https://generativelanguage.googleapis.com</code><br>
+        Models: Gemini Flash series.<br>
+        Data sent to Google Gemini is governed by Google's developer terms and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>.
+      </li>
+      <li>
+        <strong>Fallback AI Provider — Hugging Face Inference API (Hugging Face, Inc.):</strong><br>
+        Endpoint: <code>https://api-inference.huggingface.co</code><br>
+        Used as a resilient fallback when Gemini is unavailable or not configured.<br>
+        Data sent to Hugging Face is governed by the <a href="https://huggingface.co/privacy" target="_blank" rel="noopener noreferrer">Hugging Face Privacy Policy</a>.
+      </li>
+    </ul>
+
+    <h3>Ephemeral AI Chat Retention</h3>
+    <p>
+      In-app AI chat interactions and conversations exist <strong>strictly in volatile runtime memory (RAM)</strong> within the active screen session. Chat messages and conversation histories are <strong>discarded immediately</strong> when you navigate away from the chat screen or close the application. We do not persist AI conversations in local database storage or on remote servers.
+    </p>
+  </section>
+
+  <!-- 5. Permissions -->
+  <section id="permissions">
+    <h2>5. Device Permissions</h2>
+    <p>The Application requests only the minimal permissions necessary to perform its core functions:</p>
+    <ul>
+      <li>
+        <strong>Camera (<code>android.permission.CAMERA</code>):</strong><br>
+        Required only if you use the Document Scanner or photo capture feature to photograph physical documents. The camera is accessed strictly in real-time when actively taking pictures; it is never accessed in the background.
+      </li>
+      <li>
+        <strong>Storage &amp; Media Access (<code>READ_EXTERNAL_STORAGE</code> / <code>READ_MEDIA_IMAGES</code>):</strong><br>
+        Used through the platform-standard file picker and image picker to allow you to select specific PDF documents, text files, or images you wish to process, convert, or view. The app only accesses files explicitly chosen by you.
+      </li>
+      <li>
+        <strong>Internet Access:</strong><br>
+        Required exclusively to transmit HTTPS API requests to the configured AI providers when you invoke AI features, and to open external web links (such as this Privacy Policy) in your default web browser.
+      </li>
+    </ul>
+  </section>
+
+  <!-- 6. Storage & Retention -->
+  <section id="storage-retention">
+    <h2>6. Local Storage, Retention &amp; Deletion</h2>
+    <p>
+      AI PDF Maker utilizes an on-device embedded database (<strong>Hive</strong>) to maintain a local record of documents you create or process within the app.
+    </p>
+    <h3>What Metadata is Stored</h3>
+    <p>The local history box (<code>historyBox</code>) contains entries consisting of:</p>
+    <ul>
+      <li>A unique local entry identifier (UUID)</li>
+      <li>Document title / filename</li>
+      <li>Creation timestamp</li>
+      <li>Local file path on device storage</li>
+      <li>Tool type identifier (e.g., <code>ai_notes</code>, <code>merge</code>, <code>split</code>, <code>scanner</code>)</li>
+    </ul>
+
+    <h3>Data Deletion Controls</h3>
+    <ul>
+      <li><strong>Individual Item Deletion:</strong> You can delete any history item from the History screen at any time. Deleting a record also removes the associated generated file from disk.</li>
+      <li><strong>One-Tap History Clear:</strong> You can wipe all history records at once by navigating to <em>Settings &rarr; Clear History</em>.</li>
+      <li><strong>Temporary File Cleanup:</strong> The application automatically detects and deletes orphaned temporary working files (e.g., intermediate atomic operation files) during routine app startup and cleanup cycles.</li>
+      <li><strong>Complete App Data Removal:</strong> Clearing the application's storage in your device settings or uninstalling the app permanently erases all local database records, preferences, and cached working files.</li>
+    </ul>
+  </section>
+
+  <!-- 7. Third-Party Services -->
+  <section id="third-party">
+    <h2>7. Third-Party Services &amp; SDKs</h2>
+    <p>
+      Our codebase has been audited to ensure no undisclosed data-harvesting SDKs are present.
+    </p>
+    <ul>
+      <li><strong>Advertising SDKs:</strong> There are <strong>no</strong> advertising networks (such as Google AdMob, Unity Ads, AppLovin, etc.) in the application.</li>
+      <li><strong>Analytics &amp; Telemetry:</strong> There are <strong>no</strong> analytics, crash reporting, or user telemetry trackers (such as Firebase Analytics, Firebase Crashlytics, Sentry, or Google Analytics) active in the application.</li>
+      <li><strong>File Sharing:</strong> We integrate the standard platform sharing utility (<code>share_plus</code>) to allow you to export files to other installed apps (e.g., email, messaging, cloud storage) solely upon your direct action.</li>
+    </ul>
+  </section>
+
+  <!-- 8. Children's Privacy -->
+  <section id="children">
+    <h2>8. Children's Privacy</h2>
+    <p>
+      AI PDF Maker is a general-audience productivity utility and does not knowingly collect, store, or solicit personal information from children under the age of 13 (or under the applicable age of consent in your jurisdiction).
+    </p>
+    <p>
+      Because the Application does not maintain user accounts, require registration, collect personal profiles, or track user identities, no personal data from children is harvested. If a parent or guardian believes that a child has entered personal data into an AI prompt, please note that AI prompt exchanges are not retained persistently by the application. You may contact us at the address below with any questions.
+    </p>
+  </section>
+
+  <!-- 9. Security -->
+  <section id="security">
+    <h2>9. Data Security</h2>
+    <p>
+      We implement industry-standard technical measures to protect your data:
+    </p>
+    <ul>
+      <li><strong>Encrypted HTTPS/TLS:</strong> All outbound network transmissions to AI service providers are strictly conducted over HTTPS (TLS 1.2/1.3) to prevent eavesdropping and man-in-the-middle attacks.</li>
+      <li><strong>Local Sandbox Isolation:</strong> All on-device file manipulation and Hive database operations execute within the protected operating system application sandbox.</li>
+      <li><strong>No Plaintext Key Exposure:</strong> Application API keys and environment configurations are managed through protected configuration files and are never exposed in user-accessible UI screens.</li>
+    </ul>
+  </section>
+
+  <!-- 10. User Rights -->
+  <section id="user-rights">
+    <h2>10. User Rights &amp; Data Control</h2>
+    <p>
+      Because all document processing and history storage are strictly localized to your device:
+    </p>
+    <ul>
+      <li>You have direct and total control over your files and history records.</li>
+      <li>You can inspect, export, share, or permanently delete your files at any time without submitting a data deletion request to a remote server.</li>
+      <li>You can revoke Camera or Storage permissions at any time via your device's operating system settings.</li>
+    </ul>
+  </section>
+
+  <!-- 11. Changes -->
+  <section id="changes">
+    <h2>11. Changes to This Privacy Policy</h2>
+    <p>
+      We may update this Privacy Policy from time to time to reflect changes in application features, legal requirements, or third-party service integrations.
+    </p>
+    <p>
+      When updates occur, the revised policy will be published immediately at this canonical URL with an updated "Effective Date". We encourage users to periodically review this page. Continued use of the Application after changes are posted constitutes acceptance of the updated policy.
+    </p>
+  </section>
+
+  <!-- 12. Contact -->
+  <section id="contact">
+    <h2>12. Contact Information</h2>
+    <p>
+      If you have any questions, feedback, or privacy-related inquiries regarding AI PDF Maker or this Privacy Policy, please contact the developer through either of the following channels:
+    </p>
+    <ul>
+      <li><strong>Email:</strong> <a href="mailto:nagasubhash55@gmail.com">nagasubhash55@gmail.com</a></li>
+      <li><strong>GitHub Issues / Discussions:</strong> <a href="https://github.com/metspy9069/AI_PDF/issues" target="_blank" rel="noopener noreferrer">https://github.com/metspy9069/AI_PDF/issues</a></li>
+      <li><strong>Developer Profile:</strong> <a href="https://github.com/metspy9069" target="_blank" rel="noopener noreferrer">https://github.com/metspy9069</a></li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p><strong>AI PDF Maker</strong> &bull; Package: <code>com.nagas.pdfaitoolkit</code></p>
+    <p>Official Public Policy: <a href="https://metspy9069.github.io/AI_PDF/privacy-policy/">https://metspy9069.github.io/AI_PDF/privacy-policy/</a></p>
+    <p>&copy; 2026 metspy9069. All rights reserved.</p>
+  </div>
+</footer>
+
+</body>
+</html>
