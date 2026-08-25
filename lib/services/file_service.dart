@@ -312,6 +312,26 @@ class FileService {
     }
   }
 
+  /// Picks an HTML file safely
+  Future<String?> pickHtmlFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['html', 'htm'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final p = result.files.single.path!;
+        if (await isFileAccessible(p)) {
+          return p;
+        }
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to pick HTML file: $e');
+    }
+  }
+
   /// Reads text from a file safely
   Future<String> readTextFile(String filePath) async {
     try {

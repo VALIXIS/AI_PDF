@@ -16,6 +16,7 @@ import 'package:pdf_ai_toolkit/views/tools/protect_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
 
 class ToolItem {
   final String title;
@@ -83,6 +84,14 @@ const List<ToolItem> appTools = [
     icon: Icons.description_rounded,
     color: Color(0xFF6366F1),
     screen: MarkdownToPdfScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
+    title: 'HTML to PDF',
+    subtitle: 'Convert HTML to PDF',
+    icon: Icons.html_rounded,
+    color: Color(0xFFE11D48),
+    screen: HtmlToPdfScreen(),
     category: 'Convert',
   ),
 

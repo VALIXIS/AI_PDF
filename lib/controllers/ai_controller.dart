@@ -19,7 +19,10 @@ class AiController {
     required String command,
   }) async {
     final type = _actionDispatcher.detectActionType(command);
-    if (type == AiActionType.none) return null;
+    final ext = pdfPath.split('.').last.toLowerCase();
+    final isConvertible = ext == 'md' || ext == 'markdown' || ext == 'html' || ext == 'htm';
+
+    if (type == AiActionType.none && !isConvertible) return null;
     return await _actionDispatcher.executeAction(
       pdfPath: pdfPath,
       command: command,

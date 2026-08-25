@@ -3,6 +3,7 @@ import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:path/path.dart' as path;
 import 'package:uuid/uuid.dart';
 
 enum AiActionType {
@@ -13,6 +14,8 @@ enum AiActionType {
   merge,
   compress,
   pdfToText,
+  markdownToPdf,
+  htmlToPdf,
   none,
 }
 
@@ -80,6 +83,16 @@ class AiActionDispatcher {
         lower.contains('lock pdf')) {
       return AiActionType.protect;
     }
+    if (lower.contains('markdown to pdf') ||
+        lower.contains('convert markdown') ||
+        lower.contains('md to pdf') ||
+        lower.contains('convert md')) {
+      return AiActionType.markdownToPdf;
+    }
+    if (lower.contains('html to pdf') ||
+        lower.contains('convert html')) {
+      return AiActionType.htmlToPdf;
+    }
 
     return AiActionType.none;
   }
@@ -140,12 +153,27 @@ class AiActionDispatcher {
     }
   }
 
-  /// Executes an action command on a loaded PDF file
+  /// Executes an action command on a loaded file
   Future<AiActionResult> executeAction({
     required String pdfPath,
     required String command,
   }) async {
+    final ext = path.extension(pdfPath).toLowerCase();
+    if (ext == '.md' || ext == '.markdown') {
+      return _handleMarkdownToPdf(pdfPath, command);
+    }
+    if (ext == '.html' || ext == '.htm') {
+      return _handleHtmlToPdf(pdfPath, command);
+    }
+
     final actionType = detectActionType(command);
+    if (actionType == AiActionType.markdownToPdf) {
+      return _handleMarkdownToPdf(pdfPath, command);
+    }
+    if (actionType == AiActionType.htmlToPdf) {
+      return _handleHtmlToPdf(pdfPath, command);
+    }
+
     if (actionType == AiActionType.none) {
       return AiActionResult(
         type: AiActionType.none,
@@ -180,12 +208,110 @@ class AiActionDispatcher {
         return _handlePdfToText(pdfPath);
       case AiActionType.merge:
         return executeMultiDocAction(pdfPaths: [pdfPath], command: command);
+      case AiActionType.markdownToPdf:
+        return _handleMarkdownToPdf(pdfPath, command);
+      case AiActionType.htmlToPdf:
+        return _handleHtmlToPdf(pdfPath, command);
       case AiActionType.none:
         return AiActionResult(
           type: AiActionType.none,
           isSuccess: false,
           message: 'No executable action detected.',
         );
+    }
+  }
+
+  Future<AiActionResult> _handleMarkdownToPdf(
+      String filePath, String command) async {
+    final ext = path.extension(filePath).toLowerCase();
+    if (ext != '.md' && ext != '.markdown') {
+      return AiActionResult(
+        type: AiActionType.markdownToPdf,
+        isSuccess: false,
+        message: 'Markdown to PDF conversion requires a selected Markdown (.md) file.',
+      );
+    }
+
+    try {
+      final fileName = FileService().getFileName(filePath);
+      final dotIdx = fileName.lastIndexOf('.');
+      final title = dotIdx != -1 ? fileName.substring(0, dotIdx) : fileName;
+      final outputPath = await _pdfService.convertMarkdownToPdf(
+        markdownPath: filePath,
+        title: title,
+      );
+
+      final actionTitle = 'AI Markdown to PDF ($title)';
+      try {
+        await _storageService.addHistoryEntry(HistoryEntry(
+          id: _uuid.v4(),
+          title: actionTitle,
+          date: DateTime.now(),
+          filePath: outputPath,
+          toolType: 'ai_markdown_to_pdf',
+        ));
+      } catch (_) {}
+
+      return AiActionResult(
+        type: AiActionType.markdownToPdf,
+        isSuccess: true,
+        message: 'Successfully converted Markdown file "$fileName" to styled PDF!',
+        outputPath: outputPath,
+        actionTitle: actionTitle,
+      );
+    } catch (e) {
+      return AiActionResult(
+        type: AiActionType.markdownToPdf,
+        isSuccess: false,
+        message: 'Failed to convert Markdown to PDF: $e',
+      );
+    }
+  }
+
+  Future<AiActionResult> _handleHtmlToPdf(
+      String filePath, String command) async {
+    final ext = path.extension(filePath).toLowerCase();
+    if (ext != '.html' && ext != '.htm') {
+      return AiActionResult(
+        type: AiActionType.htmlToPdf,
+        isSuccess: false,
+        message: 'HTML to PDF conversion requires a selected HTML (.html) file.',
+      );
+    }
+
+    try {
+      final fileName = FileService().getFileName(filePath);
+      final dotIdx = fileName.lastIndexOf('.');
+      final title = dotIdx != -1 ? fileName.substring(0, dotIdx) : fileName;
+      final outputPath = await _pdfService.convertHtmlToPdf(
+        htmlPath: filePath,
+        title: title,
+      );
+
+      final actionTitle = 'AI HTML to PDF ($title)';
+      try {
+        await _storageService.addHistoryEntry(HistoryEntry(
+          id: _uuid.v4(),
+          title: actionTitle,
+          date: DateTime.now(),
+          filePath: outputPath,
+          toolType: 'ai_html_to_pdf',
+        ));
+      } catch (_) {}
+
+      return AiActionResult(
+        type: AiActionType.htmlToPdf,
+        isSuccess: true,
+        message: 'Successfully converted HTML file "$fileName" to styled PDF!',
+        outputPath: outputPath,
+        actionTitle: actionTitle,
+      );
+    } catch (e) {
+      return AiActionResult(
+        type: AiActionType.htmlToPdf,
+        isSuccess: false,
+        message: 'Failed to convert HTML to PDF: $e',
+      );
     }
   }
 
