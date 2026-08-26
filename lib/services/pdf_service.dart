@@ -210,7 +210,6 @@ class PdfService {
     }
 
     syncfusion.PdfDocument? outputDocument;
-    final List<syncfusion.PdfDocument> openedDocuments = [];
     try {
       outputDocument = syncfusion.PdfDocument();
 
@@ -219,29 +218,31 @@ class PdfService {
 
         final syncfusion.PdfDocument sourceDocument =
             syncfusion.PdfDocument(inputBytes: bytes);
-        openedDocuments.add(sourceDocument);
+        try {
+          final int pageCount = sourceDocument.pages.count;
+          if (pageCount == 0) {
+            throw PdfServiceException('Source PDF contains no pages: $filePath',
+                code: 'PDF_EMPTY_PAGES');
+          }
 
-        final int pageCount = sourceDocument.pages.count;
-        if (pageCount == 0) {
-          throw PdfServiceException('Source PDF contains no pages: $filePath',
-              code: 'PDF_EMPTY_PAGES');
-        }
+          for (int i = 0; i < pageCount; i++) {
+            final syncfusion.PdfPage sourcePage = sourceDocument.pages[i];
+            final syncfusion.PdfTemplate template = sourcePage.createTemplate();
 
-        for (int i = 0; i < pageCount; i++) {
-          final syncfusion.PdfPage sourcePage = sourceDocument.pages[i];
-          final syncfusion.PdfTemplate template = sourcePage.createTemplate();
+            final syncfusion.PdfSection section = outputDocument.sections!.add();
+            section.pageSettings.size = sourcePage.size;
+            section.pageSettings.margins.all = 0;
+            section.pageSettings.rotate = sourcePage.rotation;
 
-          final syncfusion.PdfSection section = outputDocument.sections!.add();
-          section.pageSettings.size = sourcePage.size;
-          section.pageSettings.margins.all = 0;
-          section.pageSettings.rotate = sourcePage.rotation;
-
-          final syncfusion.PdfPage newPage = section.pages.add();
-          newPage.graphics.drawPdfTemplate(
-            template,
-            Offset.zero,
-            sourcePage.size,
-          );
+            final syncfusion.PdfPage newPage = section.pages.add();
+            newPage.graphics.drawPdfTemplate(
+              template,
+              Offset.zero,
+              sourcePage.size,
+            );
+          }
+        } finally {
+          sourceDocument.dispose();
         }
       }
 
@@ -271,9 +272,6 @@ class PdfService {
       if (e is PdfServiceException) rethrow;
       throw PdfServiceException('Failed to merge PDFs: $e', details: e);
     } finally {
-      for (final doc in openedDocuments) {
-        doc.dispose();
-      }
       outputDocument?.dispose();
     }
   }
@@ -1210,42 +1208,10 @@ class PdfService {
           code: 'PDF_TO_IMAGE_FILE_TOO_LARGE');
     }
 
-    final bytes = await file.readAsBytes();
-    if (bytes.isEmpty) {
+    final int fileLength = await file.length();
+    if (fileLength == 0) {
       throw PdfServiceException('Input PDF file is empty: $pdfPath',
           code: 'PDF_TO_IMAGE_INPUT_EMPTY');
-    }
-
-    // Verify it is a valid PDF
-    syncfusion.PdfDocument? testDoc;
-    int pageCount = 0;
-    try {
-      testDoc = syncfusion.PdfDocument(inputBytes: bytes);
-      pageCount = testDoc.pages.count;
-    } catch (e) {
-      throw PdfServiceException('Invalid or corrupt PDF file: $e',
-          code: 'PDF_TO_IMAGE_INVALID_PDF', details: e);
-    } finally {
-      testDoc?.dispose();
-    }
-
-    if (pageCount == 0) {
-      throw PdfServiceException('PDF document contains no pages',
-          code: 'PDF_TO_IMAGE_EMPTY_PDF');
-    }
-
-    final int start = startPage ?? 1;
-    final int end = endPage ?? pageCount;
-
-    if (start < 1 || start > pageCount) {
-      throw PdfServiceException(
-          'Invalid start page: $start (total pages: $pageCount)',
-          code: 'PDF_TO_IMAGE_INVALID_PAGE_RANGE');
-    }
-    if (end < start || end > pageCount) {
-      throw PdfServiceException(
-          'Invalid end page: $end (total pages: $pageCount)',
-          code: 'PDF_TO_IMAGE_INVALID_PAGE_RANGE');
     }
 
     final List<String> outputPaths = [];
@@ -1256,6 +1222,26 @@ class PdfService {
       } catch (e) {
         throw PdfServiceException('Failed to open PDF document for rendering: $e',
             code: 'PDF_TO_IMAGE_INVALID_PDF', details: e);
+      }
+
+      final int pageCount = doc.pagesCount;
+      if (pageCount == 0) {
+        throw PdfServiceException('PDF document contains no pages',
+            code: 'PDF_TO_IMAGE_EMPTY_PDF');
+      }
+
+      final int start = startPage ?? 1;
+      final int end = endPage ?? pageCount;
+
+      if (start < 1 || start > pageCount) {
+        throw PdfServiceException(
+            'Invalid start page: $start (total pages: $pageCount)',
+            code: 'PDF_TO_IMAGE_INVALID_PAGE_RANGE');
+      }
+      if (end < start || end > pageCount) {
+        throw PdfServiceException(
+            'Invalid end page: $end (total pages: $pageCount)',
+            code: 'PDF_TO_IMAGE_INVALID_PAGE_RANGE');
       }
 
       final String dirPath =
