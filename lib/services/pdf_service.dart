@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfx/pdfx.dart' as pdfx;
@@ -382,12 +383,21 @@ class PdfService {
           'Input file not found for compression: $pdfPath',
           code: 'PDF_INPUT_NOT_FOUND');
     }
+
+    final file = File(pdfPath);
+    final size = await file.length();
+    if (size > 50 * 1024 * 1024) {
+      throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+          code: 'PDF_COMPRESS_FILE_TOO_LARGE');
+    }
+
     if (!await fs.isPdfFile(pdfPath)) {
       throw PdfServiceException(
           'Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
           code: 'PDF_CORRUPT_OR_INVALID');
     }
-    final bytes = await File(pdfPath).readAsBytes();
+
+    final bytes = await file.readAsBytes();
 
     syncfusion.PdfDocument? sourceDoc;
     syncfusion.PdfDocument? outputDoc;
@@ -395,6 +405,12 @@ class PdfService {
     try {
       sourceDoc = syncfusion.PdfDocument(inputBytes: bytes);
       outputDoc = syncfusion.PdfDocument();
+
+      final pageCount = sourceDoc.pages.count;
+      if (pageCount == 0) {
+        throw PdfServiceException('PDF document contains no pages to compress.',
+            code: 'PDF_COMPRESS_EMPTY_PDF');
+      }
 
       syncfusion.PdfCompressionLevel level;
       switch (compressionLevel.toLowerCase()) {
@@ -411,7 +427,7 @@ class PdfService {
       }
       outputDoc.compressionLevel = level;
 
-      for (int i = 0; i < sourceDoc.pages.count; i++) {
+      for (int i = 0; i < pageCount; i++) {
         final syncfusion.PdfPage sourcePage = sourceDoc.pages[i];
         final syncfusion.PdfTemplate template = sourcePage.createTemplate();
 
@@ -446,6 +462,21 @@ class PdfService {
             'Failed to generate valid compressed PDF output.',
             code: 'PDF_COMPRESS_OUTPUT_INVALID');
       }
+
+      // Verify output by reopening
+      syncfusion.PdfDocument? testDoc;
+      try {
+        testDoc = syncfusion.PdfDocument(inputBytes: outputBytes);
+        if (testDoc.pages.count != pageCount) {
+          throw Exception('Compressed PDF page count mismatch.');
+        }
+      } catch (e) {
+        throw PdfServiceException('Generated compressed PDF is corrupt or invalid: $e',
+            code: 'PDF_COMPRESS_INVALID_OUTPUT', details: e);
+      } finally {
+        testDoc?.dispose();
+      }
+
       return resultPath;
     } catch (e) {
       if (e is PdfServiceException) rethrow;
@@ -468,19 +499,32 @@ class PdfService {
         throw PdfServiceException('Input file does not exist: $pdfPath',
             code: 'PDF_INPUT_NOT_FOUND');
       }
+      final file = File(pdfPath);
+      final size = await file.length();
+      if (size > 50 * 1024 * 1024) {
+        throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+            code: 'PDF_ROTATE_FILE_TOO_LARGE');
+      }
+
       if (!await fs.isPdfFile(pdfPath)) {
         throw PdfServiceException(
             'Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
             code: 'PDF_CORRUPT_OR_INVALID');
       }
 
-      final bytes = await File(pdfPath).readAsBytes();
+      final bytes = await file.readAsBytes();
 
       // Load existing document
       final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
 
       try {
-        for (int i = 0; i < document.pages.count; i++) {
+        final pageCount = document.pages.count;
+        if (pageCount == 0) {
+          throw PdfServiceException('PDF document contains no pages to rotate.',
+              code: 'PDF_ROTATE_EMPTY_PDF');
+        }
+
+        for (int i = 0; i < pageCount; i++) {
           final sf.PdfPage page = document.pages[i];
 
           // Get current page rotation
@@ -537,6 +581,21 @@ class PdfService {
               'Failed to generate valid rotated PDF output.',
               code: 'PDF_ROTATE_OUTPUT_INVALID');
         }
+
+        // Verify output by reopening
+        syncfusion.PdfDocument? testDoc;
+        try {
+          testDoc = syncfusion.PdfDocument(inputBytes: outputBytes);
+          if (testDoc.pages.count != pageCount) {
+            throw Exception('Rotated PDF page count mismatch.');
+          }
+        } catch (e) {
+          throw PdfServiceException('Generated rotated PDF is corrupt or invalid: $e',
+              code: 'PDF_ROTATE_INVALID_OUTPUT', details: e);
+        } finally {
+          testDoc?.dispose();
+        }
+
         return resultPath;
       } finally {
         document.dispose();
@@ -556,25 +615,47 @@ class PdfService {
     required Color color,
     String? customOutputPath,
   }) async {
+    final fs = FileService();
     try {
+      if (!await fs.isFileAccessible(pdfPath)) {
+        throw PdfServiceException('Input file does not exist: $pdfPath',
+            code: 'PDF_INPUT_NOT_FOUND');
+      }
+
       final file = File(pdfPath);
-      if (!await file.exists()) {
-        throw Exception('Input file does not exist');
+      final size = await file.length();
+      if (size > 50 * 1024 * 1024) {
+        throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+            code: 'PDF_WATERMARK_FILE_TOO_LARGE');
+      }
+
+      if (!await fs.isPdfFile(pdfPath)) {
+        throw PdfServiceException(
+            'Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
+            code: 'PDF_CORRUPT_OR_INVALID');
+      }
+
+      if (watermarkText.trim().isEmpty) {
+        throw PdfServiceException('Watermark text cannot be empty',
+            code: 'PDF_WATERMARK_EMPTY_TEXT');
       }
 
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) {
-        throw Exception('Input PDF file is empty');
-      }
-
-      if (watermarkText.isEmpty) {
-        throw Exception('Watermark text cannot be empty');
+        throw PdfServiceException('Input PDF file is empty',
+            code: 'PDF_CORRUPT_OR_INVALID');
       }
 
       // Load existing document
       final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
 
       try {
+        final pageCount = document.pages.count;
+        if (pageCount == 0) {
+          throw PdfServiceException('PDF document contains no pages to watermark.',
+              code: 'PDF_WATERMARK_EMPTY_PDF');
+        }
+
         final double angleInDegrees = angle * 180 / 3.141592653589793;
         final sf.PdfFont font = sf.PdfStandardFont(
           sf.PdfFontFamily.helvetica,
@@ -584,13 +665,15 @@ class PdfService {
 
         final sf.PdfBrush brush = sf.PdfSolidBrush(
           sf.PdfColor(
-            (color.r * 255).round(),
-            (color.g * 255).round(),
-            (color.b * 255).round(),
+            (color.r * 255).round().clamp(0, 255),
+            (color.g * 255).round().clamp(0, 255),
+            (color.b * 255).round().clamp(0, 255),
           ),
         );
 
-        for (int i = 0; i < document.pages.count; i++) {
+        final clampedOpacity = opacity.clamp(0.0, 1.0);
+
+        for (int i = 0; i < pageCount; i++) {
           final sf.PdfPage page = document.pages[i];
           final sf.PdfGraphics graphics = page.graphics;
 
@@ -598,7 +681,7 @@ class PdfService {
           final sf.PdfGraphicsState state = graphics.save();
 
           // Set transparency/opacity
-          graphics.setTransparency(opacity);
+          graphics.setTransparency(clampedOpacity);
 
           // Translate origin to the center of the page
           graphics.translateTransform(
@@ -640,12 +723,35 @@ class PdfService {
         );
         final targetPath = path.join(dirPath, fileName);
 
-        return await FileService().safeWriteBytes(targetPath, outputBytes);
+        final resultPath = await FileService().safeWriteBytes(targetPath, outputBytes);
+
+        if (!await fs.isFileValidAndAccessible(resultPath)) {
+          throw PdfServiceException('Failed to generate valid watermarked PDF output.',
+              code: 'PDF_WATERMARK_OUTPUT_INVALID');
+        }
+
+        // Verify output by reopening
+        syncfusion.PdfDocument? testDoc;
+        try {
+          testDoc = syncfusion.PdfDocument(inputBytes: outputBytes);
+          if (testDoc.pages.count != pageCount) {
+            throw Exception('Watermarked PDF page count mismatch.');
+          }
+        } catch (e) {
+          throw PdfServiceException('Generated watermarked PDF is corrupt or invalid: $e',
+              code: 'PDF_WATERMARK_INVALID_OUTPUT', details: e);
+        } finally {
+          testDoc?.dispose();
+        }
+
+        return resultPath;
       } finally {
         document.dispose();
       }
     } catch (e) {
-      throw Exception('Failed to apply watermark: $e');
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to apply watermark: $e',
+          code: 'PDF_WATERMARK_FAILURE', details: e);
     }
   }
 
@@ -759,7 +865,7 @@ class PdfService {
 
       return await FileService().safeWriteBytes(targetPath, outputBytes);
     } catch (e) {
-      throw Exception('Failed to save edited PDF: $e');
+        throw Exception('Failed to save edited PDF: $e');
     } finally {
       document?.dispose();
     }
@@ -770,10 +876,22 @@ class PdfService {
     required String pdfPath,
     String? customOutputPath,
   }) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
+    final fs = FileService();
+    if (!await fs.isFileAccessible(pdfPath)) {
       throw PdfServiceException('Input PDF file not found: $pdfPath',
           code: 'PDF_TO_TXT_INPUT_NOT_FOUND');
+    }
+
+    final file = File(pdfPath);
+    final size = await file.length();
+    if (size > 50 * 1024 * 1024) {
+      throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+          code: 'PDF_TO_TXT_FILE_TOO_LARGE');
+    }
+
+    if (!await fs.isPdfFile(pdfPath)) {
+      throw PdfServiceException('Input file is empty, corrupt, or not a valid PDF: $pdfPath',
+          code: 'PDF_TO_TXT_INVALID_PDF');
     }
 
     final bytes = await file.readAsBytes();
@@ -792,6 +910,11 @@ class PdfService {
     }
 
     try {
+      if (document.pages.count == 0) {
+        throw PdfServiceException('PDF contains no pages.',
+            code: 'PDF_TO_TXT_EMPTY_PDF');
+      }
+
       final sf.PdfTextExtractor extractor = sf.PdfTextExtractor(document);
       final String extractedText = extractor.extractText();
 
@@ -811,8 +934,26 @@ class PdfService {
         extension: 'txt',
       );
       final targetPath = path.join(dirPath, fileName);
-      return await FileService()
+      final resultPath = await FileService()
           .safeWriteBytes(targetPath, utf8.encode(extractedText));
+
+      // Output validation
+      final outputFile = File(resultPath);
+      if (!await outputFile.exists()) {
+        throw PdfServiceException('Failed to create TXT output file',
+            code: 'PDF_TO_TXT_OUTPUT_NOT_FOUND');
+      }
+      if (await outputFile.length() == 0) {
+        throw PdfServiceException('Generated TXT file is empty',
+            code: 'PDF_TO_TXT_OUTPUT_EMPTY');
+      }
+      final ext = path.extension(resultPath).toLowerCase();
+      if (ext != '.txt') {
+        throw PdfServiceException('Generated output is not a valid text file.',
+            code: 'PDF_TO_TXT_OUTPUT_INVALID_FORMAT');
+      }
+
+      return resultPath;
     } catch (e) {
       if (e is PdfServiceException) rethrow;
       throw PdfServiceException('Failed to extract text: $e',
@@ -851,20 +992,49 @@ class PdfService {
     required String title,
     String? customOutputPath,
   }) async {
-    final file = File(txtPath);
-    if (!await file.exists()) {
+    final fs = FileService();
+    if (!await fs.isFileAccessible(txtPath)) {
       throw PdfServiceException('Input TXT file not found: $txtPath',
           code: 'TXT_TO_PDF_INPUT_NOT_FOUND');
     }
+    if (!await fs.isTextFile(txtPath)) {
+      throw PdfServiceException('Input file is not a valid plain text file: $txtPath',
+          code: 'TXT_TO_PDF_INVALID_TEXT');
+    }
 
-    final content = await file.readAsString(encoding: utf8);
+    if (title.trim().isEmpty) {
+      throw PdfServiceException('PDF title cannot be empty',
+          code: 'TXT_TO_PDF_EMPTY_TITLE');
+    }
+
+    final file = File(txtPath);
+    final size = await file.length();
+    if (size > 5 * 1024 * 1024) {
+      throw PdfServiceException('TXT file exceeds maximum supported size of 5MB.',
+          code: 'TXT_TO_PDF_FILE_TOO_LARGE');
+    }
+
+    String content;
+    try {
+      content = await file.readAsString(encoding: utf8);
+    } catch (e) {
+      throw PdfServiceException('Failed to read TXT file content as UTF-8: $e',
+          code: 'TXT_TO_PDF_INVALID_TEXT', details: e);
+    }
+
     if (content.trim().isEmpty) {
       throw PdfServiceException('Input TXT file is empty',
           code: 'TXT_TO_PDF_INPUT_EMPTY');
     }
 
-    return await generatePdfFromText(
-        title: title, content: content, customOutputPath: customOutputPath);
+    try {
+      return await generatePdfFromText(
+          title: title, content: content, customOutputPath: customOutputPath);
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to convert TXT to PDF: $e',
+          code: 'TXT_TO_PDF_FAILURE', details: e);
+    }
   }
 
   /// Converts a list of image files to a single PDF document
@@ -878,15 +1048,30 @@ class PdfService {
       throw PdfServiceException('No images selected for conversion.',
           code: 'IMAGE_TO_PDF_NO_IMAGES');
     }
+    if (imagePaths.length > 100) {
+      throw PdfServiceException('Exceeded maximum limit of 100 images.',
+          code: 'IMAGE_TO_PDF_TOO_MANY_IMAGES');
+    }
 
+    final fs = FileService();
     try {
       final pdf = pw.Document();
 
       for (final imagePath in imagePaths) {
-        final imgFile = File(imagePath);
-        if (!await imgFile.exists()) {
+        if (!await fs.isFileAccessible(imagePath)) {
           throw PdfServiceException('Image file not found: $imagePath',
               code: 'IMAGE_TO_PDF_INPUT_NOT_FOUND');
+        }
+        if (!await fs.isImageFile(imagePath)) {
+          throw PdfServiceException('File is empty, corrupt, or not a supported image format: $imagePath',
+              code: 'IMAGE_TO_PDF_INVALID_IMAGE');
+        }
+
+        final imgFile = File(imagePath);
+        final size = await imgFile.length();
+        if (size > 10 * 1024 * 1024) {
+          throw PdfServiceException('Image file exceeds maximum supported size of 10MB: $imagePath',
+              code: 'IMAGE_TO_PDF_FILE_TOO_LARGE');
         }
 
         final bytes = await imgFile.readAsBytes();
@@ -919,7 +1104,16 @@ class PdfService {
       final fileName =
           'images_converted_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(dirPath, fileName);
-      final pdfBytes = await pdf.save();
+      
+      Uint8List pdfBytes;
+      try {
+        pdfBytes = await pdf.save();
+      } catch (e) {
+        throw PdfServiceException(
+            'Invalid or corrupt image content detected during PDF compilation: $e',
+            code: 'IMAGE_TO_PDF_INVALID_IMAGE',
+            details: e);
+      }
 
       final resultPath =
           await FileService().safeWriteBytes(targetPath, pdfBytes);
@@ -966,10 +1160,21 @@ class PdfService {
     int? endPage, // 1-indexed
     double scale = 2.0,
   }) async {
-    final file = File(pdfPath);
-    if (!await file.exists()) {
+    final fs = FileService();
+    if (!await fs.isFileAccessible(pdfPath)) {
       throw PdfServiceException('Input PDF file not found: $pdfPath',
           code: 'PDF_TO_IMAGE_INPUT_NOT_FOUND');
+    }
+    if (!await fs.isPdfFile(pdfPath)) {
+      throw PdfServiceException('Input file is empty, corrupt, or not a valid PDF: $pdfPath',
+          code: 'PDF_TO_IMAGE_INVALID_PDF');
+    }
+
+    final file = File(pdfPath);
+    final size = await file.length();
+    if (size > 50 * 1024 * 1024) {
+      throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+          code: 'PDF_TO_IMAGE_FILE_TOO_LARGE');
     }
 
     final bytes = await file.readAsBytes();
@@ -1013,7 +1218,13 @@ class PdfService {
     final List<String> outputPaths = [];
     pdfx.PdfDocument? doc;
     try {
-      doc = await pdfx.PdfDocument.openFile(pdfPath);
+      try {
+        doc = await pdfx.PdfDocument.openFile(pdfPath);
+      } catch (e) {
+        throw PdfServiceException('Failed to open PDF document for rendering: $e',
+            code: 'PDF_TO_IMAGE_INVALID_PDF', details: e);
+      }
+
       final String dirPath =
           customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
 
@@ -1051,6 +1262,7 @@ class PdfService {
 
       return outputPaths;
     } catch (e) {
+      if (e is PdfServiceException) rethrow;
       throw PdfServiceException('Failed to render PDF to images: $e',
           code: 'PDF_TO_IMAGE_FAILURE', details: e);
     } finally {
@@ -1064,13 +1276,41 @@ class PdfService {
     required String title,
     String? customOutputPath,
   }) async {
-    final file = File(markdownPath);
-    if (!await file.exists()) {
+    final fs = FileService();
+    if (!await fs.isFileAccessible(markdownPath)) {
       throw PdfServiceException('Input Markdown file not found: $markdownPath',
           code: 'MARKDOWN_TO_PDF_INPUT_NOT_FOUND');
     }
 
-    final content = await file.readAsString(encoding: utf8);
+    final file = File(markdownPath);
+    final size = await file.length();
+    if (size == 0) {
+      throw PdfServiceException('Input Markdown file is empty',
+          code: 'MARKDOWN_TO_PDF_INPUT_EMPTY');
+    }
+    if (size > 5 * 1024 * 1024) {
+      throw PdfServiceException('Markdown file exceeds maximum supported size of 5MB.',
+          code: 'MARKDOWN_TO_PDF_FILE_TOO_LARGE');
+    }
+
+    if (!await fs.isMarkdownFile(markdownPath)) {
+      throw PdfServiceException('Input file is not a valid plain-text Markdown file: $markdownPath',
+          code: 'MARKDOWN_TO_PDF_INVALID_INPUT');
+    }
+
+    if (title.trim().isEmpty) {
+      throw PdfServiceException('PDF title cannot be empty',
+          code: 'MARKDOWN_TO_PDF_EMPTY_TITLE');
+    }
+
+    String content;
+    try {
+      content = await file.readAsString(encoding: utf8);
+    } catch (e) {
+      throw PdfServiceException('Failed to read Markdown file content as UTF-8: $e',
+          code: 'MARKDOWN_TO_PDF_INVALID_INPUT', details: e);
+    }
+
     if (content.trim().isEmpty) {
       throw PdfServiceException('Input Markdown file is empty',
           code: 'MARKDOWN_TO_PDF_INPUT_EMPTY');
@@ -1181,13 +1421,41 @@ class PdfService {
     required String title,
     String? customOutputPath,
   }) async {
-    final file = File(htmlPath);
-    if (!await file.exists()) {
+    final fs = FileService();
+    if (!await fs.isFileAccessible(htmlPath)) {
       throw PdfServiceException('Input HTML file not found: $htmlPath',
           code: 'HTML_TO_PDF_INPUT_NOT_FOUND');
     }
 
-    final content = await file.readAsString(encoding: utf8);
+    final file = File(htmlPath);
+    final size = await file.length();
+    if (size == 0) {
+      throw PdfServiceException('Input HTML file is empty',
+          code: 'HTML_TO_PDF_INPUT_EMPTY');
+    }
+    if (size > 5 * 1024 * 1024) {
+      throw PdfServiceException('HTML file exceeds maximum supported size of 5MB.',
+          code: 'HTML_TO_PDF_FILE_TOO_LARGE');
+    }
+
+    if (!await fs.isHtmlFile(htmlPath)) {
+      throw PdfServiceException('Input file is not a valid plain-text HTML file: $htmlPath',
+          code: 'HTML_TO_PDF_INVALID_INPUT');
+    }
+
+    if (title.trim().isEmpty) {
+      throw PdfServiceException('PDF title cannot be empty',
+          code: 'HTML_TO_PDF_EMPTY_TITLE');
+    }
+
+    String content;
+    try {
+      content = await file.readAsString(encoding: utf8);
+    } catch (e) {
+      throw PdfServiceException('Failed to read HTML file content as UTF-8: $e',
+          code: 'HTML_TO_PDF_INVALID_INPUT', details: e);
+    }
+
     if (content.trim().isEmpty) {
       throw PdfServiceException('Input HTML file is empty',
           code: 'HTML_TO_PDF_INPUT_EMPTY');

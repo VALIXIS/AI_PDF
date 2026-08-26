@@ -119,22 +119,16 @@ class FileService {
             ext == '.csv' ||
             ext == '.json' ||
             ext == '.md' ||
+            ext == '.markdown' ||
+            ext == '.html' ||
+            ext == '.htm' ||
             ext == '.log' ||
             ext.isEmpty) {
           return DetectedFileType.text;
         }
       }
 
-      // Fallback check by extension if header signature is non-standard
       final ext = getExtension(filePath).toLowerCase();
-      if (ext == '.jpg' ||
-          ext == '.jpeg' ||
-          ext == '.png' ||
-          ext == '.webp' ||
-          ext == '.gif' ||
-          ext == '.bmp') {
-        return DetectedFileType.image;
-      }
       if (ext == '.txt' || ext == '.pdf') {
         if (!hasNull) return DetectedFileType.text;
       }
@@ -164,6 +158,22 @@ class FileService {
     if (!await isFileValidAndAccessible(filePath)) return false;
     final type = await detectFileType(filePath);
     return type == DetectedFileType.text;
+  }
+
+  /// Checks whether [filePath] is an accessible, non-empty file that is a valid Markdown document.
+  Future<bool> isMarkdownFile(String filePath) async {
+    if (!await isFileValidAndAccessible(filePath)) return false;
+    final ext = getExtension(filePath).toLowerCase();
+    if (ext != '.md' && ext != '.markdown') return false;
+    return await isTextFile(filePath);
+  }
+
+  /// Checks whether [filePath] is an accessible, non-empty file that is a valid HTML document.
+  Future<bool> isHtmlFile(String filePath) async {
+    if (!await isFileValidAndAccessible(filePath)) return false;
+    final ext = getExtension(filePath).toLowerCase();
+    if (ext != '.html' && ext != '.htm') return false;
+    return await isTextFile(filePath);
   }
 
   /// Checks if file exists, is accessible, and has size > 0 (not a zero-byte file).
