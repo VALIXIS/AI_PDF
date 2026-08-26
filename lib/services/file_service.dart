@@ -22,15 +22,12 @@ class FileService {
       if (length == 0) return [];
 
       final bytesToRead = length < maxBytes ? length : maxBytes;
-      final stream = file.openRead(0, bytesToRead);
-      final builder = <int>[];
-      await for (final chunk in stream) {
-        builder.addAll(chunk);
-        if (builder.length >= bytesToRead) break;
+      final raf = await file.open(mode: FileMode.read);
+      try {
+        return await raf.read(bytesToRead);
+      } finally {
+        await raf.close();
       }
-      return builder.length > bytesToRead
-          ? builder.sublist(0, bytesToRead)
-          : builder;
     } catch (_) {
       return [];
     }
@@ -576,8 +573,6 @@ class FileService {
     }
   }
 
-  /// Copies [sourcePath] safely to [targetPath] using a temporary file.
-  /// If [overwrite] is false, automatically resolves duplicate filenames.
   Future<String> safeCopyFile(
     String sourcePath,
     String targetPath, {
@@ -587,9 +582,42 @@ class FileService {
       throw FileSystemException(
           'Source file does not exist or is inaccessible', sourcePath);
     }
+    final finalPath = overwrite
+        ? normalizePath(targetPath)
+        : await getUniqueFilePath(targetPath);
+    final parentDir = Directory(getDirectoryName(finalPath));
+    if (!await parentDir.exists()) {
+      await parentDir.create(recursive: true);
+    }
+
+    final tempPath = '$finalPath.tmp_${DateTime.now().microsecondsSinceEpoch}';
+    final tempFile = File(tempPath);
     final sourceFile = File(sourcePath);
-    final bytes = await sourceFile.readAsBytes();
-    return await safeWriteBytes(targetPath, bytes, overwrite: overwrite);
+
+    try {
+      try {
+        await sourceFile.copy(tempPath);
+      } catch (_) {
+        final input = sourceFile.openRead();
+        final output = tempFile.openWrite();
+        await input.pipe(output);
+      }
+
+      try {
+        await tempFile.rename(finalPath);
+      } catch (_) {
+        await tempFile.copy(finalPath);
+        await tempFile.delete().catchError((_) => tempFile);
+      }
+      return finalPath;
+    } catch (e) {
+      if (await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
+      throw FileSystemException('Failed to copy file safely: $e', finalPath);
+    }
   }
 
   /// Formats bytes to readable format
@@ -627,14 +655,13 @@ class FileService {
     for (final dir in dirsToCheck) {
       try {
         if (!await dir.exists()) continue;
-        final entities = await dir.list().toList();
-
-        for (final entity in entities) {
+        await for (final entity in dir.list(followLinks: false)) {
           if (entity is File) {
             final lowerPath = entity.path.toLowerCase();
+            final baseName = path.basename(lowerPath);
             final isTempPdf = lowerPath.endsWith('.pdf') &&
-                (path.basename(lowerPath).startsWith('tmp_') ||
-                    path.basename(lowerPath).startsWith('pdf_') ||
+                (baseName.startsWith('tmp_') ||
+                    baseName.startsWith('pdf_') ||
                     lowerPath.contains('temp'));
             final isTempFile = lowerPath.contains('.tmp_');
 

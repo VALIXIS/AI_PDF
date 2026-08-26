@@ -4,15 +4,21 @@ import 'package:pdf_ai_toolkit/services/file_service.dart';
 
 class StorageService {
   static const String _boxName = 'historyBox';
+  Box<HistoryEntry>? _cachedBox;
 
   /// Helper to safely retrieve or open the history box.
   /// Returns null if Hive is uninitialized or box cannot be opened.
   Future<Box<HistoryEntry>?> _getBox() async {
     try {
-      if (Hive.isBoxOpen(_boxName)) {
-        return Hive.box<HistoryEntry>(_boxName);
+      if (_cachedBox != null && _cachedBox!.isOpen) {
+        return _cachedBox;
       }
-      return await Future(() => Hive.openBox<HistoryEntry>(_boxName));
+      if (Hive.isBoxOpen(_boxName)) {
+        _cachedBox = Hive.box<HistoryEntry>(_boxName);
+        return _cachedBox;
+      }
+      _cachedBox = await Hive.openBox<HistoryEntry>(_boxName);
+      return _cachedBox;
     } catch (_) {
       return null;
     }
@@ -20,14 +26,18 @@ class StorageService {
 
   /// Safely extracts non-null, valid HistoryEntry instances from the Hive box
   List<HistoryEntry> _getValidRecordsFromBox(Box<HistoryEntry> box) {
-    final list = <HistoryEntry>[];
-    for (final key in box.keys) {
-      final dynamic val = box.get(key);
-      if (val != null && val is HistoryEntry) {
-        list.add(val);
+    try {
+      return box.values.toList();
+    } catch (_) {
+      final list = <HistoryEntry>[];
+      for (final key in box.keys) {
+        final val = box.get(key);
+        if (val != null) {
+          list.add(val);
+        }
       }
+      return list;
     }
-    return list;
   }
 
   /// Adds a history entry after verifying file accessibility on disk.
@@ -49,13 +59,18 @@ class StorageService {
       dynamic existingKey;
       HistoryEntry? existingEntry;
 
-      for (final key in box.keys) {
-        final dynamic val = box.get(key);
-        if (val is HistoryEntry) {
-          if (FileService().normalizePath(val.filePath) == normalizedPath ||
-              val.id == entry.id) {
+      // Fast check by ID first
+      final byId = box.get(entry.id);
+      if (byId != null) {
+        existingKey = entry.id;
+        existingEntry = byId;
+      } else {
+        // Fast in-memory scan over cached box values
+        for (final MapEntry(:key, :value) in box.toMap().entries) {
+          if (value != null &&
+              FileService().normalizePath(value.filePath) == normalizedPath) {
             existingKey = key;
-            existingEntry = val;
+            existingEntry = value;
             break;
           }
         }
@@ -95,9 +110,7 @@ class StorageService {
     try {
       final box = await _getBox();
       if (box == null) return null;
-      final dynamic val = box.get(id);
-      if (val is HistoryEntry) return val;
-      return null;
+      return box.get(id);
     } catch (e) {
       return null;
     }
@@ -132,10 +145,9 @@ class StorageService {
       if (box == null) return;
       final normalized = FileService().normalizePath(filePath);
       dynamic targetKey;
-      for (final key in box.keys) {
-        final dynamic val = box.get(key);
-        if (val is HistoryEntry &&
-            FileService().normalizePath(val.filePath) == normalized) {
+      for (final MapEntry(:key, :value) in box.toMap().entries) {
+        if (value != null &&
+            FileService().normalizePath(value.filePath) == normalized) {
           targetKey = key;
           break;
         }
@@ -210,10 +222,16 @@ class StorageService {
   Future<List<HistoryEntry>> getValidHistoryEntries() async {
     try {
       final allEntries = await getHistoryEntriesSortedByDate();
+      if (allEntries.isEmpty) return [];
+
+      final accessibilityResults = await Future.wait(
+        allEntries.map((entry) => isEntryFileAccessible(entry)),
+      );
+
       final validEntries = <HistoryEntry>[];
-      for (final entry in allEntries) {
-        if (await isEntryFileAccessible(entry)) {
-          validEntries.add(entry);
+      for (int i = 0; i < allEntries.length; i++) {
+        if (accessibilityResults[i]) {
+          validEntries.add(allEntries[i]);
         }
       }
       return validEntries;
@@ -226,21 +244,32 @@ class StorageService {
   Future<int> cleanupMissingEntries() async {
     try {
       final box = await _getBox();
-      if (box == null) return 0;
-      final keysToDelete = <dynamic>[];
-      for (final key in box.keys) {
-        final dynamic val = box.get(key);
-        if (val is HistoryEntry) {
-          final exists = await isEntryFileAccessible(val);
-          if (!exists) {
-            keysToDelete.add(key);
-          }
+      if (box == null || box.isEmpty) return 0;
+
+      final entriesWithKeys = <MapEntry<dynamic, HistoryEntry>>[];
+      final corruptKeys = <dynamic>[];
+
+      for (final MapEntry(:key, :value) in box.toMap().entries) {
+        if (value != null) {
+          entriesWithKeys.add(MapEntry(key, value));
         } else {
-          keysToDelete.add(key);
+          corruptKeys.add(key);
         }
       }
-      for (final key in keysToDelete) {
-        await box.delete(key);
+
+      final accessibilityResults = await Future.wait(
+        entriesWithKeys.map((pair) => isEntryFileAccessible(pair.value)),
+      );
+
+      final keysToDelete = <dynamic>[...corruptKeys];
+      for (int i = 0; i < entriesWithKeys.length; i++) {
+        if (!accessibilityResults[i]) {
+          keysToDelete.add(entriesWithKeys[i].key);
+        }
+      }
+
+      if (keysToDelete.isNotEmpty) {
+        await box.deleteAll(keysToDelete);
       }
       return keysToDelete.length;
     } catch (e) {
