@@ -103,8 +103,9 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   isDense: true,
                 ),
                 onChanged: (_) {
-                  if (_errorMessage != null)
+                  if (_errorMessage != null) {
                     setState(() => _errorMessage = null);
+                  }
                 },
               ),
               const SizedBox(height: 20),
@@ -127,8 +128,9 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   hintText: 'Enter text to convert to PDF...',
                 ),
                 onChanged: (_) {
-                  if (_errorMessage != null)
+                  if (_errorMessage != null) {
                     setState(() => _errorMessage = null);
+                  }
                 },
               ),
               const SizedBox(height: 8),

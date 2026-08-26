@@ -52,7 +52,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       );
       if (result == null ||
           result.files.isEmpty ||
-          result.files.single.path == null) return;
+          result.files.single.path == null) {
+        return;
+      }
       setState(() {
         _loading = true;
         _pdfFile = null;
@@ -262,14 +264,16 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               ),
               tooltip:
                   _editMode ? 'Switch to View Mode' : 'Switch to Edit Mode',
-              onPressed: () => setState(() {
-                _editMode = !_editMode;
-                _selected = null;
-                _activeTool = null;
-              }),
+              onPressed: (_loading || _saving)
+                  ? null
+                  : () => setState(() {
+                        _editMode = !_editMode;
+                        _selected = null;
+                        _activeTool = null;
+                      }),
             ),
             TextButton.icon(
-              onPressed: _saving ? null : _savePdf,
+              onPressed: (_saving || _loading) ? null : _savePdf,
               icon: _saving
                   ? const SizedBox(
                       width: 16,
@@ -397,15 +401,17 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 selected: !_editMode,
                 avatar: const Icon(Icons.visibility_rounded, size: 16),
                 label: const Text('View', style: TextStyle(fontSize: 12)),
-                onSelected: (sel) {
-                  if (sel) {
-                    setState(() {
-                      _editMode = false;
-                      _selected = null;
-                      _activeTool = null;
-                    });
-                  }
-                },
+                onSelected: (_loading || _saving)
+                    ? null
+                    : (sel) {
+                        if (sel) {
+                          setState(() {
+                            _editMode = false;
+                            _selected = null;
+                            _activeTool = null;
+                          });
+                        }
+                      },
               ),
               const SizedBox(width: 8),
               FilterChip(
@@ -418,15 +424,17 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                       fontSize: 12, color: _editMode ? Colors.white : null),
                 ),
                 selectedColor: primary,
-                onSelected: (sel) {
-                  setState(() {
-                    _editMode = sel;
-                    if (!sel) {
-                      _selected = null;
-                      _activeTool = null;
-                    }
-                  });
-                },
+                onSelected: (_loading || _saving)
+                    ? null
+                    : (sel) {
+                        setState(() {
+                          _editMode = sel;
+                          if (!sel) {
+                            _selected = null;
+                            _activeTool = null;
+                          }
+                        });
+                      },
               ),
               const Spacer(),
               if (_editMode) ...[
@@ -436,8 +444,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                     color: _activeTool == 'text' ? primary : null,
                   ),
                   tooltip: 'Text Tool',
-                  onPressed: () => setState(() =>
-                      _activeTool = _activeTool == 'text' ? null : 'text'),
+                  onPressed: (_loading || _saving)
+                      ? null
+                      : () => setState(() =>
+                          _activeTool = _activeTool == 'text' ? null : 'text'),
                 ),
                 IconButton(
                   icon: Icon(
@@ -446,8 +456,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                         _activeTool == 'image' ? const Color(0xFF8B5CF6) : null,
                   ),
                   tooltip: 'Image Tool',
-                  onPressed: () => setState(() =>
-                      _activeTool = _activeTool == 'image' ? null : 'image'),
+                  onPressed: (_loading || _saving)
+                      ? null
+                      : () => setState(() =>
+                          _activeTool = _activeTool == 'image' ? null : 'image'),
                 ),
               ],
             ],
@@ -707,7 +719,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left_rounded),
-                onPressed: (_currentPage > 0 && !_saving) ? _prevPage : null,
+                onPressed:
+                    (_currentPage > 0 && !_saving && !_loading) ? _prevPage : null,
                 tooltip: 'Previous Page',
               ),
               Container(
@@ -728,7 +741,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded),
-                onPressed: (_currentPage < _pageCount - 1 && !_saving)
+                onPressed: (_currentPage < _pageCount - 1 && !_saving && !_loading)
                     ? _nextPage
                     : null,
                 tooltip: 'Next Page',
@@ -741,7 +754,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           Row(
             children: [
               OutlinedButton.icon(
-                onPressed: _saving ? null : _pickPdf,
+                onPressed: (_saving || _loading) ? null : _pickPdf,
                 icon: const Icon(Icons.folder_open_rounded, size: 16),
                 label: const Text('Change File'),
                 style: OutlinedButton.styleFrom(
@@ -751,7 +764,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               ),
               const Spacer(),
               ElevatedButton.icon(
-                onPressed: _saving ? null : _savePdf,
+                onPressed: (_saving || _loading) ? null : _savePdf,
                 icon: _saving
                     ? const SizedBox(
                         width: 16,

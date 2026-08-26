@@ -214,6 +214,7 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                   children: [
                     Expanded(
                       child: TextField(
+                        enabled: !_isLoading,
                         controller: _startController,
                         keyboardType: TextInputType.number,
                         style: TextStyle(color: textCol, fontSize: 14),
@@ -235,6 +236,7 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: TextField(
+                        enabled: !_isLoading,
                         controller: _endController,
                         keyboardType: TextInputType.number,
                         style: TextStyle(color: textCol, fontSize: 14),

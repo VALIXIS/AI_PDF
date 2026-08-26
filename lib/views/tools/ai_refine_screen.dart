@@ -82,8 +82,9 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                   hintText: 'Enter or paste text to refine with AI...',
                 ),
                 onChanged: (_) {
-                  if (_errorMessage != null)
+                  if (_errorMessage != null) {
                     setState(() => _errorMessage = null);
+                  }
                 },
               ),
               const SizedBox(height: 20),
@@ -168,13 +169,15 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          _inputController.text = _refinedText!;
-                          setState(() {
-                            _refinedText = null;
-                            _errorMessage = null;
-                          });
-                        },
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                _inputController.text = _refinedText!;
+                                setState(() {
+                                  _refinedText = null;
+                                  _errorMessage = null;
+                                });
+                              },
                         icon: const Icon(Icons.swap_vert_rounded),
                         label: const Text('Use This Version'),
                       ),
@@ -207,7 +210,9 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                           ),
                         )
                       : const Icon(Icons.auto_fix_high_rounded),
-                  label: const Text('Refine Text with AI'),
+                  label: Text(_isLoading
+                      ? 'Refining with AI...'
+                      : 'Refine Text with AI'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -221,6 +226,7 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
   }
 
   Future<void> _refineText() async {
+    if (_isLoading) return;
     if (_inputController.text.trim().isEmpty) {
       setState(() {
         _errorMessage = 'Please enter text to refine with AI.';
