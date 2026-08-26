@@ -510,9 +510,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     try {
       final entries = await _storageService.getHistoryEntriesSortedByDate();
       final inaccessible = <String>{};
-      for (final entry in entries) {
-        if (!await _storageService.isEntryFileAccessible(entry)) {
-          inaccessible.add(entry.id);
+      if (entries.isNotEmpty) {
+        final accessibilityResults = await Future.wait(
+          entries.map((entry) => _storageService.isEntryFileAccessible(entry)),
+        );
+        for (int i = 0; i < entries.length; i++) {
+          if (!accessibilityResults[i]) {
+            inaccessible.add(entries[i].id);
+          }
         }
       }
       if (mounted) {
