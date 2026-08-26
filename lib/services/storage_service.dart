@@ -27,12 +27,12 @@ class StorageService {
   /// Safely extracts non-null, valid HistoryEntry instances from the Hive box
   List<HistoryEntry> _getValidRecordsFromBox(Box<HistoryEntry> box) {
     try {
-      return box.values.whereType<HistoryEntry>().toList();
+      return box.values.toList();
     } catch (_) {
       final list = <HistoryEntry>[];
       for (final key in box.keys) {
-        final dynamic val = box.get(key);
-        if (val != null && val is HistoryEntry) {
+        final val = box.get(key);
+        if (val != null) {
           list.add(val);
         }
       }
@@ -61,13 +61,13 @@ class StorageService {
 
       // Fast check by ID first
       final byId = box.get(entry.id);
-      if (byId is HistoryEntry) {
+      if (byId != null) {
         existingKey = entry.id;
         existingEntry = byId;
       } else {
         // Fast in-memory scan over cached box values
         for (final MapEntry(:key, :value) in box.toMap().entries) {
-          if (value is HistoryEntry &&
+          if (value != null &&
               FileService().normalizePath(value.filePath) == normalizedPath) {
             existingKey = key;
             existingEntry = value;
@@ -110,9 +110,7 @@ class StorageService {
     try {
       final box = await _getBox();
       if (box == null) return null;
-      final dynamic val = box.get(id);
-      if (val is HistoryEntry) return val;
-      return null;
+      return box.get(id);
     } catch (e) {
       return null;
     }
@@ -148,7 +146,7 @@ class StorageService {
       final normalized = FileService().normalizePath(filePath);
       dynamic targetKey;
       for (final MapEntry(:key, :value) in box.toMap().entries) {
-        if (value is HistoryEntry &&
+        if (value != null &&
             FileService().normalizePath(value.filePath) == normalized) {
           targetKey = key;
           break;
@@ -252,7 +250,7 @@ class StorageService {
       final corruptKeys = <dynamic>[];
 
       for (final MapEntry(:key, :value) in box.toMap().entries) {
-        if (value is HistoryEntry) {
+        if (value != null) {
           entriesWithKeys.add(MapEntry(key, value));
         } else {
           corruptKeys.add(key);
