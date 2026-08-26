@@ -77,7 +77,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
       final doc = await pdfx.PdfDocument.openFile(file.path);
       final pdfCtrl = pdfx.PdfController(
-        document: pdfx.PdfDocument.openFile(file.path),
+        document: Future.value(doc),
         initialPage: 1,
       );
 
@@ -516,16 +516,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
         // Document Canvas View
         Expanded(
-          child: PageView.builder(
-            itemCount: _pageCount,
-            onPageChanged: (i) {
-              setState(() {
-                _currentPage = i;
-                _selected = null;
-              });
-            },
-            itemBuilder: (_, idx) => _buildPageCanvas(idx, primary, isDark),
-          ),
+          child: _buildPageCanvas(_currentPage, primary, isDark),
         ),
 
         // Page Navigation & Control Bottom Bar
@@ -564,24 +555,28 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  IgnorePointer(
-                    ignoring: _editMode,
-                    child: _pdfController != null
-                        ? pdfx.PdfView(
-                            controller: _pdfController!,
-                            pageSnapping: true,
-                            scrollDirection: Axis.vertical,
-                            physics: const NeverScrollableScrollPhysics(),
-                            onPageChanged: (page) {
-                              if (page - 1 != _currentPage) {
-                                setState(() {
-                                  _currentPage = page - 1;
-                                  _selected = null;
-                                });
-                              }
-                            },
-                          )
-                        : const SizedBox(),
+                  RepaintBoundary(
+                    child: IgnorePointer(
+                      ignoring: _editMode,
+                      child: _pdfController != null
+                          ? pdfx.PdfView(
+                              controller: _pdfController!,
+                              pageSnapping: true,
+                              scrollDirection: Axis.horizontal,
+                              physics: _editMode
+                                  ? const NeverScrollableScrollPhysics()
+                                  : const PageScrollPhysics(),
+                              onPageChanged: (page) {
+                                if (page - 1 != _currentPage) {
+                                  setState(() {
+                                    _currentPage = page - 1;
+                                    _selected = null;
+                                  });
+                                }
+                              },
+                            )
+                          : const SizedBox(),
+                    ),
                   ),
                   ...(_annotations[pageIdx] ?? []).map((ann) =>
                       _buildAnnotationWidget(ann, constraints, primary)),
