@@ -773,8 +773,8 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF10B981).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+        border:
+            Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -229,7 +229,8 @@ class PdfService {
             final syncfusion.PdfPage sourcePage = sourceDocument.pages[i];
             final syncfusion.PdfTemplate template = sourcePage.createTemplate();
 
-            final syncfusion.PdfSection section = outputDocument.sections!.add();
+            final syncfusion.PdfSection section =
+                outputDocument.sections!.add();
             section.pageSettings.size = sourcePage.size;
             section.pageSettings.margins.all = 0;
             section.pageSettings.rotate = sourcePage.rotation;
@@ -385,7 +386,8 @@ class PdfService {
     final file = File(pdfPath);
     final size = await file.length();
     if (size > 50 * 1024 * 1024) {
-      throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+      throw PdfServiceException(
+          'PDF file exceeds maximum supported size of 50MB.',
           code: 'PDF_COMPRESS_FILE_TOO_LARGE');
     }
 
@@ -469,8 +471,10 @@ class PdfService {
           throw Exception('Compressed PDF page count mismatch.');
         }
       } catch (e) {
-        throw PdfServiceException('Generated compressed PDF is corrupt or invalid: $e',
-            code: 'PDF_COMPRESS_INVALID_OUTPUT', details: e);
+        throw PdfServiceException(
+            'Generated compressed PDF is corrupt or invalid: $e',
+            code: 'PDF_COMPRESS_INVALID_OUTPUT',
+            details: e);
       } finally {
         testDoc?.dispose();
       }
@@ -500,7 +504,8 @@ class PdfService {
       final file = File(pdfPath);
       final size = await file.length();
       if (size > 50 * 1024 * 1024) {
-        throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+        throw PdfServiceException(
+            'PDF file exceeds maximum supported size of 50MB.',
             code: 'PDF_ROTATE_FILE_TOO_LARGE');
       }
 
@@ -588,8 +593,10 @@ class PdfService {
             throw Exception('Rotated PDF page count mismatch.');
           }
         } catch (e) {
-          throw PdfServiceException('Generated rotated PDF is corrupt or invalid: $e',
-              code: 'PDF_ROTATE_INVALID_OUTPUT', details: e);
+          throw PdfServiceException(
+              'Generated rotated PDF is corrupt or invalid: $e',
+              code: 'PDF_ROTATE_INVALID_OUTPUT',
+              details: e);
         } finally {
           testDoc?.dispose();
         }
@@ -623,7 +630,8 @@ class PdfService {
       final file = File(pdfPath);
       final size = await file.length();
       if (size > 50 * 1024 * 1024) {
-        throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+        throw PdfServiceException(
+            'PDF file exceeds maximum supported size of 50MB.',
             code: 'PDF_WATERMARK_FILE_TOO_LARGE');
       }
 
@@ -650,7 +658,8 @@ class PdfService {
       try {
         final pageCount = document.pages.count;
         if (pageCount == 0) {
-          throw PdfServiceException('PDF document contains no pages to watermark.',
+          throw PdfServiceException(
+              'PDF document contains no pages to watermark.',
               code: 'PDF_WATERMARK_EMPTY_PDF');
         }
 
@@ -721,10 +730,12 @@ class PdfService {
         );
         final targetPath = path.join(dirPath, fileName);
 
-        final resultPath = await FileService().safeWriteBytes(targetPath, outputBytes);
+        final resultPath =
+            await FileService().safeWriteBytes(targetPath, outputBytes);
 
         if (!await fs.isFileValidAndAccessible(resultPath)) {
-          throw PdfServiceException('Failed to generate valid watermarked PDF output.',
+          throw PdfServiceException(
+              'Failed to generate valid watermarked PDF output.',
               code: 'PDF_WATERMARK_OUTPUT_INVALID');
         }
 
@@ -736,8 +747,10 @@ class PdfService {
             throw Exception('Watermarked PDF page count mismatch.');
           }
         } catch (e) {
-          throw PdfServiceException('Generated watermarked PDF is corrupt or invalid: $e',
-              code: 'PDF_WATERMARK_INVALID_OUTPUT', details: e);
+          throw PdfServiceException(
+              'Generated watermarked PDF is corrupt or invalid: $e',
+              code: 'PDF_WATERMARK_INVALID_OUTPUT',
+              details: e);
         } finally {
           testDoc?.dispose();
         }
@@ -916,12 +929,14 @@ class PdfService {
     final file = File(pdfPath);
     final size = await file.length();
     if (size > 50 * 1024 * 1024) {
-      throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+      throw PdfServiceException(
+          'PDF file exceeds maximum supported size of 50MB.',
           code: 'PDF_TO_TXT_FILE_TOO_LARGE');
     }
 
     if (!await fs.isPdfFile(pdfPath)) {
-      throw PdfServiceException('Input file is empty, corrupt, or not a valid PDF: $pdfPath',
+      throw PdfServiceException(
+          'Input file is empty, corrupt, or not a valid PDF: $pdfPath',
           code: 'PDF_TO_TXT_INVALID_PDF');
     }
 
@@ -1029,7 +1044,8 @@ class PdfService {
           code: 'TXT_TO_PDF_INPUT_NOT_FOUND');
     }
     if (!await fs.isTextFile(txtPath)) {
-      throw PdfServiceException('Input file is not a valid plain text file: $txtPath',
+      throw PdfServiceException(
+          'Input file is not a valid plain text file: $txtPath',
           code: 'TXT_TO_PDF_INVALID_TEXT');
     }
 
@@ -1041,7 +1057,8 @@ class PdfService {
     final file = File(txtPath);
     final size = await file.length();
     if (size > 5 * 1024 * 1024) {
-      throw PdfServiceException('TXT file exceeds maximum supported size of 5MB.',
+      throw PdfServiceException(
+          'TXT file exceeds maximum supported size of 5MB.',
           code: 'TXT_TO_PDF_FILE_TOO_LARGE');
     }
 
@@ -1094,14 +1111,16 @@ class PdfService {
               code: 'IMAGE_TO_PDF_INPUT_NOT_FOUND');
         }
         if (!await fs.isImageFile(imagePath)) {
-          throw PdfServiceException('File is empty, corrupt, or not a supported image format: $imagePath',
+          throw PdfServiceException(
+              'File is empty, corrupt, or not a supported image format: $imagePath',
               code: 'IMAGE_TO_PDF_INVALID_IMAGE');
         }
 
         final imgFile = File(imagePath);
         final size = await imgFile.length();
         if (size > 10 * 1024 * 1024) {
-          throw PdfServiceException('Image file exceeds maximum supported size of 10MB: $imagePath',
+          throw PdfServiceException(
+              'Image file exceeds maximum supported size of 10MB: $imagePath',
               code: 'IMAGE_TO_PDF_FILE_TOO_LARGE');
         }
 
@@ -1135,7 +1154,7 @@ class PdfService {
       final fileName =
           'images_converted_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(dirPath, fileName);
-      
+
       Uint8List pdfBytes;
       try {
         pdfBytes = await pdf.save();
@@ -1197,14 +1216,16 @@ class PdfService {
           code: 'PDF_TO_IMAGE_INPUT_NOT_FOUND');
     }
     if (!await fs.isPdfFile(pdfPath)) {
-      throw PdfServiceException('Input file is empty, corrupt, or not a valid PDF: $pdfPath',
+      throw PdfServiceException(
+          'Input file is empty, corrupt, or not a valid PDF: $pdfPath',
           code: 'PDF_TO_IMAGE_INVALID_PDF');
     }
 
     final file = File(pdfPath);
     final size = await file.length();
     if (size > 50 * 1024 * 1024) {
-      throw PdfServiceException('PDF file exceeds maximum supported size of 50MB.',
+      throw PdfServiceException(
+          'PDF file exceeds maximum supported size of 50MB.',
           code: 'PDF_TO_IMAGE_FILE_TOO_LARGE');
     }
 
@@ -1220,8 +1241,10 @@ class PdfService {
       try {
         doc = await pdfx.PdfDocument.openFile(pdfPath);
       } catch (e) {
-        throw PdfServiceException('Failed to open PDF document for rendering: $e',
-            code: 'PDF_TO_IMAGE_INVALID_PDF', details: e);
+        throw PdfServiceException(
+            'Failed to open PDF document for rendering: $e',
+            code: 'PDF_TO_IMAGE_INVALID_PDF',
+            details: e);
       }
 
       final int pageCount = doc.pagesCount;
@@ -1308,12 +1331,14 @@ class PdfService {
           code: 'MARKDOWN_TO_PDF_INPUT_EMPTY');
     }
     if (size > 5 * 1024 * 1024) {
-      throw PdfServiceException('Markdown file exceeds maximum supported size of 5MB.',
+      throw PdfServiceException(
+          'Markdown file exceeds maximum supported size of 5MB.',
           code: 'MARKDOWN_TO_PDF_FILE_TOO_LARGE');
     }
 
     if (!await fs.isMarkdownFile(markdownPath)) {
-      throw PdfServiceException('Input file is not a valid plain-text Markdown file: $markdownPath',
+      throw PdfServiceException(
+          'Input file is not a valid plain-text Markdown file: $markdownPath',
           code: 'MARKDOWN_TO_PDF_INVALID_INPUT');
     }
 
@@ -1326,8 +1351,10 @@ class PdfService {
     try {
       content = await file.readAsString(encoding: utf8);
     } catch (e) {
-      throw PdfServiceException('Failed to read Markdown file content as UTF-8: $e',
-          code: 'MARKDOWN_TO_PDF_INVALID_INPUT', details: e);
+      throw PdfServiceException(
+          'Failed to read Markdown file content as UTF-8: $e',
+          code: 'MARKDOWN_TO_PDF_INVALID_INPUT',
+          details: e);
     }
 
     if (content.trim().isEmpty) {
@@ -1453,12 +1480,14 @@ class PdfService {
           code: 'HTML_TO_PDF_INPUT_EMPTY');
     }
     if (size > 5 * 1024 * 1024) {
-      throw PdfServiceException('HTML file exceeds maximum supported size of 5MB.',
+      throw PdfServiceException(
+          'HTML file exceeds maximum supported size of 5MB.',
           code: 'HTML_TO_PDF_FILE_TOO_LARGE');
     }
 
     if (!await fs.isHtmlFile(htmlPath)) {
-      throw PdfServiceException('Input file is not a valid plain-text HTML file: $htmlPath',
+      throw PdfServiceException(
+          'Input file is not a valid plain-text HTML file: $htmlPath',
           code: 'HTML_TO_PDF_INVALID_INPUT');
     }
 

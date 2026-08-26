@@ -32,7 +32,9 @@ void main() {
   });
 
   group('Large-File & Performance Tests', () {
-    test('safeCopyFile handles streaming copy cleanly without buffer allocation failure', () async {
+    test(
+        'safeCopyFile handles streaming copy cleanly without buffer allocation failure',
+        () async {
       final srcFile = File('${tempDir.path}/large_test_source.bin');
       // Write 2MB test payload
       final chunk = List<int>.filled(1024 * 1024, 65);
@@ -46,17 +48,22 @@ void main() {
       expect(await File(copiedPath).length(), equals(2 * 1024 * 1024));
     });
 
-    test('readFileHeader uses fast RandomAccessFile without full stream overhead', () async {
+    test(
+        'readFileHeader uses fast RandomAccessFile without full stream overhead',
+        () async {
       final sampleFile = File('${tempDir.path}/header_test.pdf');
       await sampleFile.writeAsString('%PDF-1.7\nSample content header test');
 
-      final header = await fileService.readFileHeader(sampleFile.path, maxBytes: 8);
+      final header =
+          await fileService.readFileHeader(sampleFile.path, maxBytes: 8);
       expect(header.length, equals(8));
       final headerStr = String.fromCharCodes(header);
       expect(headerStr, equals('%PDF-1.7'));
     });
 
-    test('Concurrent getValidHistoryEntries scales efficiently with multiple items', () async {
+    test(
+        'Concurrent getValidHistoryEntries scales efficiently with multiple items',
+        () async {
       // Create 10 valid files
       final files = <File>[];
       for (int i = 0; i < 10; i++) {
@@ -78,7 +85,8 @@ void main() {
       expect(validEntries.length, equals(10));
     });
 
-    test('cleanupMissingEntries batch deletes stale entries correctly', () async {
+    test('cleanupMissingEntries batch deletes stale entries correctly',
+        () async {
       final box = await Hive.openBox<HistoryEntry>('historyBox');
       final missing1 = HistoryEntry(
         id: 'stale_batch_1',

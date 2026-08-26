@@ -17,7 +17,7 @@ void main() {
     pdfService = PdfService();
     storageService = StorageService();
     tempDir = Directory.systemTemp.createTempSync('performance_test_dir');
-    
+
     // Initialize Hive for StorageService
     final hiveDir = Directory('${tempDir.path}/hive');
     hiveDir.createSync();
@@ -43,41 +43,109 @@ void main() {
     // we need valid image bytes. We will use a valid tiny PNG but repeat it in the list to simulate
     // multi-page image conversions.
     final validPngBytes = Uint8List.fromList([
-      137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1,
-      0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 10, 73, 68, 65, 84,
-      120, 156, 99, 0, 1, 0, 0, 5, 0, 1, 13, 10, 45, 180, 0, 0, 0, 0, 73, 69, 78,
-      68, 174, 66, 96, 130
+      137,
+      80,
+      78,
+      71,
+      13,
+      10,
+      26,
+      10,
+      0,
+      0,
+      0,
+      13,
+      73,
+      72,
+      68,
+      82,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      8,
+      6,
+      0,
+      0,
+      0,
+      31,
+      21,
+      196,
+      137,
+      0,
+      0,
+      0,
+      10,
+      73,
+      68,
+      65,
+      84,
+      120,
+      156,
+      99,
+      0,
+      1,
+      0,
+      0,
+      5,
+      0,
+      1,
+      13,
+      10,
+      45,
+      180,
+      0,
+      0,
+      0,
+      0,
+      73,
+      69,
+      78,
+      68,
+      174,
+      66,
+      96,
+      130
     ]);
     file.writeAsBytesSync(validPngBytes);
     return file;
   }
 
-  void _printPerf(String task, Stopwatch watch, int startRss) {
+  void printPerf(String task, Stopwatch watch, int startRss) {
     final endRss = ProcessInfo.currentRss;
     final diffMB = (endRss - startRss) / (1024 * 1024);
-    debugPrint('PERF: \$task took \${watch.elapsedMilliseconds}ms, Memory delta: \${diffMB.toStringAsFixed(2)}MB');
+    debugPrint(
+        'PERF: $task took ${watch.elapsedMilliseconds}ms, Memory delta: ${diffMB.toStringAsFixed(2)}MB');
   }
 
   group('Performance Tests', () {
     test('Large Text to PDF Conversion', () async {
-      final largeText = List.generate(5000, (i) => 'This is line \$i of a very large text document to test PDF generation performance.').join('\\n');
-      
+      final largeText = List.generate(
+              5000,
+              (i) =>
+                  'This is line $i of a very large text document to test PDF generation performance.')
+          .join('\n');
+
       final watch = Stopwatch()..start();
       final startRss = ProcessInfo.currentRss;
-      
+
       final pdfPath = await pdfService.generatePdfFromText(
         title: 'Large Document',
         content: largeText,
         customOutputPath: tempDir.path,
       );
-      
+
       watch.stop();
-      _printPerf('Large Text to PDF', watch, startRss);
-      
+      printPerf('Large Text to PDF', watch, startRss);
+
       final file = File(pdfPath);
       expect(await file.exists(), isTrue);
       // Ensure we measure time for a reasonable execution, e.g. should not take forever
-      expect(watch.elapsedMilliseconds, lessThan(10000)); 
+      expect(watch.elapsedMilliseconds, lessThan(10000));
     });
 
     test('Merge Many PDFs (Multi-page PDF generation)', () async {
@@ -86,21 +154,21 @@ void main() {
         content: 'Single page content.',
         customOutputPath: tempDir.path,
       );
-      
+
       // Simulate merging 50 pages
       final pdfPaths = List.filled(50, basePdf);
-      
+
       final watch = Stopwatch()..start();
       final startRss = ProcessInfo.currentRss;
-      
+
       final mergedPath = await pdfService.mergePdfs(
         pdfPaths,
         customOutputPath: tempDir.path,
       );
-      
+
       watch.stop();
-      _printPerf('Merge 50 PDFs', watch, startRss);
-      
+      printPerf('Merge 50 PDFs', watch, startRss);
+
       final file = File(mergedPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(mergedPath), equals(50));
@@ -109,18 +177,18 @@ void main() {
     test('Large Image List to PDF (50 images)', () async {
       final img = createDummyImage('dummy.png');
       final imagePaths = List.filled(50, img.path);
-      
+
       final watch = Stopwatch()..start();
       final startRss = ProcessInfo.currentRss;
-      
+
       final pdfPath = await pdfService.convertImagesToPdf(
         imagePaths: imagePaths,
         customOutputPath: tempDir.path,
       );
-      
+
       watch.stop();
-      _printPerf('50 Images to PDF', watch, startRss);
-      
+      printPerf('50 Images to PDF', watch, startRss);
+
       final file = File(pdfPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(pdfPath), equals(50));
@@ -132,29 +200,30 @@ void main() {
         content: 'Content',
         customOutputPath: tempDir.path,
       );
-      
+
       // Add 1000 annotations to a single page
       final annotations = <Annotation>[];
       for (int i = 0; i < 1000; i++) {
         annotations.add(Annotation.text(
           id: i.toString(),
-          x: (i % 100) / 100, y: (i % 100) / 100,
+          x: (i % 100) / 100,
+          y: (i % 100) / 100,
           text: 'Ann \$i',
         ));
       }
-      
+
       final watch = Stopwatch()..start();
       final startRss = ProcessInfo.currentRss;
-      
+
       final editedPath = await pdfService.saveEditedPdf(
         sourcePdfPath: basePdf,
         annotationsByPage: {0: annotations},
         customOutputPath: tempDir.path,
       );
-      
+
       watch.stop();
-      _printPerf('Save 1000 Annotations', watch, startRss);
-      
+      printPerf('Save 1000 Annotations', watch, startRss);
+
       final file = File(editedPath);
       expect(await file.exists(), isTrue);
     });
@@ -162,29 +231,32 @@ void main() {
     test('Document History Heavy Load (1000 entries)', () async {
       final watch = Stopwatch()..start();
       final startRss = ProcessInfo.currentRss;
-      
+
       for (int i = 0; i < 1000; i++) {
+        final dummyPdf = File('${tempDir.path}/history_dummy_$i.pdf')
+          ..writeAsStringSync('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>');
         final entry = HistoryEntry(
-          id: i.toString(),
-          title: 'Doc \$i',
+          id: 'hist_$i',
+          title: 'Doc $i',
           date: DateTime.now(),
-          filePath: '/path/to/\$i.pdf',
+          filePath: dummyPdf.path,
           toolType: 'merge',
         );
         await storageService.addHistoryEntry(entry);
       }
-      
+
       final count = await storageService.getHistoryCount();
       expect(count, equals(1000));
-      
+
       // Test read performance
       final watchRead = Stopwatch()..start();
       await storageService.getHistoryEntriesSortedByDate();
       watchRead.stop();
-      
+
       watch.stop();
-      _printPerf('Storage 1000 Entries (Write+Read)', watch, startRss);
-      debugPrint('PERF: Read 1000 Entries took \${watchRead.elapsedMilliseconds}ms');
+      printPerf('Storage 1000 Entries (Write+Read)', watch, startRss);
+      debugPrint(
+          'PERF: Read 1000 Entries took \${watchRead.elapsedMilliseconds}ms');
     });
   });
 }

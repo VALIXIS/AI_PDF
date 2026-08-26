@@ -17,17 +17,137 @@ void main() {
 
   // 1x1 valid sample image bytes
   final Uint8List sampleImageBytes = Uint8List.fromList([
-    0xFF, 0xD8, 0xFF, 0xDB, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06,
-    0x05, 0x08, 0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D,
-    0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12, 0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F,
-    0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20, 0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C,
-    0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29, 0x2C, 0x30, 0x31, 0x34, 0x34, 0x34,
-    0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32, 0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF,
-    0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00,
-    0xFF, 0xC4, 0x00, 0x1F, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01, 0x01, 0x01,
-    0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02,
-    0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0xFF, 0xDA, 0x00,
-    0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0xBF, 0x00, 0xFF, 0xD9,
+    0xFF,
+    0xD8,
+    0xFF,
+    0xDB,
+    0x00,
+    0x43,
+    0x00,
+    0x08,
+    0x06,
+    0x06,
+    0x07,
+    0x06,
+    0x05,
+    0x08,
+    0x07,
+    0x07,
+    0x07,
+    0x09,
+    0x09,
+    0x08,
+    0x0A,
+    0x0C,
+    0x14,
+    0x0D,
+    0x0C,
+    0x0B,
+    0x0B,
+    0x0C,
+    0x19,
+    0x12,
+    0x13,
+    0x0F,
+    0x14,
+    0x1D,
+    0x1A,
+    0x1F,
+    0x1E,
+    0x1D,
+    0x1A,
+    0x1C,
+    0x1C,
+    0x20,
+    0x24,
+    0x2E,
+    0x27,
+    0x20,
+    0x22,
+    0x2C,
+    0x23,
+    0x1C,
+    0x1C,
+    0x28,
+    0x37,
+    0x29,
+    0x2C,
+    0x30,
+    0x31,
+    0x34,
+    0x34,
+    0x34,
+    0x1F,
+    0x27,
+    0x39,
+    0x3D,
+    0x38,
+    0x32,
+    0x3C,
+    0x2E,
+    0x33,
+    0x34,
+    0x32,
+    0xFF,
+    0xC0,
+    0x00,
+    0x0B,
+    0x08,
+    0x00,
+    0x01,
+    0x00,
+    0x01,
+    0x01,
+    0x01,
+    0x11,
+    0x00,
+    0xFF,
+    0xC4,
+    0x00,
+    0x1F,
+    0x00,
+    0x00,
+    0x01,
+    0x05,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x02,
+    0x03,
+    0x04,
+    0x05,
+    0x06,
+    0x07,
+    0x08,
+    0x09,
+    0x0A,
+    0x0B,
+    0xFF,
+    0xDA,
+    0x00,
+    0x08,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    0x3F,
+    0x00,
+    0xBF,
+    0x00,
+    0xFF,
+    0xD9,
   ]);
 
   setUpAll(() async {
@@ -85,7 +205,8 @@ void main() {
             return pw.Column(
               mainAxisAlignment: pw.MainAxisAlignment.center,
               children: [
-                pw.Text('Image Page $i', style: const pw.TextStyle(fontSize: 16)),
+                pw.Text('Image Page $i',
+                    style: const pw.TextStyle(fontSize: 16)),
                 pw.SizedBox(height: 10),
                 pw.Image(memImg, width: 200, height: 200),
               ],
@@ -183,11 +304,13 @@ void main() {
       expect(await pdfService.getPdfPageCount(rotatedPath), equals(30));
 
       // Verify rotation preserved across all pages
-      final doc = syncfusion.PdfDocument(inputBytes: await File(rotatedPath).readAsBytes());
+      final doc = syncfusion.PdfDocument(
+          inputBytes: await File(rotatedPath).readAsBytes());
       try {
         expect(doc.pages.count, equals(30));
         for (int i = 0; i < 30; i++) {
-          expect(doc.pages[i].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle180));
+          expect(doc.pages[i].rotation,
+              equals(syncfusion.PdfPageRotateAngle.rotateAngle180));
         }
       } finally {
         doc.dispose();
@@ -218,9 +341,12 @@ void main() {
     });
 
     test('6. Multi-document Merge with sequential source disposal', () async {
-      final doc1 = await createMultiPagePdf(filename: 'merge_p1.pdf', pageCount: 4, textPrefix: 'DocA');
-      final doc2 = await createMultiPagePdf(filename: 'merge_p2.pdf', pageCount: 6, textPrefix: 'DocB');
-      final doc3 = await createMultiPagePdf(filename: 'merge_p3.pdf', pageCount: 5, textPrefix: 'DocC');
+      final doc1 = await createMultiPagePdf(
+          filename: 'merge_p1.pdf', pageCount: 4, textPrefix: 'DocA');
+      final doc2 = await createMultiPagePdf(
+          filename: 'merge_p2.pdf', pageCount: 6, textPrefix: 'DocB');
+      final doc3 = await createMultiPagePdf(
+          filename: 'merge_p3.pdf', pageCount: 5, textPrefix: 'DocC');
 
       final mergedPath = await pdfService.mergePdfs(
         [doc1, doc2, doc3],
@@ -238,7 +364,8 @@ void main() {
     });
 
     test('7. Multi-page Split preserving exact page sequence', () async {
-      final source = await createMultiPagePdf(filename: 'split_source_12p.pdf', pageCount: 12, textPrefix: 'Seq');
+      final source = await createMultiPagePdf(
+          filename: 'split_source_12p.pdf', pageCount: 12, textPrefix: 'Seq');
 
       final splitPath = await pdfService.splitPdf(
         pdfPath: source,
@@ -256,15 +383,18 @@ void main() {
       expect(txt, isNot(contains('Seq Page 9 Content')));
     });
 
-    test('8. Multi-page Editor save with multi-page annotation isolation', () async {
-      final source = await createMultiPagePdf(filename: 'editor_multi_6p.pdf', pageCount: 6, textPrefix: 'EditSeq');
+    test('8. Multi-page Editor save with multi-page annotation isolation',
+        () async {
+      final source = await createMultiPagePdf(
+          filename: 'editor_multi_6p.pdf', pageCount: 6, textPrefix: 'EditSeq');
 
       final annotations = <int, List<Annotation>>{
         0: [Annotation.text(id: 'a0', x: 0.1, y: 0.1, text: 'Annot_P1')],
         2: [Annotation.text(id: 'a2', x: 0.2, y: 0.2, text: 'Annot_P3')],
         5: [
           Annotation.text(id: 'a5', x: 0.3, y: 0.3, text: 'Annot_P6'),
-          Annotation.image(id: 'i5', x: 0.5, y: 0.5, imageBytes: sampleImageBytes),
+          Annotation.image(
+              id: 'i5', x: 0.5, y: 0.5, imageBytes: sampleImageBytes),
         ],
       };
 
@@ -274,27 +404,32 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      final doc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final doc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       try {
         expect(doc.pages.count, equals(6));
         final extractor = syncfusion.PdfTextExtractor(doc);
 
-        final p1 = extractor.extractText(startPageIndex: 0, endPageIndex: 0)
+        final p1 = extractor
+            .extractText(startPageIndex: 0, endPageIndex: 0)
             .replaceAll(RegExp(r'\s+'), ' ');
         expect(p1, contains('Annot_P1'));
         expect(p1, isNot(contains('Annot_P3')));
 
-        final p2 = extractor.extractText(startPageIndex: 1, endPageIndex: 1)
+        final p2 = extractor
+            .extractText(startPageIndex: 1, endPageIndex: 1)
             .replaceAll(RegExp(r'\s+'), ' ');
         expect(p2, contains('EditSeq Page 2 Content'));
         expect(p2, isNot(contains('Annot_P1')));
         expect(p2, isNot(contains('Annot_P3')));
 
-        final p3 = extractor.extractText(startPageIndex: 2, endPageIndex: 2)
+        final p3 = extractor
+            .extractText(startPageIndex: 2, endPageIndex: 2)
             .replaceAll(RegExp(r'\s+'), ' ');
         expect(p3, contains('Annot_P3'));
 
-        final p6 = extractor.extractText(startPageIndex: 5, endPageIndex: 5)
+        final p6 = extractor
+            .extractText(startPageIndex: 5, endPageIndex: 5)
             .replaceAll(RegExp(r'\s+'), ' ');
         expect(p6, contains('Annot_P6'));
       } finally {
@@ -303,18 +438,23 @@ void main() {
     });
 
     test('9. Save -> Dispose -> Reopen lifecycle verification', () async {
-      final source = await createMultiPagePdf(filename: 'lifecycle_test.pdf', pageCount: 3, textPrefix: 'Life');
+      final source = await createMultiPagePdf(
+          filename: 'lifecycle_test.pdf', pageCount: 3, textPrefix: 'Life');
 
       final savedPath = await pdfService.saveEditedPdf(
         sourcePdfPath: source,
         annotationsByPage: {
-          1: [Annotation.text(id: 'mid', x: 0.1, y: 0.1, text: 'MidPageAnnotation')]
+          1: [
+            Annotation.text(
+                id: 'mid', x: 0.1, y: 0.1, text: 'MidPageAnnotation')
+          ]
         },
         customOutputPath: tempDir.path,
       );
 
       // Verify file is fully unlocked and readable
-      final reopenedDoc = syncfusion.PdfDocument(inputBytes: await File(savedPath).readAsBytes());
+      final reopenedDoc = syncfusion.PdfDocument(
+          inputBytes: await File(savedPath).readAsBytes());
       expect(reopenedDoc.pages.count, equals(3));
       reopenedDoc.dispose();
 

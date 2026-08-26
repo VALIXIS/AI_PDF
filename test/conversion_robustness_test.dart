@@ -29,7 +29,8 @@ void main() {
       },
     );
 
-    tempDir = await Directory.systemTemp.createTemp('conversion_robustness_test_');
+    tempDir =
+        await Directory.systemTemp.createTemp('conversion_robustness_test_');
     tempDirPath = tempDir.path;
     pdfService = PdfService();
     fileService = FileService();
@@ -62,7 +63,8 @@ void main() {
         },
       ),
     );
-    final filePath = '$tempDirPath/valid_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final filePath =
+        '$tempDirPath/valid_${DateTime.now().millisecondsSinceEpoch}.pdf';
     final file = File(filePath);
     await file.writeAsBytes(await pdf.save());
     return file.path;
@@ -76,7 +78,9 @@ void main() {
       await File(corruptPath).delete();
     });
 
-    test('isImageFile correctly rejects non-image bytes named with image extension', () async {
+    test(
+        'isImageFile correctly rejects non-image bytes named with image extension',
+        () async {
       final fakeImagePath = '$tempDirPath/fake.png';
       await File(fakeImagePath).writeAsString('Some plain text content.');
       expect(await fileService.isImageFile(fakeImagePath), isFalse);
@@ -99,13 +103,17 @@ void main() {
   });
 
   group('PDF to TXT Robustness Tests', () {
-    test('Throws PDF_TO_TXT_FILE_TOO_LARGE when PDF exceeds size limit', () async {
+    test('Throws PDF_TO_TXT_FILE_TOO_LARGE when PDF exceeds size limit',
+        () async {
       final hugePath = '$tempDirPath/huge.pdf';
       final file = File(hugePath);
-      
+
       // Write some bytes mimicking a 51MB file structure containing %PDF- signature
       final sink = file.openWrite();
-      sink.add(List<int>.generate(1024, (i) => i == 100 ? 0x25 : 0x00)); // contains %PDF- magic check implicitly
+      sink.add(List<int>.generate(
+          1024,
+          (i) =>
+              i == 100 ? 0x25 : 0x00)); // contains %PDF- magic check implicitly
       // Fill the rest with 51MB of zeroes
       final block = List<int>.filled(1024 * 1024, 0);
       for (int i = 0; i < 51; i++) {
@@ -165,7 +173,8 @@ void main() {
       await file.delete();
     });
 
-    test('Throws TXT_TO_PDF_INVALID_TEXT on invalid encoding or binary inputs', () async {
+    test('Throws TXT_TO_PDF_INVALID_TEXT on invalid encoding or binary inputs',
+        () async {
       final binaryTxtPath = '$tempDirPath/binary.txt';
       final file = File(binaryTxtPath);
       // Write binary bytes (null bytes) to trigger text validation failure
@@ -195,9 +204,11 @@ void main() {
   });
 
   group('Image to PDF Robustness Tests', () {
-    test('Throws IMAGE_TO_PDF_TOO_MANY_IMAGES when exceeding 100 images limit', () async {
-      final imgPaths = List<String>.generate(101, (i) => '$tempDirPath/img_$i.png');
-      
+    test('Throws IMAGE_TO_PDF_TOO_MANY_IMAGES when exceeding 100 images limit',
+        () async {
+      final imgPaths =
+          List<String>.generate(101, (i) => '$tempDirPath/img_$i.png');
+
       await expectLater(
         pdfService.convertImagesToPdf(imagePaths: imgPaths),
         throwsA(isA<PdfServiceException>()
@@ -205,7 +216,8 @@ void main() {
       );
     });
 
-    test('Throws IMAGE_TO_PDF_FILE_TOO_LARGE when image exceeds 10MB', () async {
+    test('Throws IMAGE_TO_PDF_FILE_TOO_LARGE when image exceeds 10MB',
+        () async {
       final largeImgPath = '$tempDirPath/large_img.png';
       // Write 11MB of dummy PNG data to trigger size limit
       final file = File(largeImgPath);
@@ -242,11 +254,14 @@ void main() {
   });
 
   group('PDF Rotation and Watermarking Robustness Tests', () {
-    test('Throws PDF_ROTATE_FILE_TOO_LARGE when PDF exceeds 50MB during rotation', () async {
+    test(
+        'Throws PDF_ROTATE_FILE_TOO_LARGE when PDF exceeds 50MB during rotation',
+        () async {
       final hugePath = '$tempDirPath/huge_rotate.pdf';
       final file = File(hugePath);
       final sink = file.openWrite();
-      sink.add(List<int>.generate(1024, (i) => i == 100 ? 0x25 : 0x00)); // contains %PDF-
+      sink.add(List<int>.generate(
+          1024, (i) => i == 100 ? 0x25 : 0x00)); // contains %PDF-
       final block = List<int>.filled(1024 * 1024, 0);
       for (int i = 0; i < 51; i++) {
         sink.add(block);
@@ -280,9 +295,10 @@ void main() {
       await File(pdfPath).delete();
     });
 
-    test('Successfully applies watermark and validates output structure', () async {
+    test('Successfully applies watermark and validates output structure',
+        () async {
       final pdfPath = await createValidPdf();
-      
+
       final resultPath = await pdfService.watermarkPdf(
         pdfPath: pdfPath,
         watermarkText: 'DRAFT',
@@ -295,7 +311,8 @@ void main() {
       expect(File(resultPath).lengthSync(), greaterThan(0));
 
       // Reopen watermarked PDF and verify
-      final sf.PdfDocument document = sf.PdfDocument(inputBytes: File(resultPath).readAsBytesSync());
+      final sf.PdfDocument document =
+          sf.PdfDocument(inputBytes: File(resultPath).readAsBytesSync());
       expect(document.pages.count, equals(1));
       document.dispose();
 
@@ -305,11 +322,13 @@ void main() {
   });
 
   group('PDF Compression Robustness Tests', () {
-    test('Throws PDF_COMPRESS_FILE_TOO_LARGE when compressing file > 50MB', () async {
+    test('Throws PDF_COMPRESS_FILE_TOO_LARGE when compressing file > 50MB',
+        () async {
       final hugePath = '$tempDirPath/huge_compress.pdf';
       final file = File(hugePath);
       final sink = file.openWrite();
-      sink.add(List<int>.generate(1024, (i) => i == 100 ? 0x25 : 0x00)); // contains %PDF-
+      sink.add(List<int>.generate(
+          1024, (i) => i == 100 ? 0x25 : 0x00)); // contains %PDF-
       final block = List<int>.filled(1024 * 1024, 0);
       for (int i = 0; i < 51; i++) {
         sink.add(block);
@@ -328,10 +347,12 @@ void main() {
     test('Successfully compresses PDF and verifies structure', () async {
       final pdfPath = await createValidPdf();
 
-      final resultPath = await pdfService.compressPdf(pdfPath, compressionLevel: 'high');
+      final resultPath =
+          await pdfService.compressPdf(pdfPath, compressionLevel: 'high');
       expect(File(resultPath).existsSync(), isTrue);
 
-      final sf.PdfDocument document = sf.PdfDocument(inputBytes: File(resultPath).readAsBytesSync());
+      final sf.PdfDocument document =
+          sf.PdfDocument(inputBytes: File(resultPath).readAsBytesSync());
       expect(document.pages.count, equals(1));
       document.dispose();
 
@@ -341,7 +362,8 @@ void main() {
   });
 
   group('Markdown and HTML to PDF Robustness Tests', () {
-    test('Throws MARKDOWN_TO_PDF_FILE_TOO_LARGE on markdown files > 5MB', () async {
+    test('Throws MARKDOWN_TO_PDF_FILE_TOO_LARGE on markdown files > 5MB',
+        () async {
       final mdPath = '$tempDirPath/huge.md';
       await File(mdPath).writeAsString('A' * 6 * 1024 * 1024);
 
@@ -367,7 +389,8 @@ void main() {
       await File(htmlPath).delete();
     });
 
-    test('Throws HTML_TO_PDF_INVALID_INPUT on non-HTML content files', () async {
+    test('Throws HTML_TO_PDF_INVALID_INPUT on non-HTML content files',
+        () async {
       final badHtmlPath = '$tempDirPath/bad.html';
       // Write binary data to badge-extension file
       await File(badHtmlPath).writeAsBytes([0x00, 0x01, 0x02, 0x03]);
