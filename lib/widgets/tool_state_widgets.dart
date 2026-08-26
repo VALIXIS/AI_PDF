@@ -323,10 +323,14 @@ class ToolEmptyState extends StatelessWidget {
 /// Standardized Material 3 Progress / Status Banner during operations.
 class ToolLoadingBanner extends StatelessWidget {
   final String message;
+  final double? progress;
+  final String? subMessage;
 
   const ToolLoadingBanner({
     Key? key,
     required this.message,
+    this.progress,
+    this.subMessage,
   }) : super(key: key);
 
   @override
@@ -357,18 +361,45 @@ class ToolLoadingBanner extends StatelessWidget {
                 child: CircularProgressIndicator(
                   strokeWidth: 2.2,
                   color: primary,
+                  value: progress,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  message,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13.5,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                    if (subMessage != null && subMessage!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subMessage!,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
+              if (progress != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '${(progress! * 100).toInt()}%',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: primary,
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
@@ -377,6 +408,7 @@ class ToolLoadingBanner extends StatelessWidget {
             child: LinearProgressIndicator(
               backgroundColor: primary.withValues(alpha: 0.15),
               color: primary,
+              value: progress,
               minHeight: 4,
             ),
           ),

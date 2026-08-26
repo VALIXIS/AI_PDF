@@ -68,9 +68,9 @@ class ToolScreenShell extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: primary.withOpacity(0.06),
+                  color: primary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: primary.withOpacity(0.12)),
+                  border: Border.all(color: primary.withValues(alpha: 0.12)),
                 ),
                 child: Row(
                   children: [
@@ -82,7 +82,7 @@ class ToolScreenShell extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
-                          color: textCol.withOpacity(0.8),
+                          color: textCol.withValues(alpha: 0.8),
                         ),
                       ),
                     ),
@@ -128,7 +128,7 @@ class ToolScreenShell extends StatelessWidget {
                           title: 'No PDF Selected',
                           subtitle: 'Select PDF files to begin operations',
                           actionLabel: 'Select PDF',
-                          onAction: onPickFiles,
+                          onAction: isLoading ? null : onPickFiles,
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,8 +203,18 @@ class ToolScreenShell extends StatelessWidget {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: isLoading ? null : onExecute,
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          label: Text(executeButtonLabel,
+                          icon: isLoading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.play_arrow_rounded),
+                          label: Text(
+                              isLoading ? 'Processing...' : executeButtonLabel,
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold)),
                         ),

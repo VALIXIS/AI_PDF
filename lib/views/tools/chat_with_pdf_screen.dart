@@ -208,6 +208,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
   }
 
   Future<void> _sendMessage([String? customPrompt]) async {
+    if (_isAiThinking || _isLoadingPdf) return;
     final text = (customPrompt ?? _inputController.text).trim();
     if (text.isEmpty) return;
 
@@ -414,12 +415,13 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_rounded),
               tooltip: 'Export Chat Report',
-              onPressed: _exportChatToPdf,
+              onPressed:
+                  (_isAiThinking || _isLoadingPdf) ? null : _exportChatToPdf,
             ),
           IconButton(
             icon: const Icon(Icons.file_upload_outlined),
             tooltip: 'Attach PDF',
-            onPressed: _pickPdf,
+            onPressed: (_isAiThinking || _isLoadingPdf) ? null : _pickPdf,
           ),
         ],
         elevation: 0,
@@ -559,9 +561,16 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                 ),
                 const SizedBox(width: 4),
                 GestureDetector(
-                  onTap: () => _removeAttachment(index),
-                  child: const Icon(Icons.close_rounded,
-                      size: 16, color: Colors.grey),
+                  onTap: (_isAiThinking || _isLoadingPdf)
+                      ? null
+                      : () => _removeAttachment(index),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 16,
+                    color: (_isAiThinking || _isLoadingPdf)
+                        ? Colors.grey.withValues(alpha: 0.3)
+                        : Colors.grey,
+                  ),
                 ),
               ],
             ),
@@ -586,14 +595,19 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ActionChip(
-              avatar: const Icon(Icons.auto_awesome,
-                  size: 12, color: Colors.deepPurple),
+              avatar: Icon(Icons.auto_awesome,
+                  size: 12,
+                  color: (_isAiThinking || _isLoadingPdf)
+                      ? Colors.grey
+                      : Colors.deepPurple),
               label: Text(prompt, style: const TextStyle(fontSize: 11.5)),
               backgroundColor: cardBg,
               side: BorderSide(color: border, width: 1.2),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
-              onPressed: () => _sendMessage(prompt),
+              onPressed: (_isAiThinking || _isLoadingPdf)
+                  ? null
+                  : () => _sendMessage(prompt),
             ),
           );
         },
@@ -612,9 +626,9 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
         child: Container(
           margin: const EdgeInsets.only(left: 48, top: 6, bottom: 6),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: userBubbleBg,
-            borderRadius: const BorderRadius.only(
+            borderRadius: BorderRadius.only(
               topLeft: Radius.circular(16),
               topRight: Radius.circular(16),
               bottomLeft: Radius.circular(16),
@@ -757,9 +771,10 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF10B981).withOpacity(0.08),
+        color: const Color(0xFF10B981).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+        border: Border.all(
+            color: const Color(0xFF10B981).withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -834,7 +849,7 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
             ),
             Expanded(
               child: TextField(
-                enabled: !_isAiThinking,
+                enabled: !_isAiThinking && !_isLoadingPdf,
                 controller: _inputController,
                 style: const TextStyle(fontSize: 13.5),
                 maxLines: 4,
@@ -849,13 +864,26 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 ),
-                onSubmitted: (_) => _sendMessage(),
+                onSubmitted: (_isAiThinking || _isLoadingPdf)
+                    ? null
+                    : (_) => _sendMessage(),
               ),
             ),
             const SizedBox(width: 8),
             IconButton.filled(
-              onPressed: _isAiThinking ? null : () => _sendMessage(),
-              icon: const Icon(Icons.send_rounded, size: 18),
+              onPressed: (_isAiThinking || _isLoadingPdf)
+                  ? null
+                  : () => _sendMessage(),
+              icon: _isAiThinking
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded, size: 18),
               style: IconButton.styleFrom(
                 backgroundColor: primary,
                 foregroundColor: Colors.white,

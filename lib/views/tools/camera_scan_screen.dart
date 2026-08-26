@@ -321,21 +321,24 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                   icon: Icons.document_scanner_rounded,
                   label: 'Scan Doc',
                   color: primary,
-                  onTap: (_isLoading || _isCapturing) ? () {} : _scanDocument,
+                  isProcessing: _isCapturing,
+                  onTap: (_isLoading || _isCapturing) ? null : _scanDocument,
                 ),
                 const SizedBox(width: 10),
                 _ScanBtn(
                   icon: Icons.camera_alt_rounded,
                   label: 'Camera',
                   color: const Color(0xFF059669),
-                  onTap: (_isLoading || _isCapturing) ? () {} : _takePhoto,
+                  isProcessing: false,
+                  onTap: (_isLoading || _isCapturing) ? null : _takePhoto,
                 ),
                 const SizedBox(width: 10),
                 _ScanBtn(
                   icon: Icons.photo_library_rounded,
                   label: 'Gallery',
                   color: const Color(0xFF8B5CF6),
-                  onTap: (_isLoading || _isCapturing) ? () {} : _pickGallery,
+                  isProcessing: false,
+                  onTap: (_isLoading || _isCapturing) ? null : _pickGallery,
                 ),
               ],
             ),
@@ -374,14 +377,18 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                   _isReorderMode
                                       ? Icons.grid_view_rounded
                                       : Icons.reorder_rounded,
-                                  color: primary,
+                                  color: (_isLoading || _isCapturing)
+                                      ? primary.withValues(alpha: 0.4)
+                                      : primary,
                                   size: 20,
                                 ),
                                 tooltip: _isReorderMode
                                     ? 'Switch to Grid View'
                                     : 'Reorder Pages',
-                                onPressed: () => setState(
-                                    () => _isReorderMode = !_isReorderMode),
+                                onPressed: (_isLoading || _isCapturing)
+                                    ? null
+                                    : () => setState(
+                                        () => _isReorderMode = !_isReorderMode),
                               ),
                               if (!_isLoading && !_isCapturing)
                                 TextButton(
@@ -581,33 +588,59 @@ class _ScanBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  final VoidCallback onTap;
-  const _ScanBtn(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
+  final VoidCallback? onTap;
+  final bool isProcessing;
+
+  const _ScanBtn({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.isProcessing = false,
+  });
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final enabled = onTap != null && !isProcessing;
+
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: isDark ? 0.12 : 0.08),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withValues(alpha: 0.25)),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 26),
-              const SizedBox(height: 6),
-              Text(label,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: enabled ? 1.0 : 0.45,
+        child: GestureDetector(
+          onTap: enabled ? onTap : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: isDark ? 0.12 : 0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: color.withValues(alpha: 0.25)),
+            ),
+            child: Column(
+              children: [
+                if (isProcessing)
+                  SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: color,
+                    ),
+                  )
+                else
+                  Icon(icon, color: color, size: 26),
+                const SizedBox(height: 6),
+                Text(
+                  label,
                   style: TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w700, color: color)),
-            ],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
