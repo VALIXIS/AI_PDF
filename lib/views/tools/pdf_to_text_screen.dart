@@ -1,14 +1,15 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
+import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
-import 'package:pdf_ai_toolkit/models/history_entry.dart';
-import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PdfToTextScreen extends StatefulWidget {
   const PdfToTextScreen({Key? key}) : super(key: key);
@@ -19,6 +20,8 @@ class PdfToTextScreen extends StatefulWidget {
 
 class _PdfToTextScreenState extends State<PdfToTextScreen> {
   final FileService _fileService = FileService();
+  final PdfService _pdfService = PdfService();
+  final StorageService _storageService = StorageService();
 
   String? _selectedFile;
   String? _extractedText;
@@ -45,7 +48,7 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Select a PDF document to extract its text content',
+              'Select a PDF document (.pdf) to extract its text content',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -113,7 +116,7 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
                   icon: Icons.text_snippet_rounded,
                   title: 'No PDF Selected',
                   subtitle:
-                      'Select a PDF document from your device to extract text content',
+                      'Select a PDF document (.pdf) from your device to extract text content',
                   actionLabel: 'Select PDF',
                   onAction: _isLoading ? null : _pickPdf,
                 ),
@@ -122,10 +125,27 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
 
             // Extracted Text Result Card
             if (_extractedText != null) ...[
+              if (_txtPath != null) ...[
+                ToolSuccessCard(
+                  title: 'Text Extracted Successfully!',
+                  subtitle: 'Extracted text saved to file.',
+                  filePath: _txtPath,
+                  onShare: _shareTxtFile,
+                  onReset: () {
+                    setState(() {
+                      _extractedText = null;
+                      _selectedFile = null;
+                      _txtPath = null;
+                      _errorMessage = null;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
               Row(
                 children: [
                   Text(
-                    'Extracted Text',
+                    'Extracted Text Content',
                     style: Theme.of(context)
                         .textTheme
                         .titleSmall
@@ -239,10 +259,32 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
   }
 
   Future<void> _pickPdf() async {
+    if (_isLoading) return;
     try {
       final file = await _fileService.pickPdfFile();
       if (!mounted) return;
       if (file != null) {
+        final ext = _fileService.getExtension(file).toLowerCase();
+
+        // Check for unsupported formats
+        if (ext == '.doc' || ext == '.docx') {
+          setState(() {
+            _selectedFile = null;
+            _errorMessage =
+                'Word documents ($ext) are not supported for text extraction. Please select a valid PDF (.pdf) file.';
+          });
+          return;
+        }
+
+        if (!await _fileService.isPdfFile(file)) {
+          setState(() {
+            _selectedFile = null;
+            _errorMessage =
+                'Selected file is not a valid PDF document. Please select a valid .pdf file.';
+          });
+          return;
+        }
+
         setState(() {
           _selectedFile = file;
           _extractedText = null;
@@ -253,7 +295,7 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = 'Failed to pick file: $e';
       });
     }
   }
@@ -281,24 +323,36 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
         return;
       }
 
+      if (!await _fileService.isPdfFile(_selectedFile!)) {
+        setState(() {
+          _errorMessage =
+              'Selected file is not a valid PDF document. Please select a valid .pdf file.';
+          _isLoading = false;
+        });
+        return;
+      }
+
       // Perform real PDF -> TXT conversion
-      final txtPath = await PdfService().convertPdfToTxt(
+      final txtPath = await _pdfService.convertPdfToTxt(
         pdfPath: _selectedFile!,
       );
 
       // Validate output TXT exists and is readable
       final txtFile = File(txtPath);
       if (!await txtFile.exists()) {
-        throw Exception('Generated TXT file does not exist');
+        throw PdfServiceException('Generated TXT file does not exist',
+            code: 'PDF_TO_TXT_OUTPUT_NOT_FOUND');
       }
 
       final text = await txtFile.readAsString(encoding: utf8);
-      if (text.isEmpty) {
-        throw Exception('Generated TXT file is empty');
+      if (text.trim().isEmpty) {
+        throw PdfServiceException(
+            'No extractable text found in this PDF. Scanned or image-only PDFs do not have a raw text layer.',
+            code: 'PDF_TO_TXT_NO_TEXT');
       }
 
       // Add to History
-      await StorageService().addHistoryEntry(HistoryEntry(
+      await _storageService.addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
         title: 'Extracted Text: ${_fileService.getFileName(_selectedFile!)}',
         date: DateTime.now(),
@@ -315,8 +369,16 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      String friendlyError = e
+          .toString()
+          .replaceAll('Exception: ', '')
+          .replaceAll('PdfServiceException: ', '');
+      if (e is PdfServiceException && e.code == 'PDF_TO_TXT_NO_TEXT') {
+        friendlyError =
+            'No extractable text found in this PDF. Scanned or image-only PDFs do not contain selectable text.';
+      }
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = friendlyError;
         _isLoading = false;
       });
     }
