@@ -252,7 +252,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       title: 'PDF AI Toolkit',
-                      subtitle: 'Version 1.0.0+1 (Founder Edition)',
+                      subtitle: 'Version 1.0.1+2 (Founder Edition)',
                     ),
                     _SettingsTile(
                       icon: Icons.shield_rounded,
