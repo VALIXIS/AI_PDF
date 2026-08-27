@@ -292,11 +292,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(dialogCtx);
               await StorageService().clearAllHistory();
               if (!mounted) return;
               setState(() => _historyCount = 0);
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 SnackBar(
                   content: const Text('History cleared'),
                   behavior: SnackBarBehavior.floating,

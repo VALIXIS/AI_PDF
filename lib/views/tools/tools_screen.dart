@@ -331,8 +331,13 @@ class _ToolsScreenCardState extends State<_ToolsScreenCard>
     super.dispose();
   }
 
+  bool _isNavigating = false;
+
   void _onTap() {
+    if (_isNavigating) return;
+    _isNavigating = true;
     _animController.forward().then((_) {
+      if (!mounted) return;
       _animController.reverse();
       Navigator.of(context).push(
         PageRouteBuilder(
@@ -349,7 +354,11 @@ class _ToolsScreenCardState extends State<_ToolsScreenCard>
             ),
           ),
         ),
-      );
+      ).then((_) {
+        if (mounted) {
+          setState(() => _isNavigating = false);
+        }
+      });
     });
   }
 
@@ -371,7 +380,7 @@ class _ToolsScreenCardState extends State<_ToolsScreenCard>
             border: Border.all(color: borderCol, width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(widget.isDark ? 0.2 : 0.04),
+                color: Colors.black.withValues(alpha: widget.isDark ? 0.2 : 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               )
@@ -385,7 +394,7 @@ class _ToolsScreenCardState extends State<_ToolsScreenCard>
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: widget.item.color.withOpacity(0.12),
+                  color: widget.item.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(

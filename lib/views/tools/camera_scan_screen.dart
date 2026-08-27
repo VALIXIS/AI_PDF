@@ -197,6 +197,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
   }
 
   void _removePage(int index) {
+    if (index < 0 || index >= _pages.length) return;
     setState(() {
       _pages.removeAt(index);
       if (_pages.isEmpty) {
@@ -205,32 +206,44 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
     });
   }
 
-  void _showFullPreview(File file) {
+  void _showFullPreview(File file, int pageIndex) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
         backgroundColor: Colors.black,
-        insetPadding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppBar(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              title: const Text('Page Preview', style: TextStyle(fontSize: 16)),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.of(ctx).pop(),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: SizedBox(
+          width: MediaQuery.of(ctx).size.width * 0.9,
+          height: MediaQuery.of(ctx).size.height * 0.8,
+          child: Column(
+            children: [
+              AppBar(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                title: Text(
+                  'Page ${pageIndex + 1} of ${_pages.length}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-              ],
-            ),
-            Flexible(
-              child: InteractiveViewer(
-                child: Image.file(file, fit: BoxFit.contain),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
               ),
-            ),
-          ],
+              Expanded(
+                child: Center(
+                  child: InteractiveViewer(
+                    panEnabled: true,
+                    boundaryMargin: const EdgeInsets.all(20),
+                    minScale: 0.5,
+                    maxScale: 4.0,
+                    child: Image.file(file, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -410,6 +423,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                         Expanded(
                           child: _isReorderMode
                               ? ReorderableListView.builder(
+                                  buildDefaultDragHandles: false,
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 20),
                                   itemCount: _pages.length,
@@ -423,7 +437,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                   itemBuilder: (context, index) {
                                     final page = _pages[index];
                                     return Card(
-                                      key: ValueKey(page.path),
+                                      key: ValueKey('scan_page_${page.path}_$index'),
                                       margin: const EdgeInsets.only(bottom: 10),
                                       child: ListTile(
                                         leading: ClipRRect(
@@ -464,7 +478,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                             ),
                                           ],
                                         ),
-                                        onTap: () => _showFullPreview(page),
+                                        onTap: () => _showFullPreview(page, index),
                                       ),
                                     );
                                   },
@@ -481,7 +495,7 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                   ),
                                   itemCount: _pages.length,
                                   itemBuilder: (_, i) => GestureDetector(
-                                    onTap: () => _showFullPreview(_pages[i]),
+                                    onTap: () => _showFullPreview(_pages[i], i),
                                     child: Stack(
                                       children: [
                                         Container(
