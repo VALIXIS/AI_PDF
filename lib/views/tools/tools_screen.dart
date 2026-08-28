@@ -17,6 +17,7 @@ import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
   final String title;
@@ -271,8 +272,13 @@ class _ToolsScreenState extends State<ToolsScreen> {
           // Tools Grid View
           Expanded(
             child: filteredTools.isEmpty
-                ? const Center(
-                    child: Text('No tools available in this category'),
+                ? ToolEmptyState(
+                    icon: Icons.category_rounded,
+                    title: 'No Tools in "$_category"',
+                    subtitle:
+                        'Try selecting another category or "All" to view available tools.',
+                    actionLabel: 'Show All Tools',
+                    onAction: () => setState(() => _category = 'All'),
                   )
                 : GridView.builder(
                     padding:
