@@ -208,7 +208,7 @@ void main() {
           id: i.toString(),
           x: (i % 100) / 100,
           y: (i % 100) / 100,
-          text: 'Ann \$i',
+          text: 'Ann $i',
         ));
       }
 
@@ -256,7 +256,7 @@ void main() {
       watch.stop();
       printPerf('Storage 1000 Entries (Write+Read)', watch, startRss);
       debugPrint(
-          'PERF: Read 1000 Entries took \${watchRead.elapsedMilliseconds}ms');
+          'PERF: Read 1000 Entries took ${watchRead.elapsedMilliseconds}ms');
     });
   });
 }

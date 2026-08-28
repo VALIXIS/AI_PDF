@@ -1601,6 +1601,56 @@ class PdfService {
           code: 'HTML_TO_PDF_FAILURE', details: e);
     }
   }
+
+  /// Password protects a PDF document using User & Owner Passwords
+  Future<String> protectPdf({
+    required String pdfPath,
+    required String password,
+    String? customOutputPath,
+  }) async {
+    try {
+      final file = File(pdfPath);
+      if (!await file.exists()) {
+        throw PdfServiceException('Input file does not exist',
+            code: 'PROTECT_PDF_INPUT_NOT_FOUND');
+      }
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        throw PdfServiceException('Input PDF file is empty',
+            code: 'PROTECT_PDF_INPUT_EMPTY');
+      }
+
+      final syncfusion.PdfDocument document = syncfusion.PdfDocument(inputBytes: bytes);
+      try {
+        // Set encryption algorithm
+        document.security.algorithm = syncfusion.PdfEncryptionAlgorithm.aesx256Bit;
+        
+        // Set passwords
+        document.security.userPassword = password;
+        document.security.ownerPassword = password;
+
+        final List<int> outputBytes = document.saveSync();
+
+        final String dirPath =
+            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+        final String baseName = path.basenameWithoutExtension(pdfPath);
+        final fileName = FileService().formatOutputFileName(
+          baseName: baseName,
+          suffix: 'protected',
+          extension: 'pdf',
+        );
+        final targetPath = path.join(dirPath, fileName);
+
+        return await FileService().safeWriteBytes(targetPath, outputBytes);
+      } finally {
+        document.dispose();
+      }
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to protect PDF: $e',
+          code: 'PROTECT_PDF_FAILURE', details: e);
+    }
+  }
 }
 
 class MarkdownPdfRenderer {
