@@ -8,6 +8,8 @@ import 'package:pdf_ai_toolkit/views/tools/pdf_to_text_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/jpg_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/ai_refine_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 void main() {
@@ -116,6 +118,46 @@ void main() {
       expect(find.text('No PDF Selected'), findsOneWidget);
       expect(find.text('Select PDF'), findsOneWidget);
       expect(find.byType(ToolEmptyState), findsOneWidget);
+    });
+
+    testWidgets('HtmlToPdfScreen renders shell and empty state',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: HtmlToPdfScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('HTML to PDF'), findsOneWidget);
+      expect(find.text('No PDF Selected'), findsOneWidget);
+      expect(find.text('Select PDF'), findsOneWidget);
+      expect(find.byType(ToolEmptyState), findsOneWidget);
+    });
+
+    testWidgets('AiRefineScreen renders input fields and modes cleanly',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: AiRefineScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('AI Refine'), findsOneWidget);
+      expect(find.text('Polish Your Text with AI'), findsOneWidget);
+      expect(find.text('Refining Mode'), findsOneWidget);
+      expect(find.text('Clean'), findsOneWidget);
+      expect(find.text('Summary'), findsOneWidget);
+      expect(find.text('Notes'), findsOneWidget);
+      expect(find.text('Refine Text with AI'), findsOneWidget);
+
+      // Attempt to submit empty text
+      await tester.tap(find.text('Refine Text with AI'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ToolErrorBanner), findsOneWidget);
+      expect(find.text('Please enter text to refine with AI.'), findsOneWidget);
     });
   });
 }
