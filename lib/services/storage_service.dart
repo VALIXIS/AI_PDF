@@ -66,10 +66,10 @@ class StorageService {
         existingEntry = byId;
       } else {
         // Fast in-memory scan over cached box values
-        for (final MapEntry(:key, :value) in box.toMap().entries) {
-          if (value != null &&
-              FileService().normalizePath(value.filePath) == normalizedPath) {
-            existingKey = key;
+        for (final entry in box.toMap().entries) {
+          final value = entry.value;
+          if (FileService().normalizePath(value.filePath) == normalizedPath) {
+            existingKey = entry.key;
             existingEntry = value;
             break;
           }
@@ -145,10 +145,9 @@ class StorageService {
       if (box == null) return;
       final normalized = FileService().normalizePath(filePath);
       dynamic targetKey;
-      for (final MapEntry(:key, :value) in box.toMap().entries) {
-        if (value != null &&
-            FileService().normalizePath(value.filePath) == normalized) {
-          targetKey = key;
+      for (final entry in box.toMap().entries) {
+        if (FileService().normalizePath(entry.value.filePath) == normalized) {
+          targetKey = entry.key;
           break;
         }
       }
@@ -249,12 +248,8 @@ class StorageService {
       final entriesWithKeys = <MapEntry<dynamic, HistoryEntry>>[];
       final corruptKeys = <dynamic>[];
 
-      for (final MapEntry(:key, :value) in box.toMap().entries) {
-        if (value != null) {
-          entriesWithKeys.add(MapEntry(key, value));
-        } else {
-          corruptKeys.add(key);
-        }
+      for (final entry in box.toMap().entries) {
+        entriesWithKeys.add(MapEntry(entry.key, entry.value));
       }
 
       final accessibilityResults = await Future.wait(
