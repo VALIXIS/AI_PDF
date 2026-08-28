@@ -68,3 +68,6 @@ flutter:
   assets:
     - .env
     - assets/ICON.png
+
+dependency_overrides:
+  objective_c: 9.4.1

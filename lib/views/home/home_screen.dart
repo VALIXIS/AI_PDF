@@ -73,8 +73,11 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  bool _isNavigating = false;
+
   void _push(Widget screen) async {
-    if (!mounted) return;
+    if (!mounted || _isNavigating) return;
+    _isNavigating = true;
     _promptFocusNode.unfocus();
     FocusScope.of(context).unfocus();
 
@@ -96,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
 
     if (mounted) {
+      _isNavigating = false;
       _promptFocusNode.unfocus();
       FocusScope.of(context).unfocus();
       setState(() => _isPromptFocused = false);
