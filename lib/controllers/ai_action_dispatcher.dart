@@ -475,12 +475,9 @@ class AiActionDispatcher {
 
     try {
       // Create a password protected copy
-      final outputPath = await _pdfService.watermarkPdf(
+      final outputPath = await _pdfService.protectPdf(
         pdfPath: pdfPath,
-        watermarkText: 'PROTECTED COPY',
-        opacity: 0.2,
-        color: Colors.blue,
-        angle: 0.785398,
+        password: password,
       );
 
       final title = 'AI Protected · ${FileService().getFileName(pdfPath)}';

@@ -255,6 +255,18 @@ void main() {
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(editedPath), equals(1));
     });
+
+    test('protectPdf encrypts PDF and returns output', () async {
+      final protectedPath = await pdfService.protectPdf(
+        pdfPath: sourcePdf,
+        password: 'TestPassword123',
+        customOutputPath: tempDir.path,
+      );
+
+      final file = File(protectedPath);
+      expect(await file.exists(), isTrue);
+      expect(await pdfService.getPdfPageCount(protectedPath), equals(1));
+    });
   });
 
   group('Conversion Operations', () {

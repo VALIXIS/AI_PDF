@@ -2,13 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
@@ -83,48 +81,14 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
     });
 
     try {
-      final pdf = pw.Document();
-      pdf.addPage(pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (_) => pw.Center(
-            child: pw.Column(
-                mainAxisAlignment: pw.MainAxisAlignment.center,
-                children: [
-              pw.Icon(const pw.IconData(0xe897),
-                  size: 64, color: PdfColors.red),
-              pw.SizedBox(height: 16),
-              pw.Text('Password Protected',
-                  style: pw.TextStyle(
-                      fontSize: 24, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 8),
-              pw.Text('Source: ${FileService().getFileName(_pdfFile!.path)}',
-                  style:
-                      const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-              pw.SizedBox(height: 4),
-              pw.Text('Password set successfully',
-                  style:
-                      const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-            ])),
-      ));
-      final dir = await getApplicationDocumentsDirectory();
-      final baseName = FileService().getFileName(_pdfFile!.path);
-      final fileName = FileService().formatOutputFileName(
-        baseName: baseName,
-        suffix: 'protected',
-        extension: 'pdf',
+      final savedPath = await PdfService().protectPdf(
+        pdfPath: _pdfFile!.path,
+        password: _passCtrl.text,
       );
-      final targetPath = FileService().joinPaths(dir.path, fileName);
-      final pdfBytes = await pdf.save();
-      final savedPath =
-          await FileService().safeWriteBytes(targetPath, pdfBytes);
-
-      if (!await FileService().isPdfFile(savedPath)) {
-        throw Exception('Generated protected PDF is invalid or empty.');
-      }
 
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
-        title: 'Protected PDF',
+        title: 'Protected PDF · ${FileService().getFileName(_pdfFile!.path)}',
         date: DateTime.now(),
         filePath: savedPath,
         toolType: 'protect_pdf',
