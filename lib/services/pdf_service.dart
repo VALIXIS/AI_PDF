@@ -1620,11 +1620,13 @@ class PdfService {
             code: 'PROTECT_PDF_INPUT_EMPTY');
       }
 
-      final syncfusion.PdfDocument document = syncfusion.PdfDocument(inputBytes: bytes);
+      final syncfusion.PdfDocument document =
+          syncfusion.PdfDocument(inputBytes: bytes);
       try {
         // Set encryption algorithm
-        document.security.algorithm = syncfusion.PdfEncryptionAlgorithm.aesx256Bit;
-        
+        document.security.algorithm =
+            syncfusion.PdfEncryptionAlgorithm.aesx256Bit;
+
         // Set passwords
         document.security.userPassword = password;
         document.security.ownerPassword = password;

@@ -247,7 +247,8 @@ void main() {
       final bytes = await file.readAsBytes();
       final doc = syncfusion.PdfDocument(inputBytes: bytes);
       try {
-        expect(doc.pages[0].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
+        expect(doc.pages[0].rotation,
+            equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
       } finally {
         doc.dispose();
       }
@@ -324,7 +325,14 @@ void main() {
 
       final file = File(protectedPath);
       expect(await file.exists(), isTrue);
-      expect(await pdfService.getPdfPageCount(protectedPath), equals(1));
+
+      final bytes = await file.readAsBytes();
+      final doc = syncfusion.PdfDocument(inputBytes: bytes, password: 'TestPassword123');
+      try {
+        expect(doc.pages.count, equals(1));
+      } finally {
+        doc.dispose();
+      }
     });
   });
 

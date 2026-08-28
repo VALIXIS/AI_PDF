@@ -222,7 +222,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                 foregroundColor: Colors.white,
                 title: Text(
                   'Page ${pageIndex + 1} of ${_pages.length}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 actions: [
                   IconButton(
@@ -437,7 +438,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                   itemBuilder: (context, index) {
                                     final page = _pages[index];
                                     return Card(
-                                      key: ValueKey('scan_page_${page.path}_$index'),
+                                      key: ValueKey(
+                                          'scan_page_${page.path}_$index'),
                                       margin: const EdgeInsets.only(bottom: 10),
                                       child: ListTile(
                                         leading: ClipRRect(
@@ -478,7 +480,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                             ),
                                           ],
                                         ),
-                                        onTap: () => _showFullPreview(page, index),
+                                        onTap: () =>
+                                            _showFullPreview(page, index),
                                       ),
                                     );
                                   },

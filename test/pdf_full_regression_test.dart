@@ -16,16 +16,136 @@ void main() {
 
   // 1x1 valid JPEG byte array for testing image annotations
   final Uint8List sampleImageBytes = Uint8List.fromList([
-    0xFF, 0xD8, 0xFF, 0xDB, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05,
-    0x08, 0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B,
-    0x0B, 0x0C, 0x19, 0x12, 0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A,
-    0x1C, 0x1C, 0x20, 0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28,
-    0x37, 0x29, 0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38,
-    0x32, 0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01,
-    0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x1F, 0x00, 0x00, 0x01,
-    0x05, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
-    0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00, 0xBF, 0x00, 0xFF,
+    0xFF,
+    0xD8,
+    0xFF,
+    0xDB,
+    0x00,
+    0x43,
+    0x00,
+    0x08,
+    0x06,
+    0x06,
+    0x07,
+    0x06,
+    0x05,
+    0x08,
+    0x07,
+    0x07,
+    0x07,
+    0x09,
+    0x09,
+    0x08,
+    0x0A,
+    0x0C,
+    0x14,
+    0x0D,
+    0x0C,
+    0x0B,
+    0x0B,
+    0x0C,
+    0x19,
+    0x12,
+    0x13,
+    0x0F,
+    0x14,
+    0x1D,
+    0x1A,
+    0x1F,
+    0x1E,
+    0x1D,
+    0x1A,
+    0x1C,
+    0x1C,
+    0x20,
+    0x24,
+    0x2E,
+    0x27,
+    0x20,
+    0x22,
+    0x2C,
+    0x23,
+    0x1C,
+    0x1C,
+    0x28,
+    0x37,
+    0x29,
+    0x2C,
+    0x30,
+    0x31,
+    0x34,
+    0x34,
+    0x34,
+    0x1F,
+    0x27,
+    0x39,
+    0x3D,
+    0x38,
+    0x32,
+    0x3C,
+    0x2E,
+    0x33,
+    0x34,
+    0x32,
+    0xFF,
+    0xC0,
+    0x00,
+    0x0B,
+    0x08,
+    0x00,
+    0x01,
+    0x00,
+    0x01,
+    0x01,
+    0x01,
+    0x11,
+    0x00,
+    0xFF,
+    0xC4,
+    0x00,
+    0x1F,
+    0x00,
+    0x00,
+    0x01,
+    0x05,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x02,
+    0x03,
+    0x04,
+    0x05,
+    0x06,
+    0x07,
+    0x08,
+    0x09,
+    0x0A,
+    0x0B,
+    0xFF,
+    0xDA,
+    0x00,
+    0x08,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    0x3F,
+    0x00,
+    0xBF,
+    0x00,
+    0xFF,
     0xD9
   ]);
 
@@ -88,16 +208,20 @@ void main() {
       );
 
       final singleFile = File(singlePdfPath);
-      expect(await singleFile.exists(), isTrue, reason: 'Single PDF must exist');
-      expect(await singleFile.length(), greaterThan(0), reason: 'PDF size must be > 0');
+      expect(await singleFile.exists(), isTrue,
+          reason: 'Single PDF must exist');
+      expect(await singleFile.length(), greaterThan(0),
+          reason: 'PDF size must be > 0');
 
       final singlePageCount = await pdfService.getPdfPageCount(singlePdfPath);
-      expect(singlePageCount, equals(1), reason: 'Single page count should be 1');
+      expect(singlePageCount, equals(1),
+          reason: 'Single page count should be 1');
 
       // Multi-page PDF creation
       final multiContent = List.generate(
         100,
-        (i) => 'Line $i: Content section with detailed text for testing pagination.',
+        (i) =>
+            'Line $i: Content section with detailed text for testing pagination.',
       ).join('\n');
 
       final multiPdfPath = await pdfService.generatePdfFromText(
@@ -108,10 +232,12 @@ void main() {
 
       final multiFile = File(multiPdfPath);
       expect(await multiFile.exists(), isTrue, reason: 'Multi PDF must exist');
-      expect(await multiFile.length(), greaterThan(0), reason: 'Multi PDF size > 0');
+      expect(await multiFile.length(), greaterThan(0),
+          reason: 'Multi PDF size > 0');
 
       final multiPageCount = await pdfService.getPdfPageCount(multiPdfPath);
-      expect(multiPageCount, greaterThan(1), reason: 'Multi page count should be > 1');
+      expect(multiPageCount, greaterThan(1),
+          reason: 'Multi page count should be > 1');
     });
 
     test('2. PDF Import / Load & Input Validation', () async {
@@ -213,12 +339,17 @@ void main() {
     });
 
     test('5. PDF Split (Page extraction)', () async {
-      final p1 = await pdfService.generatePdfFromText(title: 'P1', content: 'Page 1', customOutputPath: tempDir.path);
-      final p2 = await pdfService.generatePdfFromText(title: 'P2', content: 'Page 2', customOutputPath: tempDir.path);
-      final p3 = await pdfService.generatePdfFromText(title: 'P3', content: 'Page 3', customOutputPath: tempDir.path);
-      final p4 = await pdfService.generatePdfFromText(title: 'P4', content: 'Page 4', customOutputPath: tempDir.path);
+      final p1 = await pdfService.generatePdfFromText(
+          title: 'P1', content: 'Page 1', customOutputPath: tempDir.path);
+      final p2 = await pdfService.generatePdfFromText(
+          title: 'P2', content: 'Page 2', customOutputPath: tempDir.path);
+      final p3 = await pdfService.generatePdfFromText(
+          title: 'P3', content: 'Page 3', customOutputPath: tempDir.path);
+      final p4 = await pdfService.generatePdfFromText(
+          title: 'P4', content: 'Page 4', customOutputPath: tempDir.path);
 
-      final fourPagePdf = await pdfService.mergePdfs([p1, p2, p3, p4], customOutputPath: tempDir.path);
+      final fourPagePdf = await pdfService
+          .mergePdfs([p1, p2, p3, p4], customOutputPath: tempDir.path);
       expect(await pdfService.getPdfPageCount(fourPagePdf), equals(4));
 
       // Extract pages 2 to 3
@@ -234,13 +365,19 @@ void main() {
       expect(await splitFile.length(), greaterThan(0));
 
       final splitCount = await pdfService.getPdfPageCount(splitPath);
-      expect(splitCount, equals(2), reason: 'Pages 2 to 3 extracted should result in 2 pages');
+      expect(splitCount, equals(2),
+          reason: 'Pages 2 to 3 extracted should result in 2 pages');
     });
 
-    test('6. PDF Editor & Annotation Workflow (Add, Edit, Move, Delete, Multi-page)', () async {
-      final p1 = await pdfService.generatePdfFromText(title: 'Ed1', content: 'Page 1 text', customOutputPath: tempDir.path);
-      final p2 = await pdfService.generatePdfFromText(title: 'Ed2', content: 'Page 2 text', customOutputPath: tempDir.path);
-      final sourcePdf = await pdfService.mergePdfs([p1, p2], customOutputPath: tempDir.path);
+    test(
+        '6. PDF Editor & Annotation Workflow (Add, Edit, Move, Delete, Multi-page)',
+        () async {
+      final p1 = await pdfService.generatePdfFromText(
+          title: 'Ed1', content: 'Page 1 text', customOutputPath: tempDir.path);
+      final p2 = await pdfService.generatePdfFromText(
+          title: 'Ed2', content: 'Page 2 text', customOutputPath: tempDir.path);
+      final sourcePdf =
+          await pdfService.mergePdfs([p1, p2], customOutputPath: tempDir.path);
 
       // Construct annotation map for multi-page document
       final textAnn = Annotation.text(
@@ -315,7 +452,8 @@ void main() {
       expect(count, equals(1));
     });
 
-    test('8. Save Integrity (No destructive rasterization / empty outputs)', () async {
+    test('8. Save Integrity (No destructive rasterization / empty outputs)',
+        () async {
       final sourcePdf = await pdfService.generatePdfFromText(
         title: 'Save Test',
         content: 'Original vector PDF text line.',
@@ -331,12 +469,15 @@ void main() {
 
       final savedPath = await pdfService.saveEditedPdf(
         sourcePdfPath: sourcePdf,
-        annotationsByPage: {0: [textAnn]},
+        annotationsByPage: {
+          0: [textAnn]
+        },
         customOutputPath: tempDir.path,
       );
 
       final savedBytes = await File(savedPath).readAsBytes();
-      expect(savedBytes.length, greaterThan(100), reason: 'Saved PDF should contain valid bytes');
+      expect(savedBytes.length, greaterThan(100),
+          reason: 'Saved PDF should contain valid bytes');
 
       // Verify header matches PDF standard
       final header = String.fromCharCodes(savedBytes.sublist(0, 5));
@@ -356,7 +497,8 @@ void main() {
       );
 
       // Merge -> Edit -> Save -> Reopen
-      final merged = await pdfService.mergePdfs([doc1, doc2], customOutputPath: tempDir.path);
+      final merged = await pdfService
+          .mergePdfs([doc1, doc2], customOutputPath: tempDir.path);
 
       final textAnn = Annotation.text(
         id: 'reopen_ann',
@@ -367,12 +509,15 @@ void main() {
 
       final savedPdf = await pdfService.saveEditedPdf(
         sourcePdfPath: merged,
-        annotationsByPage: {0: [textAnn]},
+        annotationsByPage: {
+          0: [textAnn]
+        },
         customOutputPath: tempDir.path,
       );
 
       // Step 1: Reopen with Syncfusion
-      final sfDoc = sf.PdfDocument(inputBytes: await File(savedPdf).readAsBytes());
+      final sfDoc =
+          sf.PdfDocument(inputBytes: await File(savedPdf).readAsBytes());
       expect(sfDoc.pages.count, equals(2));
       sfDoc.dispose();
 
@@ -411,7 +556,8 @@ void main() {
       expect(count, equals(1));
     });
 
-    test('11. Resource Cleanup & File-Lock Handling (Windows Safety)', () async {
+    test('11. Resource Cleanup & File-Lock Handling (Windows Safety)',
+        () async {
       final sourcePdf = await pdfService.generatePdfFromText(
         title: 'Lock Test',
         content: 'File locking test.',

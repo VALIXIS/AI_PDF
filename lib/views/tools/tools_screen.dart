@@ -345,7 +345,8 @@ class _ToolsScreenCardState extends State<_ToolsScreenCard>
     _animController.forward().then((_) {
       if (!mounted) return;
       _animController.reverse();
-      Navigator.of(context).push(
+      Navigator.of(context)
+          .push(
         PageRouteBuilder(
           pageBuilder: (_, a, __) => widget.item.screen,
           transitionDuration: const Duration(milliseconds: 280),
@@ -360,7 +361,8 @@ class _ToolsScreenCardState extends State<_ToolsScreenCard>
             ),
           ),
         ),
-      ).then((_) {
+      )
+          .then((_) {
         if (mounted) {
           setState(() => _isNavigating = false);
         }
@@ -386,7 +388,8 @@ class _ToolsScreenCardState extends State<_ToolsScreenCard>
             border: Border.all(color: borderCol, width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: widget.isDark ? 0.2 : 0.04),
+                color:
+                    Colors.black.withValues(alpha: widget.isDark ? 0.2 : 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               )

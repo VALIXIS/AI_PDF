@@ -234,7 +234,8 @@ void main() {
 
       for (int i = 0; i < 1000; i++) {
         final dummyPdf = File('${tempDir.path}/history_dummy_$i.pdf')
-          ..writeAsStringSync('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>');
+          ..writeAsStringSync(
+              '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>');
         final entry = HistoryEntry(
           id: 'hist_$i',
           title: 'Doc $i',
