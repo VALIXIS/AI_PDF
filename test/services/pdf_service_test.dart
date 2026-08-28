@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -120,6 +121,19 @@ void main() {
 
       final pageCount = await pdfService.getPdfPageCount(outputPath);
       expect(pageCount, equals(1));
+
+      // Content verification
+      final bytes = await file.readAsBytes();
+      final doc = syncfusion.PdfDocument(inputBytes: bytes);
+      try {
+        final extractor = syncfusion.PdfTextExtractor(doc);
+        final text = extractor.extractText();
+        final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+        expect(normalized.contains('This is a test document.'), isTrue);
+        expect(normalized.contains('Test Title'), isTrue);
+      } finally {
+        doc.dispose();
+      }
     });
   });
 
@@ -154,6 +168,18 @@ void main() {
       final file = File(mergedPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(mergedPath), equals(2));
+
+      // Content verification
+      final bytes = await file.readAsBytes();
+      final doc = syncfusion.PdfDocument(inputBytes: bytes);
+      try {
+        final extractor = syncfusion.PdfTextExtractor(doc);
+        final text = extractor.extractText();
+        final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+        expect(normalized.contains('Content 1'), isTrue);
+      } finally {
+        doc.dispose();
+      }
     });
 
     test('splitPdf extracts specific page range', () async {
@@ -167,6 +193,19 @@ void main() {
       final file = File(splitPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(splitPath), equals(1));
+
+      // Content & isolation verification
+      final bytes = await file.readAsBytes();
+      final doc = syncfusion.PdfDocument(inputBytes: bytes);
+      try {
+        final extractor = syncfusion.PdfTextExtractor(doc);
+        final text = extractor.extractText();
+        final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+        expect(normalized.contains('Content 1'), isTrue);
+        expect(normalized.contains('Content 2'), isFalse);
+      } finally {
+        doc.dispose();
+      }
     });
 
     test('splitPdf throws exception for invalid range', () async {
@@ -203,6 +242,15 @@ void main() {
       final file = File(rotatedPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(rotatedPath), equals(1));
+
+      // Rotation metadata verification
+      final bytes = await file.readAsBytes();
+      final doc = syncfusion.PdfDocument(inputBytes: bytes);
+      try {
+        expect(doc.pages[0].rotation, equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
+      } finally {
+        doc.dispose();
+      }
     });
 
     test('watermarkPdf adds watermark to pages', () async {
@@ -218,6 +266,17 @@ void main() {
       final file = File(watermarkedPath);
       expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(watermarkedPath), equals(1));
+
+      // Watermark text presence verification
+      final bytes = await file.readAsBytes();
+      final doc = syncfusion.PdfDocument(inputBytes: bytes);
+      try {
+        final extractor = syncfusion.PdfTextExtractor(doc);
+        final text = extractor.extractText();
+        expect(text.contains('CONFIDENTIAL'), isTrue);
+      } finally {
+        doc.dispose();
+      }
     });
 
     test('saveEditedPdf applies text and image annotations', () async {
@@ -266,8 +325,22 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      expect(await File(pdfPath).exists(), isTrue);
+      final file = File(pdfPath);
+      expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(pdfPath), equals(1));
+
+      // Content verification of TXT -> PDF
+      final bytes = await file.readAsBytes();
+      final doc = syncfusion.PdfDocument(inputBytes: bytes);
+      try {
+        final extractor = syncfusion.PdfTextExtractor(doc);
+        final text = extractor.extractText();
+        final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+        expect(normalized.contains('This is a test.'), isTrue);
+        expect(normalized.contains('From TXT'), isTrue);
+      } finally {
+        doc.dispose();
+      }
     });
 
     test('convertPdfToTxt extracts text to a file', () async {
@@ -312,8 +385,18 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
-      expect(await File(pdfPath).exists(), isTrue);
+      final file = File(pdfPath);
+      expect(await file.exists(), isTrue);
       expect(await pdfService.getPdfPageCount(pdfPath), equals(2));
+
+      // Reopening verification
+      final bytes = await file.readAsBytes();
+      final doc = syncfusion.PdfDocument(inputBytes: bytes);
+      try {
+        expect(doc.pages.count, equals(2));
+      } finally {
+        doc.dispose();
+      }
     });
 
     test('convertPdfToImages extracts images from PDF', () async {
@@ -332,7 +415,18 @@ void main() {
         );
 
         expect(imagePaths.length, equals(1));
-        expect(await File(imagePaths.first).exists(), isTrue);
+        final imgFile = File(imagePaths.first);
+        expect(await imgFile.exists(), isTrue);
+        expect(imgFile.lengthSync(), greaterThan(0));
+
+        // PNG signature/structure verification
+        final imgBytes = await imgFile.readAsBytes();
+        expect(imgBytes.length, greaterThan(8));
+        // PNG header signature: 137, 80, 78, 71, 13, 10, 26, 10
+        expect(imgBytes[0], equals(137));
+        expect(imgBytes[1], equals(80));
+        expect(imgBytes[2], equals(78));
+        expect(imgBytes[3], equals(71));
       } catch (e) {
         // If it fails because of missing plugin or platform exception, we ignore it
         // because the test logic is still valid for environments that support the plugin natively.
