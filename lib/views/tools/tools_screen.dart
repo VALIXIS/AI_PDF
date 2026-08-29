@@ -48,8 +48,8 @@ const List<ToolItem> appTools = [
     category: 'Convert',
   ),
   ToolItem(
-    title: 'Word/TXT to PDF',
-    subtitle: 'Doc/Text to PDF',
+    title: 'TXT to PDF',
+    subtitle: 'Plain text to PDF',
     icon: Icons.text_fields_rounded,
     color: Color(0xFF10B981),
     screen: TextToPdfScreen(),

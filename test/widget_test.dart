@@ -86,7 +86,7 @@ void main() {
     expect(find.text('Rotate PDF'), findsOneWidget);
 
     // Convert and Edit specific tools should not be visible under Organize
-    expect(find.text('Word/TXT to PDF'), findsNothing);
+    expect(find.text('TXT to PDF'), findsNothing);
     expect(find.text('PDF Editor'), findsNothing);
 
     // 2. Verify navigation to an Organize tool (Merge PDF)
@@ -113,7 +113,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Images to PDF'), findsOneWidget);
-    expect(find.text('Word/TXT to PDF'), findsOneWidget);
+    expect(find.text('TXT to PDF'), findsOneWidget);
     expect(find.text('PDF to Text'), findsOneWidget);
     expect(find.text('Camera Scan'), findsOneWidget);
     expect(find.text('Merge PDF'), findsNothing);
