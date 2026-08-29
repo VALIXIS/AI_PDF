@@ -62,8 +62,8 @@ void main() {
         extension: 'txt',
       );
       final textInputPath = fileService.joinPaths(tempDirPath, textFileName);
-      final savedTextPath = await fileService.safeWriteBytes(
-          textInputPath, utf8.encode(rawText));
+      final savedTextPath =
+          await fileService.safeWriteBytes(textInputPath, utf8.encode(rawText));
 
       expect(await fileService.isFileValidAndAccessible(savedTextPath), isTrue);
       expect(await fileService.isTextFile(savedTextPath), isTrue);
@@ -81,7 +81,8 @@ void main() {
       expect(await pdfService.getPdfPageCount(pdfOutputPath), equals(1));
 
       // 4. HISTORY
-      final historyId = 'full_lifecycle_${DateTime.now().millisecondsSinceEpoch}';
+      final historyId =
+          'full_lifecycle_${DateTime.now().millisecondsSinceEpoch}';
       final entry = HistoryEntry(
         id: historyId,
         title: 'Full Lifecycle PDF',
@@ -94,10 +95,12 @@ void main() {
       final retrievedEntry = await storageService.getHistoryEntry(historyId);
       expect(retrievedEntry, isNotNull);
       expect(retrievedEntry!.filePath, equals(pdfOutputPath));
-      expect(await storageService.isEntryFileAccessible(retrievedEntry), isTrue);
+      expect(
+          await storageService.isEntryFileAccessible(retrievedEntry), isTrue);
 
       // 5. OPEN
-      final openedPageCount = await pdfService.getPdfPageCount(retrievedEntry.filePath);
+      final openedPageCount =
+          await pdfService.getPdfPageCount(retrievedEntry.filePath);
       expect(openedPageCount, equals(1));
 
       // 6. EXPORT (Split PDF export workflow)
@@ -137,7 +140,8 @@ void main() {
       await storageService.deleteHistoryEntry(historyId);
     });
 
-    test('Stage 1 (Import): Invalid, empty, or non-existent files rejected safely',
+    test(
+        'Stage 1 (Import): Invalid, empty, or non-existent files rejected safely',
         () async {
       final fakePath = fileService.joinPaths(tempDirPath, 'does_not_exist.pdf');
       expect(await fileService.isFileValidAndAccessible(fakePath), isFalse);
@@ -154,7 +158,8 @@ void main() {
 
       // Header magic byte validation for invalid PDF content masquerading with .pdf extension
       final fakePdfPath = fileService.joinPaths(tempDirPath, 'fake_header.pdf');
-      await fileService.safeWriteBytes(fakePdfPath, utf8.encode('NOT A REAL PDF CONTENT'));
+      await fileService.safeWriteBytes(
+          fakePdfPath, utf8.encode('NOT A REAL PDF CONTENT'));
       expect(await fileService.isPdfFile(fakePdfPath), isFalse);
       await fileService.deleteFile(fakePdfPath);
     });
@@ -179,11 +184,13 @@ void main() {
       final baseDoc = fileService.joinPaths(tempDirPath, 'dup_test.pdf');
       await fileService.safeWriteBytes(baseDoc, utf8.encode('%PDF-1.4 test'));
       final dup1 = await fileService.getUniqueFilePath(baseDoc);
-      expect(dup1, equals(fileService.joinPaths(tempDirPath, 'dup_test (1).pdf')));
+      expect(
+          dup1, equals(fileService.joinPaths(tempDirPath, 'dup_test (1).pdf')));
 
       await fileService.safeWriteBytes(dup1, utf8.encode('%PDF-1.4 test'));
       final dup2 = await fileService.getUniqueFilePath(baseDoc);
-      expect(dup2, equals(fileService.joinPaths(tempDirPath, 'dup_test (2).pdf')));
+      expect(
+          dup2, equals(fileService.joinPaths(tempDirPath, 'dup_test (2).pdf')));
     });
 
     test('Stage 4 (History): Failed operations emit no records & stale cleanup',
@@ -228,9 +235,11 @@ void main() {
       expect(await storageService.getHistoryEntry('stale_hist_1'), isNull);
     });
 
-    test('Stage 5 & 6 (Open & Export): Error handling on corrupt/missing inputs',
+    test(
+        'Stage 5 & 6 (Open & Export): Error handling on corrupt/missing inputs',
         () async {
-      final missingPath = fileService.joinPaths(tempDirPath, 'missing_open.pdf');
+      final missingPath =
+          fileService.joinPaths(tempDirPath, 'missing_open.pdf');
       expect(() => pdfService.getPdfPageCount(missingPath),
           throwsA(isA<PdfServiceException>()));
 

@@ -327,7 +327,8 @@ void main() {
       expect(await file.exists(), isTrue);
 
       final bytes = await file.readAsBytes();
-      final doc = syncfusion.PdfDocument(inputBytes: bytes, password: 'TestPassword123');
+      final doc = syncfusion.PdfDocument(
+          inputBytes: bytes, password: 'TestPassword123');
       try {
         expect(doc.pages.count, equals(1));
       } finally {
