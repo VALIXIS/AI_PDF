@@ -1005,7 +1005,7 @@ class PdfService {
       throw PdfServiceException('Failed to extract text: $e',
           code: 'PDF_TO_TXT_FAILURE', details: e);
     } finally {
-      document?.dispose();
+      document.dispose();
     }
   }
 
