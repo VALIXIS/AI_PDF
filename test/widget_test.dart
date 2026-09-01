@@ -41,7 +41,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('What can I help you with?'), findsOneWidget);
-    expect(find.text('PDF AI Toolkit'), findsWidgets);
+    expect(find.text('AI PDF Maker'), findsWidgets);
     expect(find.text('History'), findsOneWidget);
     expect(find.text('Tools'), findsOneWidget);
   });
@@ -60,7 +60,7 @@ void main() {
     await tester.pump();
 
     // Verify main app title is visible
-    expect(find.text('PDF AI Toolkit'), findsWidgets);
+    expect(find.text('AI PDF Maker'), findsWidgets);
 
     // Navigate to ToolsScreen
     final toolsTabBtn = find.text('Tools');

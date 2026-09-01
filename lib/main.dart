@@ -212,7 +212,7 @@ class _PdfAiToolkitAppState extends State<PdfAiToolkitApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PDF AI Toolkit',
+      title: 'AI PDF Maker',
       debugShowCheckedModeBanner: false,
       themeMode: themeNotifier.mode,
       theme: lightTheme,

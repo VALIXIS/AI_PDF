@@ -251,7 +251,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           fit: BoxFit.contain,
                         ),
                       ),
-                      title: 'PDF AI Toolkit',
+                      title: 'AI PDF Maker',
                       subtitle: 'Version 1.0.3+4 (Closed Testing Release)',
                     ),
                     _SettingsTile(
