@@ -1269,6 +1269,7 @@ class PdfService {
 
       final String dirPath =
           customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final String baseName = path.basenameWithoutExtension(pdfPath);
 
       for (int pageNum = start; pageNum <= end; pageNum++) {
         final page = await doc.getPage(pageNum);
@@ -1283,8 +1284,11 @@ class PdfService {
             throw Exception('Failed to render page $pageNum');
           }
 
-          final fileName =
-              'page_${pageNum}_${DateTime.now().millisecondsSinceEpoch}.png';
+          final fileName = FileService().formatOutputFileName(
+            baseName: baseName,
+            suffix: 'page_$pageNum',
+            extension: 'png',
+          );
           final targetPath = path.join(dirPath, fileName);
           final imagePath =
               await FileService().safeWriteBytes(targetPath, pageImage.bytes);
@@ -1294,6 +1298,18 @@ class PdfService {
           if (!await imgFile.exists() || await imgFile.length() == 0) {
             throw Exception(
                 'Rendered image file is empty or missing: $imagePath');
+          }
+
+          // Validate PNG magic bytes: 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+          final header =
+              await FileService().readFileHeader(imagePath, maxBytes: 8);
+          if (header.length < 8 ||
+              header[0] != 0x89 ||
+              header[1] != 0x50 ||
+              header[2] != 0x4E ||
+              header[3] != 0x47) {
+            throw Exception(
+                'Generated file for page $pageNum is not a valid PNG.');
           }
 
           outputPaths.add(imagePath);

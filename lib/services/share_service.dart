@@ -194,4 +194,181 @@ class ShareService {
       },
     );
   }
+
+  static Future<void> showSaveShareMultipleDialog(
+      BuildContext context, List<String> paths) async {
+    if (paths.isEmpty) return;
+    if (paths.length == 1) {
+      return showSaveShareDialog(context, paths.first);
+    }
+
+    final accessiblePaths = <String>[];
+    for (final p in paths) {
+      if (await FileService().isFileAccessible(p)) {
+        accessiblePaths.add(p);
+      }
+    }
+
+    if (accessiblePaths.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot share: Selected files are inaccessible.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final bg = isDark ? const Color(0xFF14141E) : Colors.white;
+
+        return Container(
+          decoration: BoxDecoration(
+              color: bg,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24))),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 20),
+                  Text('${accessiblePaths.length} Images Ready!',
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  Text('Where would you like to save or share them?',
+                      style: TextStyle(
+                          color: isDark ? Colors.grey[400] : Colors.grey[600])),
+                  const SizedBox(height: 24),
+
+                  // Share All Button
+                  InkWell(
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      try {
+                        await Share.shareXFiles(
+                          accessiblePaths.map((p) => XFile(p)).toList(),
+                          text: 'Exported ${accessiblePaths.length} PNG images',
+                        );
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Could not share files: $e'),
+                                backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color:
+                                const Color(0xFF2563EB).withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(16),
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.05),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.share_rounded,
+                            color: Color(0xFF2563EB), size: 28),
+                        const SizedBox(width: 16),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text('Share All (${accessiblePaths.length} Files)',
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF2563EB))),
+                              const Text(
+                                  'Send all images via WhatsApp, Email, etc.',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                            ])),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: Color(0xFF2563EB)),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Save All Button
+                  InkWell(
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      try {
+                        await Share.shareXFiles(
+                          accessiblePaths.map((p) => XFile(p)).toList(),
+                          text: 'Save ${accessiblePaths.length} images',
+                        );
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text('Could not save files: $e'),
+                                backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color:
+                                const Color(0xFF10B981).withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(16),
+                        color: const Color(0xFF10B981).withValues(alpha: 0.05),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.folder_open_rounded,
+                            color: Color(0xFF10B981), size: 28),
+                        const SizedBox(width: 16),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text('Save All (${accessiblePaths.length} Files)',
+                                  style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF10B981))),
+                              const Text('Save all images to device folder',
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey)),
+                            ])),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: Color(0xFF10B981)),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }

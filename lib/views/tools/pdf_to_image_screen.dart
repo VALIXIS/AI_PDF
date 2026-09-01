@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as path;
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
@@ -7,6 +8,12 @@ import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+
+enum PdfToImageMode {
+  all,
+  single,
+  range,
+}
 
 class PdfToImageScreen extends StatefulWidget {
   const PdfToImageScreen({Key? key}) : super(key: key);
@@ -22,24 +29,29 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
 
   String? _selectedFile;
   int? _totalPages;
+  PdfToImageMode _mode = PdfToImageMode.all;
+  int _singlePage = 1;
   int _startPage = 1;
   int _endPage = 1;
   bool _isLoading = false;
   String? _errorMessage;
   List<String>? _successImagePaths;
 
+  late final TextEditingController _singlePageController;
   late final TextEditingController _startController;
   late final TextEditingController _endController;
 
   @override
   void initState() {
     super.initState();
+    _singlePageController = TextEditingController(text: '1');
     _startController = TextEditingController(text: '1');
     _endController = TextEditingController(text: '1');
   }
 
   @override
   void dispose() {
+    _singlePageController.dispose();
     _startController.dispose();
     _endController.dispose();
     super.dispose();
@@ -53,10 +65,10 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
     });
 
     try {
-      final path = await _fileService.pickPdfFile();
+      final selectedPath = await _fileService.pickPdfFile();
       if (!mounted) return;
-      if (path != null) {
-        final ext = _fileService.getExtension(path).toLowerCase();
+      if (selectedPath != null) {
+        final ext = _fileService.getExtension(selectedPath).toLowerCase();
         if (ext == '.doc' || ext == '.docx') {
           setState(() {
             _selectedFile = null;
@@ -66,7 +78,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
           return;
         }
 
-        if (!await _fileService.isPdfFile(path)) {
+        if (!await _fileService.isPdfFile(selectedPath)) {
           setState(() {
             _selectedFile = null;
             _errorMessage =
@@ -75,13 +87,15 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
           return;
         }
 
-        final pages = await _pdfService.getPdfPageCount(path);
+        final pages = await _pdfService.getPdfPageCount(selectedPath);
         if (!mounted) return;
         setState(() {
-          _selectedFile = path;
+          _selectedFile = selectedPath;
           _totalPages = pages;
+          _singlePage = 1;
           _startPage = 1;
           _endPage = pages;
+          _singlePageController.text = '1';
           _startController.text = '1';
           _endController.text = pages.toString();
           _errorMessage = null;
@@ -103,35 +117,62 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
       return;
     }
 
-    final start = int.tryParse(_startController.text);
-    final end = int.tryParse(_endController.text);
+    int start = 1;
+    int end = _totalPages ?? 1;
 
-    if (start == null || end == null) {
-      setState(() {
-        _errorMessage = 'Please enter valid page numbers.';
-      });
-      return;
-    }
-
-    if (_totalPages != null) {
-      if (start < 1 || start > _totalPages!) {
+    if (_mode == PdfToImageMode.single) {
+      final page = int.tryParse(_singlePageController.text);
+      if (page == null) {
         setState(() {
-          _errorMessage = 'Start page must be between 1 and $_totalPages.';
+          _errorMessage = 'Please enter a valid page number.';
         });
         return;
       }
-      if (end < start || end > _totalPages!) {
+      if (_totalPages != null && (page < 1 || page > _totalPages!)) {
         setState(() {
-          _errorMessage =
-              'End page must be between start page and $_totalPages.';
+          _errorMessage = 'Page number must be between 1 and $_totalPages.';
         });
         return;
       }
+      start = page;
+      end = page;
+      _singlePage = page;
+    } else if (_mode == PdfToImageMode.range) {
+      final s = int.tryParse(_startController.text);
+      final e = int.tryParse(_endController.text);
+
+      if (s == null || e == null) {
+        setState(() {
+          _errorMessage = 'Please enter valid start and end page numbers.';
+        });
+        return;
+      }
+
+      if (_totalPages != null) {
+        if (s < 1 || s > _totalPages!) {
+          setState(() {
+            _errorMessage = 'Start page must be between 1 and $_totalPages.';
+          });
+          return;
+        }
+        if (e < s || e > _totalPages!) {
+          setState(() {
+            _errorMessage =
+                'End page must be between start page and $_totalPages.';
+          });
+          return;
+        }
+      }
+      start = s;
+      end = e;
+      _startPage = s;
+      _endPage = e;
+    } else {
+      start = 1;
+      end = _totalPages ?? 1;
     }
 
     setState(() {
-      _startPage = start;
-      _endPage = end;
       _isLoading = true;
       _errorMessage = null;
       _successImagePaths = null;
@@ -145,10 +186,11 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
       );
 
       if (imagePaths.isNotEmpty) {
-        // Record the conversion in history using the first page's image path
         await _storageService.addHistoryEntry(HistoryEntry(
           id: AiController().generateId(),
-          title: 'PDF to Image (${imagePaths.length} pages)',
+          title: imagePaths.length == 1
+              ? 'PDF to Image (Page $start)'
+              : 'PDF to Image (${imagePaths.length} pages)',
           date: DateTime.now(),
           filePath: imagePaths.first,
           toolType: 'pdf_to_image',
@@ -175,7 +217,13 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
   void _shareAll() {
     if (_successImagePaths == null || _successImagePaths!.isEmpty) return;
     if (mounted) {
-      ShareService.showSaveShareDialog(context, _successImagePaths!.first);
+      ShareService.showSaveShareMultipleDialog(context, _successImagePaths!);
+    }
+  }
+
+  void _shareSingle(String imagePath) {
+    if (mounted) {
+      ShareService.showSaveShareDialog(context, imagePath);
     }
   }
 
@@ -198,7 +246,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Select a PDF and convert its pages to high-quality PNG images',
+              'Select a PDF and export its pages as individual, high-quality PNG image files.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -206,7 +254,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
             // Loading State Banner
             if (_isLoading)
               const ToolLoadingBanner(
-                message: 'Rendering PDF pages to images...',
+                message: 'Rendering PDF pages to PNG images...',
               ),
 
             // Error Banner
@@ -227,7 +275,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.check_circle,
+                          const Icon(Icons.check_circle_rounded,
                               color: Colors.green, size: 28),
                           const SizedBox(width: 12),
                           Expanded(
@@ -241,7 +289,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                                       fontSize: 13.5),
                                 ),
                                 Text(
-                                  'Generated ${_successImagePaths!.length} image files.',
+                                  'Generated ${_successImagePaths!.length} PNG image file(s).',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ],
@@ -255,8 +303,10 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: _shareAll,
-                              icon: const Icon(Icons.share),
-                              label: const Text('Share Images'),
+                              icon: const Icon(Icons.share_rounded),
+                              label: Text(_successImagePaths!.length > 1
+                                  ? 'Share / Save All (${_successImagePaths!.length})'
+                                  : 'Share / Save Image'),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -283,31 +333,72 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 8,
                     mainAxisSpacing: 8,
-                    childAspectRatio: 0.75,
+                    childAspectRatio: 0.72,
                   ),
                   itemCount: _successImagePaths!.length,
                   itemBuilder: (context, index) {
-                    final file = File(_successImagePaths![index]);
+                    final filePath = _successImagePaths![index];
+                    final file = File(filePath);
+                    final fileName = path.basename(filePath);
+                    final pageIndex = _mode == PdfToImageMode.single
+                        ? _singlePage
+                        : index + _startPage;
+
                     return Card(
                       clipBehavior: Clip.antiAlias,
-                      child: Stack(
-                        fit: StackFit.expand,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Image.file(file, fit: BoxFit.contain),
-                          Positioned(
-                            bottom: 8,
-                            left: 8,
-                            right: 8,
-                            child: Container(
-                              color: Colors.black54,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 2, horizontal: 6),
-                              child: Text(
-                                'Page ${index + _startPage}',
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 11),
-                                textAlign: TextAlign.center,
-                              ),
+                          Expanded(
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.file(file, fit: BoxFit.contain),
+                                Positioned(
+                                  top: 6,
+                                  left: 6,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.65),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2, horizontal: 6),
+                                    child: Text(
+                                      'Page $pageIndex',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 4),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    fileName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.share_rounded, size: 16),
+                                  tooltip: 'Share / Save Page $pageIndex',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () => _shareSingle(filePath),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -317,7 +408,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                 ),
               ),
             ] else ...[
-              // File selection and Range controls or Empty State
+              // File selection and Mode / Range controls
               if (_selectedFile != null) ...[
                 Card(
                   margin: EdgeInsets.zero,
@@ -326,7 +417,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.picture_as_pdf,
+                          Icons.picture_as_pdf_rounded,
                           color: Theme.of(context).colorScheme.primary,
                           size: 28,
                         ),
@@ -344,7 +435,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                'Pages range: $_startPage - $_endPage (Total $_totalPages)',
+                                'Total Pages: ${_totalPages ?? 1}',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ],
@@ -360,77 +451,157 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // Page Range Controls
+                // Export Mode Selection
                 Text(
-                  'Page Range to Render',
+                  'Export Option',
                   style: Theme.of(context)
                       .textTheme
                       .titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Start Page',
-                              style: Theme.of(context).textTheme.bodySmall),
-                          const SizedBox(height: 4),
-                          TextField(
-                            enabled: !_isLoading,
-                            controller: _startController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              hintText: 'e.g. 1',
-                              isDense: true,
-                            ),
-                            onChanged: (value) {
-                              if (value.isNotEmpty) {
-                                setState(() {
-                                  _startPage = int.tryParse(value) ?? 1;
-                                  _errorMessage = null;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
+                SegmentedButton<PdfToImageMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: PdfToImageMode.all,
+                      label: Text('All Pages'),
+                      icon: Icon(Icons.auto_awesome_motion_rounded),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('End Page',
-                              style: Theme.of(context).textTheme.bodySmall),
-                          const SizedBox(height: 4),
-                          TextField(
-                            enabled: !_isLoading,
-                            controller: _endController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              hintText: 'e.g. 5',
-                              isDense: true,
-                            ),
-                            onChanged: (value) {
-                              if (value.isNotEmpty) {
-                                setState(() {
-                                  _endPage = int.tryParse(value) ?? 1;
-                                  _errorMessage = null;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ),
+                    ButtonSegment(
+                      value: PdfToImageMode.single,
+                      label: Text('Single Page'),
+                      icon: Icon(Icons.insert_drive_file_rounded),
+                    ),
+                    ButtonSegment(
+                      value: PdfToImageMode.range,
+                      label: Text('Range'),
+                      icon: Icon(Icons.view_array_rounded),
                     ),
                   ],
+                  selected: {_mode},
+                  onSelectionChanged: _isLoading
+                      ? null
+                      : (newSelection) {
+                          setState(() {
+                            _mode = newSelection.first;
+                            _errorMessage = null;
+                          });
+                        },
                 ),
+                const SizedBox(height: 16),
+
+                if (_mode == PdfToImageMode.single) ...[
+                  Text(
+                    'Select Page to Export',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    enabled: !_isLoading,
+                    controller: _singlePageController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'e.g. 1',
+                      labelText: 'Page Number (1–${_totalPages ?? 1})',
+                      isDense: true,
+                    ),
+                    onChanged: (value) {
+                      if (value.isNotEmpty) {
+                        setState(() {
+                          _singlePage = int.tryParse(value) ?? 1;
+                          _errorMessage = null;
+                        });
+                      }
+                    },
+                  ),
+                ] else if (_mode == PdfToImageMode.range) ...[
+                  Text(
+                    'Page Range to Render',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          enabled: !_isLoading,
+                          controller: _startController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Start Page (1–${_totalPages ?? 1})',
+                            hintText: 'e.g. 1',
+                            isDense: true,
+                          ),
+                          onChanged: (value) {
+                            if (value.isNotEmpty) {
+                              setState(() {
+                                _startPage = int.tryParse(value) ?? 1;
+                                _errorMessage = null;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          enabled: !_isLoading,
+                          controller: _endController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'End Page (1–${_totalPages ?? 1})',
+                            hintText: 'e.g. 5',
+                            isDense: true,
+                          ),
+                          onChanged: (value) {
+                            if (value.isNotEmpty) {
+                              setState(() {
+                                _endPage = int.tryParse(value) ?? 1;
+                                _errorMessage = null;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            size: 20,
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Save All will render every page (1 to ${_totalPages ?? 1}) into individual PNG files (${path.basenameWithoutExtension(_selectedFile!)}_page_1.png, etc.).',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 const Spacer(),
 
                 // Action Button
@@ -438,8 +609,15 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: _isLoading ? null : _convertToImages,
-                    icon: const Icon(Icons.image),
-                    label: const Text('Convert to Images'),
+                    icon: const Icon(Icons.image_rounded),
+                    label: Text(
+                      _mode == PdfToImageMode.all
+                          ? 'Save All Pages (${_totalPages ?? 1} PNGs)'
+                          : _mode == PdfToImageMode.single
+                              ? 'Export Page $_singlePage as PNG'
+                              : 'Export Pages $_startPage–$_endPage as PNGs',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -448,7 +626,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
               ] else
                 Expanded(
                   child: ToolEmptyState(
-                    icon: Icons.picture_as_pdf,
+                    icon: Icons.picture_as_pdf_rounded,
                     title: 'No PDF Selected',
                     subtitle:
                         'Choose a PDF document to render its pages as image files',
