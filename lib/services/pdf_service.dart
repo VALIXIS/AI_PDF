@@ -349,7 +349,7 @@ class PdfService {
       final String baseName = path.basenameWithoutExtension(pdfPath);
       final fileName = FileService().formatOutputFileName(
         baseName: baseName,
-        suffix: 'split_p${startPage}-p${endPage}',
+        suffix: 'split_p$startPage-p$endPage',
         extension: 'pdf',
       );
       final targetPath = path.join(dirPath, fileName);
@@ -572,7 +572,7 @@ class PdfService {
         final String baseName = path.basenameWithoutExtension(pdfPath);
         final fileName = FileService().formatOutputFileName(
           baseName: baseName,
-          suffix: 'rotated_${rotationAngle}',
+          suffix: 'rotated_$rotationAngle',
           extension: 'pdf',
         );
         final targetPath = path.join(dirPath, fileName);
