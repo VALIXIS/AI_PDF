@@ -800,10 +800,10 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => ShareService.showSaveShareDialog(
-                        context, result.outputPath!),
-                    icon: const Icon(Icons.ios_share_rounded, size: 14),
-                    label: const Text('Save / Share',
+                    onPressed: () => ShareService.saveFileToUserDestination(
+                        context, sourcePath: result.outputPath!),
+                    icon: const Icon(Icons.save_alt_rounded, size: 14),
+                    label: const Text('Save',
                         style: TextStyle(
                             fontSize: 11, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
@@ -813,15 +813,27 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () => _loadPdfFromPath(result.outputPath!),
-                  icon: const Icon(Icons.refresh_rounded, size: 14),
-                  label: const Text('Load PDF', style: TextStyle(fontSize: 11)),
-                  style: OutlinedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => ShareService.shareFile(
+                        context, filePath: result.outputPath!),
+                    icon: const Icon(Icons.share_rounded, size: 14),
+                    label: const Text('Share',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
                   ),
+                ),
+                const SizedBox(width: 6),
+                IconButton(
+                  onPressed: () => _loadPdfFromPath(result.outputPath!),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  tooltip: 'Load PDF in Viewer',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               ],
             ),

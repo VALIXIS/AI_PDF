@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
@@ -258,12 +257,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 onSelected: (value) {
                   if (value == 'open') {
                     _openEntry(entry);
-                  } else if (value == 'delete') {
-                    _deleteEntry(entry);
+                  } else if (value == 'save') {
+                    _saveEntryToDevice(entry);
                   } else if (value == 'share') {
                     _shareEntry(entry);
                   } else if (value == 'info') {
                     _showEntryOptions(context, entry);
+                  } else if (value == 'delete') {
+                    _deleteEntry(entry);
                   }
                 },
                 itemBuilder: (BuildContext context) => [
@@ -274,6 +275,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         Icon(Icons.open_in_new, size: 20),
                         SizedBox(width: 12),
                         Text('Open'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'save',
+                    child: Row(
+                      children: [
+                        Icon(Icons.save_alt_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('Save to Device'),
                       ],
                     ),
                   ),
@@ -460,6 +471,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
+                      _saveEntryToDevice(entry);
+                    },
+                    icon: const Icon(Icons.save_alt_rounded),
+                    label: const Text('Save'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
                       _shareEntry(entry);
                     },
                     icon: const Icon(Icons.share),
@@ -598,6 +620,31 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  Future<void> _saveEntryToDevice(HistoryEntry entry) async {
+    final exists = await _storageService.isEntryFileAccessible(entry);
+    if (!exists) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('File no longer exists on device: ${entry.filePath}'),
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'Remove',
+            textColor: Colors.white,
+            onPressed: () => _deleteEntry(entry),
+          ),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    await ShareService.saveFileToUserDestination(
+      context,
+      sourcePath: entry.filePath,
+      suggestedFileName: entry.title,
+    );
+  }
+
   Future<void> _shareEntry(HistoryEntry entry) async {
     final exists = await _storageService.isEntryFileAccessible(entry);
     if (!exists) {
@@ -615,17 +662,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
       return;
     }
-    try {
-      await Share.shareXFiles([XFile(entry.filePath)],
-          text: 'Check out this PDF document: ${entry.title}');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Could not share file: $e'),
-            backgroundColor: Colors.red),
-      );
-    }
+    if (!mounted) return;
+    await ShareService.shareFile(
+      context,
+      filePath: entry.filePath,
+      text: 'Check out this document: ${entry.title}',
+    );
   }
 
   String _getToolLabel(String toolType) {

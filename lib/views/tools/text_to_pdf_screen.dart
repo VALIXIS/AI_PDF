@@ -160,10 +160,6 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
         _isLoading = false;
         _successPath = filePath;
       });
-
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, filePath);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -242,9 +238,14 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   title: 'PDF Generated Successfully!',
                   subtitle: 'Formatted PDF document created.',
                   filePath: _successPath,
+                  onSave: () {
+                    if (_successPath != null && mounted) {
+                      ShareService.saveFileToUserDestination(context, sourcePath: _successPath!);
+                    }
+                  },
                   onShare: () {
                     if (_successPath != null && mounted) {
-                      ShareService.showSaveShareDialog(context, _successPath!);
+                      ShareService.shareFile(context, filePath: _successPath!);
                     }
                   },
                   onReset: () {

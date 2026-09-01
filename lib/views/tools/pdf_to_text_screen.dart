@@ -184,18 +184,26 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
+                    child: OutlinedButton.icon(
                       onPressed: _copyToClipboard,
-                      icon: const Icon(Icons.copy),
-                      label: const Text('Copy Text'),
+                      icon: const Icon(Icons.copy, size: 16),
+                      label: const Text('Copy'),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
+                      onPressed: _saveTxtFile,
+                      icon: const Icon(Icons.save_alt_rounded, size: 16),
+                      label: const Text('Save TXT'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
                       onPressed: _shareTxtFile,
-                      icon: const Icon(Icons.share_rounded),
-                      label: const Text('Share TXT File'),
+                      icon: const Icon(Icons.share_rounded, size: 16),
+                      label: const Text('Share'),
                     ),
                   ),
                 ],
@@ -396,9 +404,15 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
     }
   }
 
+  void _saveTxtFile() async {
+    if (_txtPath != null && mounted) {
+      ShareService.saveFileToUserDestination(context, sourcePath: _txtPath!);
+    }
+  }
+
   void _shareTxtFile() async {
     if (_txtPath != null && mounted) {
-      ShareService.showSaveShareDialog(context, _txtPath!);
+      ShareService.shareFile(context, filePath: _txtPath!, text: 'Here is the extracted text file.');
     }
   }
 }

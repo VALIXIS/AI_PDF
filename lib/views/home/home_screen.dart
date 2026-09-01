@@ -461,8 +461,9 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 IconButton(
                   icon: const Icon(Icons.share_rounded, size: 18),
+                  tooltip: 'Share',
                   onPressed: () {
-                    ShareService.showSaveShareDialog(context, entry.filePath);
+                    ShareService.shareFile(context, filePath: entry.filePath);
                   },
                 ),
               ],
