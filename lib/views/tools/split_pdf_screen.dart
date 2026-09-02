@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
@@ -153,8 +152,6 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
         _isLoading = false;
         _successPath = filePath;
       });
-
-      ShareService.showSaveShareDialog(context, filePath);
     } catch (e) {
       if (!mounted) return;
       setState(() {

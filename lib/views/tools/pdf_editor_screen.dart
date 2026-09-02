@@ -218,10 +218,6 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _saving = false;
         _successPath = savePath;
       });
-
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, savePath);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -372,12 +368,17 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ToolSuccessCard(
-                title: 'PDF Saved Successfully!',
+                title: 'PDF Exported Successfully!',
                 subtitle: 'Exported with annotations preserved.',
                 filePath: _successPath,
+                onSave: () {
+                  if (_successPath != null && mounted) {
+                    ShareService.saveFileToUserDestination(context, sourcePath: _successPath!);
+                  }
+                },
                 onShare: () {
                   if (_successPath != null && mounted) {
-                    ShareService.showSaveShareDialog(context, _successPath!);
+                    ShareService.shareFile(context, filePath: _successPath!);
                   }
                 },
                 onReset: () {

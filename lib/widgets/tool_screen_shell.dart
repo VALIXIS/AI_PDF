@@ -19,6 +19,8 @@ class ToolScreenShell extends StatelessWidget {
   final String? successPath;
   final String? successSubtitle;
   final VoidCallback onReset;
+  final VoidCallback? onSave;
+  final VoidCallback? onShare;
   final Widget? extraConfig;
 
   const ToolScreenShell({
@@ -37,6 +39,8 @@ class ToolScreenShell extends StatelessWidget {
     required this.successPath,
     required this.successSubtitle,
     required this.onReset,
+    this.onSave,
+    this.onShare,
     this.extraConfig,
   }) : super(key: key);
 
@@ -107,9 +111,20 @@ class ToolScreenShell extends StatelessWidget {
                   title: 'Success!',
                   subtitle: successSubtitle,
                   filePath: successPath,
-                  onShare: () {
-                    ShareService.showSaveShareDialog(context, successPath!);
-                  },
+                  onSave: onSave ??
+                      () {
+                        ShareService.saveFileToUserDestination(
+                          context,
+                          sourcePath: successPath!,
+                        );
+                      },
+                  onShare: onShare ??
+                      () {
+                        ShareService.shareFile(
+                          context,
+                          filePath: successPath!,
+                        );
+                      },
                   onReset: onReset,
                 ),
 

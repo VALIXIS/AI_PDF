@@ -174,6 +174,7 @@ void main() {
 
     testWidgets('ToolSuccessCard displays success info and handles actions',
         (WidgetTester tester) async {
+      bool saved = false;
       bool shared = false;
       bool reset = false;
 
@@ -183,6 +184,7 @@ void main() {
             title: 'PDF Merged Successfully!',
             subtitle: 'Combined 3 documents into one.',
             filePath: '/documents/merged_doc.pdf',
+            onSave: () => saved = true,
             onShare: () => shared = true,
             onReset: () => reset = true,
           ),
@@ -192,7 +194,10 @@ void main() {
       expect(find.text('PDF Merged Successfully!'), findsOneWidget);
       expect(find.text('merged_doc.pdf'), findsOneWidget);
 
-      await tester.tap(find.text('Save / Share'));
+      await tester.tap(find.text('Save'));
+      expect(saved, isTrue);
+
+      await tester.tap(find.text('Share'));
       expect(shared, isTrue);
 
       await tester.tap(find.text('New Task'));

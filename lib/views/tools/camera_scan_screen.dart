@@ -183,10 +183,6 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
         _isLoading = false;
         _successPath = savedPath;
       });
-
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, savedPath);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -307,12 +303,17 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
               child: ToolSuccessCard(
-                title: 'Scan Saved Successfully!',
-                subtitle: 'Scanned document saved as PDF.',
+                title: 'Scan Created Successfully!',
+                subtitle: 'Scanned document compiled as PDF.',
                 filePath: _successPath,
+                onSave: () {
+                  if (_successPath != null && mounted) {
+                    ShareService.saveFileToUserDestination(context, sourcePath: _successPath!);
+                  }
+                },
                 onShare: () {
                   if (_successPath != null && mounted) {
-                    ShareService.showSaveShareDialog(context, _successPath!);
+                    ShareService.shareFile(context, filePath: _successPath!);
                   }
                 },
                 onReset: () {

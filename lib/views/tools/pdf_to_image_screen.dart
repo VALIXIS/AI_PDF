@@ -214,10 +214,25 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
     }
   }
 
+  void _saveAll() {
+    if (_successImagePaths == null || _successImagePaths!.isEmpty) return;
+    if (mounted) {
+      ShareService.saveMultipleFilesToUserDestination(
+        context,
+        sourcePaths: _successImagePaths!,
+        dialogTitle: 'Select Folder to Save Images',
+      );
+    }
+  }
+
   void _shareAll() {
     if (_successImagePaths == null || _successImagePaths!.isEmpty) return;
     if (mounted) {
-      ShareService.showSaveShareMultipleDialog(context, _successImagePaths!);
+      ShareService.shareMultipleFiles(
+        context,
+        filePaths: _successImagePaths!,
+        text: 'Here are the extracted PDF page images.',
+      );
     }
   }
 
@@ -302,11 +317,17 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
+                              onPressed: _saveAll,
+                              icon: const Icon(Icons.save_alt_rounded, size: 16),
+                              label: const Text('Save Images'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
                               onPressed: _shareAll,
-                              icon: const Icon(Icons.share_rounded),
-                              label: Text(_successImagePaths!.length > 1
-                                  ? 'Share / Save All (${_successImagePaths!.length})'
-                                  : 'Share / Save Image'),
+                              icon: const Icon(Icons.share_rounded, size: 16),
+                              label: const Text('Share Images'),
                             ),
                           ),
                           const SizedBox(width: 8),

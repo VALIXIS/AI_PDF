@@ -95,10 +95,6 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
         _isLoading = false;
         _successPath = path;
       });
-
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, path);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -141,9 +137,14 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
               title: 'Watermark Applied!',
               subtitle: 'Watermark text "${_textCtrl.text}" overlay complete.',
               filePath: _successPath,
+              onSave: () {
+                if (_successPath != null && mounted) {
+                  ShareService.saveFileToUserDestination(context, sourcePath: _successPath!);
+                }
+              },
               onShare: () {
                 if (_successPath != null && mounted) {
-                  ShareService.showSaveShareDialog(context, _successPath!);
+                  ShareService.shareFile(context, filePath: _successPath!);
                 }
               },
               onReset: () {

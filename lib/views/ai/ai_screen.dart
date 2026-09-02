@@ -91,23 +91,13 @@ class _AiScreenState extends State<AiScreen> {
         toolType: 'ai_to_pdf',
       );
       await _storageService.addHistoryEntry(entry);
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, filePath);
-      }
       setState(() {
         _isGenerating = false;
         _previewText = null;
       });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('PDF saved successfully!'),
-          backgroundColor: const Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      if (mounted) {
+        ShareService.showSaveShareDialog(context, filePath);
+      }
       _inputController.clear();
     } catch (e) {
       setState(() {

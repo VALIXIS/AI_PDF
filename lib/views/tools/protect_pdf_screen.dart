@@ -101,10 +101,6 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
         _passCtrl.clear();
         _confirmCtrl.clear();
       });
-
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, savedPath);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -147,9 +143,14 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
               title: 'PDF Protected Successfully!',
               subtitle: 'Password protection applied.',
               filePath: _successPath,
+              onSave: () {
+                if (_successPath != null && mounted) {
+                  ShareService.saveFileToUserDestination(context, sourcePath: _successPath!);
+                }
+              },
               onShare: () {
                 if (_successPath != null && mounted) {
-                  ShareService.showSaveShareDialog(context, _successPath!);
+                  ShareService.shareFile(context, filePath: _successPath!);
                 }
               },
               onReset: () {
