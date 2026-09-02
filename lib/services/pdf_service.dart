@@ -422,7 +422,7 @@ class PdfService {
           break;
         case 'medium':
         default:
-          level = syncfusion.PdfCompressionLevel.aboveNormal;
+          level = syncfusion.PdfCompressionLevel.normal;
           break;
       }
       outputDoc.compressionLevel = level;

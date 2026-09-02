@@ -630,12 +630,14 @@ class FileService {
     }
   }
 
-  /// Formats bytes to readable format
-  String _formatBytes(int bytes) {
+  /// Formats bytes to readable format (e.g. B, KB, MB)
+  String formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
+
+  String _formatBytes(int bytes) => formatBytes(bytes);
 
   /// Deletes a file safely without throwing uncaught exceptions
   Future<bool> deleteFile(String filePath) async {
