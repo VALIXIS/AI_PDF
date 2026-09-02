@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             const SizedBox(width: 10),
             Text(
-              'PDF AI Toolkit',
+              'AI PDF Maker',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,

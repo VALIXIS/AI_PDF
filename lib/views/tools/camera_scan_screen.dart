@@ -497,66 +497,108 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                     mainAxisSpacing: 10,
                                     childAspectRatio: 0.72,
                                   ),
-                                  itemCount: _pages.length,
-                                  itemBuilder: (_, i) => GestureDetector(
-                                    onTap: () => _showFullPreview(_pages[i], i),
-                                    child: Stack(
-                                      children: [
-                                        Container(
+                                  itemCount: _pages.length + 1,
+                                  itemBuilder: (_, i) {
+                                    if (i == _pages.length) {
+                                      return GestureDetector(
+                                        onTap: (_isLoading || _isCapturing)
+                                            ? null
+                                            : _scanDocument,
+                                        child: Container(
                                           decoration: BoxDecoration(
-                                            color: bg,
+                                            color: primary.withValues(
+                                                alpha: isDark ? 0.08 : 0.04),
                                             borderRadius:
                                                 BorderRadius.circular(10),
-                                            border: Border.all(color: border),
-                                          ),
-                                          clipBehavior: Clip.hardEdge,
-                                          child: Image.file(_pages[i],
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                              height: double.infinity),
-                                        ),
-                                        Positioned(
-                                          bottom: 5,
-                                          left: 5,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black
-                                                  .withValues(alpha: 0.65),
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
+                                            border: Border.all(
+                                              color: primary.withValues(
+                                                  alpha: 0.3),
                                             ),
-                                            child: Text('P${i + 1}',
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 11,
-                                                    fontWeight:
-                                                        FontWeight.w800)),
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.add_a_photo_rounded,
+                                                color: primary,
+                                                size: 24,
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Add Page',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: primary,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                        if (!_isLoading && !_isCapturing)
+                                      );
+                                    }
+                                    return GestureDetector(
+                                      onTap: () =>
+                                          _showFullPreview(_pages[i], i),
+                                      child: Stack(
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              color: bg,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(color: border),
+                                            ),
+                                            clipBehavior: Clip.hardEdge,
+                                            child: Image.file(_pages[i],
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                                height: double.infinity),
+                                          ),
                                           Positioned(
-                                            top: 4,
-                                            right: 4,
-                                            child: GestureDetector(
-                                              onTap: () => _removePage(i),
-                                              child: Container(
-                                                width: 22,
-                                                height: 22,
-                                                decoration: const BoxDecoration(
-                                                    color: Color(0xFFDC2626),
-                                                    shape: BoxShape.circle),
-                                                child: const Icon(
-                                                    Icons.close_rounded,
-                                                    color: Colors.white,
-                                                    size: 14),
+                                            bottom: 5,
+                                            left: 5,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.65),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Text('P${i + 1}',
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w800)),
+                                            ),
+                                          ),
+                                          if (!_isLoading && !_isCapturing)
+                                            Positioned(
+                                              top: 4,
+                                              right: 4,
+                                              child: GestureDetector(
+                                                onTap: () => _removePage(i),
+                                                child: Container(
+                                                  width: 22,
+                                                  height: 22,
+                                                  decoration: const BoxDecoration(
+                                                      color: Color(0xFFDC2626),
+                                                      shape: BoxShape.circle),
+                                                  child: const Icon(
+                                                      Icons.close_rounded,
+                                                      color: Colors.white,
+                                                      size: 14),
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
                         ),
                       ],
