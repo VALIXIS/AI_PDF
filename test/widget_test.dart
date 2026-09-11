@@ -28,7 +28,7 @@ void main() {
       await tempDir.delete(recursive: true);
     }
   });
-  testWidgets('App loads and displays HomeScreen smoke test',
+  testWidgets('App loads and displays Splash Screen to HomeScreen smoke test',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
@@ -37,16 +37,21 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(const PdfAiToolkitApp());
-    await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
+    
+    // Splash screen is visible
+    expect(find.text('Your Intelligent Document Studio'), findsOneWidget);
 
-    expect(find.text('What can I help you with?'), findsOneWidget);
+    // Wait for splash screen timer to finish (2200ms) and animation
+    await tester.pumpAndSettle(const Duration(seconds: 3));
+
+    // Home screen is visible with grid categories
     expect(find.text('AI PDF Maker'), findsWidgets);
-    expect(find.text('History'), findsOneWidget);
-    expect(find.text('Tools'), findsOneWidget);
+    expect(find.text('CONVERT'), findsOneWidget);
+    expect(find.text('ORGANIZE'), findsOneWidget);
   });
 
-  testWidgets('HomeScreen category filtering and tool navigation test',
+  testWidgets('HomeScreen category grid and tool navigation test',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
@@ -56,41 +61,17 @@ void main() {
 
     // Build our app and trigger a frame.
     await tester.pumpWidget(const PdfAiToolkitApp());
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump();
+    await tester.pumpAndSettle(const Duration(seconds: 3)); // Wait for splash
 
-    // Verify main app title is visible
-    expect(find.text('AI PDF Maker'), findsWidgets);
-
-    // Navigate to ToolsScreen
-    final toolsTabBtn = find.text('Tools');
-    await tester.tap(toolsTabBtn);
+    // Scroll to find Merge PDF tool if needed
+    final mergeCard = find.text('Merge PDF');
+    await tester.dragUntilVisible(mergeCard, find.byType(CustomScrollView), const Offset(0, -300));
     await tester.pumpAndSettle();
 
-    // Verify all categories exist
-    expect(find.text('All'), findsOneWidget);
-    expect(find.text('Convert'), findsOneWidget);
-    expect(find.text('Organize'), findsOneWidget);
-    expect(find.text('Edit'), findsOneWidget);
-    expect(find.text('AI'), findsOneWidget);
-
-    // 1. Verify Organize category filtering
-    final organizeTab = find.text('Organize');
-    await tester.tap(organizeTab);
-    await tester.pumpAndSettle();
-
-    // Verify Organize tools are rendered
-    expect(find.text('Merge PDF'), findsOneWidget);
-    expect(find.text('Split PDF'), findsOneWidget);
-    expect(find.text('Compress PDF'), findsOneWidget);
-    expect(find.text('Rotate PDF'), findsOneWidget);
-
-    // Convert and Edit specific tools should not be visible under Organize
-    expect(find.text('TXT to PDF'), findsNothing);
-    expect(find.text('PDF Editor'), findsNothing);
+    // Verify tool is rendered
+    expect(mergeCard, findsOneWidget);
 
     // 2. Verify navigation to an Organize tool (Merge PDF)
-    final mergeCard = find.text('Merge PDF');
     await tester.tap(mergeCard);
     await tester.pumpAndSettle();
 
@@ -98,52 +79,23 @@ void main() {
     expect(find.byType(MergePdfScreen), findsOneWidget);
     expect(find.text('No PDF Selected'), findsOneWidget);
 
-    // Navigate back to Tools screen
-    await tester.tap(find.byType(BackButton));
+    // Navigate back
+    final backBtn = find.byType(BackButton);
+    await tester.tap(backBtn);
     await tester.pumpAndSettle();
 
-    // Verify we are back on Tools screen
+
+    // Verify we are back on Home screen
     expect(find.byType(MergePdfScreen), findsNothing);
     expect(find.text('Merge PDF'), findsOneWidget);
     expect(find.text('Split PDF'), findsOneWidget);
 
-    // 3. Verify Convert category filtering
-    final convertTab = find.text('Convert');
-    await tester.tap(convertTab);
+    // Scroll to an AI tool to verify it's rendered in the list
+    final aiTool = find.text('Chat with PDF');
+    await tester.dragUntilVisible(aiTool, find.byType(CustomScrollView), const Offset(0, -300));
     await tester.pumpAndSettle();
-
-    expect(find.text('Images to PDF'), findsOneWidget);
-    expect(find.text('TXT to PDF'), findsOneWidget);
-    expect(find.text('PDF to Text'), findsOneWidget);
-    expect(find.text('Camera Scan'), findsOneWidget);
-    expect(find.text('Merge PDF'), findsNothing);
-
-    // 4. Verify Edit category filtering
-    final editTab = find.text('Edit');
-    await tester.tap(editTab);
-    await tester.pumpAndSettle();
-
-    expect(find.text('PDF Editor'), findsOneWidget);
-    expect(find.text('Watermark PDF'), findsOneWidget);
-    expect(find.text('Protect PDF'), findsOneWidget);
-
-    // 5. Verify AI category filtering
-    final aiTab = find.text('AI');
-    await tester.tap(aiTab);
-    await tester.pumpAndSettle();
-
-    expect(find.text('AI to PDF'), findsOneWidget);
-    expect(find.text('AI Refine'), findsOneWidget);
-    expect(find.text('Chat with PDF'), findsOneWidget);
-
-    // 6. Verify All category shows all tools
-    final allTab = find.text('All');
-    await tester.tap(allTab);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Images to PDF'), findsOneWidget);
-    expect(find.text('Merge PDF'), findsOneWidget);
-    expect(find.text('PDF Editor'), findsOneWidget);
+    
+    expect(aiTool, findsOneWidget);
   });
 
   group('Tool State Widgets Unit Tests', () {

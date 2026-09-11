@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
+import 'package:pdf_ai_toolkit/views/tools/text_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class AiRefineScreen extends StatefulWidget {
@@ -18,6 +19,27 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
   String? _refinedText;
   bool _isLoading = false;
   String? _errorMessage;
+
+  final List<Map<String, dynamic>> _modes = [
+    {
+      'mode': AiMode.clean,
+      'label': 'Clean',
+      'icon': Icons.auto_fix_high_rounded,
+      'desc': 'Fix grammar, typos, and formatting',
+    },
+    {
+      'mode': AiMode.summary,
+      'label': 'Summary',
+      'icon': Icons.short_text_rounded,
+      'desc': 'Generate executive bullet points',
+    },
+    {
+      'mode': AiMode.notes,
+      'label': 'Notes',
+      'icon': Icons.menu_book_rounded,
+      'desc': 'Format into structured study headers',
+    },
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +65,7 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Choose a refining mode to clean, summarize, or structure your notes',
+                'Clean typos, generate summaries, or restructure text with AI',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 16),
@@ -65,7 +87,7 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
 
               // Input Label
               Text(
-                'Your Text',
+                'Original Text',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -79,7 +101,7 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                 maxLines: 6,
                 minLines: 4,
                 decoration: const InputDecoration(
-                  hintText: 'Enter or paste text to refine with AI...',
+                  hintText: 'Enter or paste document text to refine...',
                 ),
                 onChanged: (_) {
                   if (_errorMessage != null) {
@@ -87,7 +109,7 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                   }
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Mode Selection Label
               Text(
@@ -98,44 +120,69 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Mode Options
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment<String>(
-                    value: AiMode.clean,
-                    label: Text('Clean'),
-                    icon: Icon(Icons.cleaning_services_rounded),
-                  ),
-                  ButtonSegment<String>(
-                    value: AiMode.summary,
-                    label: Text('Summary'),
-                    icon: Icon(Icons.short_text_rounded),
-                  ),
-                  ButtonSegment<String>(
-                    value: AiMode.notes,
-                    label: Text('Notes'),
-                    icon: Icon(Icons.note_alt_rounded),
-                  ),
-                ],
-                selected: {_selectedMode},
-                onSelectionChanged: _isLoading
-                    ? null
-                    : (selection) {
-                        setState(() {
-                          _selectedMode = selection.first;
-                          _refinedText = null;
-                          _errorMessage = null;
-                        });
-                      },
+              // Mode Chips
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _modes.map((m) {
+                  final isSel = _selectedMode == m['mode'];
+                  return ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(m['icon'], size: 16, color: isSel ? Colors.white : null),
+                        const SizedBox(width: 6),
+                        Text(m['label']),
+                      ],
+                    ),
+                    selected: isSel,
+                    onSelected: _isLoading
+                        ? null
+                        : (sel) {
+                            if (sel) {
+                              setState(() {
+                                _selectedMode = m['mode'];
+                                _refinedText = null;
+                                _errorMessage = null;
+                              });
+                            }
+                          },
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 20),
 
+              // Refine Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _refineText,
+                  icon: _isLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.auto_awesome_rounded),
+                  label: Text(_isLoading
+                      ? 'Refining with AI...'
+                      : 'Refine Text with AI'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+
               // Result Section
               if (_refinedText != null) ...[
+                const SizedBox(height: 24),
                 Row(
                   children: [
                     Text(
-                      'Refined Text Output',
+                      'AI Refined Output',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -156,7 +203,7 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: border),
                   ),
-                  constraints: const BoxConstraints(maxHeight: 220),
+                  constraints: const BoxConstraints(maxHeight: 240),
                   child: SingleChildScrollView(
                     child: SelectableText(
                       _refinedText!,
@@ -179,45 +226,33 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
                                 });
                               },
                         icon: const Icon(Icons.swap_vert_rounded),
-                        label: const Text('Use This Version'),
+                        label: const Text('Use In Input'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _copyOutput,
-                        icon: const Icon(Icons.copy),
-                        label: const Text('Copy Output'),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TextToPdfScreen(
+                                initialContent: _refinedText,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.picture_as_pdf_rounded),
+                        label: const Text('Export to PDF'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
               ],
-
-              // Refine Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _refineText,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.auto_fix_high_rounded),
-                  label: Text(_isLoading
-                      ? 'Refining with AI...'
-                      : 'Refine Text with AI'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -277,3 +312,4 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
     super.dispose();
   }
 }
+

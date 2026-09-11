@@ -1,15 +1,19 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pdfx/pdfx.dart' as pdfx;
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
+import 'package:pdf_ai_toolkit/services/ai_service.dart';
+import 'package:pdf_ai_toolkit/services/pdf_vector_editor_engine.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
@@ -22,6 +26,7 @@ class PdfEditorScreen extends StatefulWidget {
 
 class _PdfEditorScreenState extends State<PdfEditorScreen> {
   File? _pdfFile;
+  Uint8List? _pdfBytes;
   pdfx.PdfDocument? _document;
   pdfx.PdfController? _pdfController;
   final PageController _pageController = PageController();
@@ -29,14 +34,20 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
   int _currentPage = 0;
   bool _loading = false;
   bool _saving = false;
-  bool _editMode = false;
-  String? _activeTool; // 'text' | 'image' | null
+  bool _editMode = true;
+  bool _detectTextMode = true;
+  String? _activeTool; // 'text' | 'image' | 'vector_edit' | null
+
+  double _pdfPageWidth = 595.2;
+  double _pdfPageHeight = 841.8;
 
   final Map<int, List<Annotation>> _annotations = {};
+  List<PdfTextBlock> _detectedBlocks = [];
   Annotation? _selected;
   final _textEditCtrl = TextEditingController();
   String? _errorMessage;
   String? _successPath;
+  final AiService _aiService = AiService();
 
   @override
   void initState() {
@@ -72,9 +83,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       _pdfController?.dispose();
 
       _pdfFile = null;
+      _pdfBytes = null;
       _document = null;
       _pdfController = null;
       _annotations.clear();
+      _detectedBlocks.clear();
       _selected = null;
       _activeTool = null;
 
@@ -89,22 +102,39 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         return;
       }
 
-      final doc = await pdfx.PdfDocument.openFile(file.path);
+      final bytes = await file.readAsBytes();
+      final doc = await pdfx.PdfDocument.openData(bytes);
       final pdfCtrl = pdfx.PdfController(
         document: Future.value(doc),
         initialPage: 1,
       );
 
+      double pdfW = 595.2;
+      double pdfH = 841.8;
+      try {
+        final sfDoc = sf.PdfDocument(inputBytes: bytes);
+        if (sfDoc.pages.count > 0) {
+          pdfW = sfDoc.pages[0].size.width;
+          pdfH = sfDoc.pages[0].size.height;
+        }
+        sfDoc.dispose();
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         _pdfFile = file;
+        _pdfBytes = bytes;
         _document = doc;
         _pdfController = pdfCtrl;
         _pageCount = doc.pagesCount;
         _currentPage = 0;
+        _pdfPageWidth = pdfW;
+        _pdfPageHeight = pdfH;
         _loading = false;
         _errorMessage = null;
       });
+
+      _extractTextForCurrentPage();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -112,6 +142,64 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _errorMessage = 'Could not open PDF: $e';
       });
     }
+  }
+
+  Future<void> _reloadFromBytes(Uint8List newBytes, {int? targetPage}) async {
+    try {
+      setState(() {
+        _loading = true;
+      });
+
+      if (_document != null) {
+        await _document?.close();
+      }
+      _pdfController?.dispose();
+
+      final doc = await pdfx.PdfDocument.openData(newBytes);
+      final initialP = ((targetPage ?? _currentPage) + 1).clamp(1, doc.pagesCount);
+      final pdfCtrl = pdfx.PdfController(
+        document: Future.value(doc),
+        initialPage: initialP,
+      );
+
+      // Persist working bytes to temporary file
+      if (_pdfFile != null) {
+        await _pdfFile!.writeAsBytes(newBytes, flush: true);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _pdfBytes = newBytes;
+        _document = doc;
+        _pdfController = pdfCtrl;
+        _pageCount = doc.pagesCount;
+        _currentPage = initialP - 1;
+        _loading = false;
+      });
+
+      _extractTextForCurrentPage();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Error updating document: $e';
+      });
+    }
+  }
+
+  Future<void> _extractTextForCurrentPage() async {
+    if (_pdfBytes == null) return;
+    try {
+      final blocks = await PdfVectorEditorEngine.extractTextBlocks(
+        _pdfBytes!,
+        _currentPage,
+      );
+      if (mounted) {
+        setState(() {
+          _detectedBlocks = blocks;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _pickPdf() async {
@@ -183,6 +271,316 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     }
   }
 
+  /// Opens the interactive In-Place Vector Text Editor Dialog for a detected text block.
+  void _editDetectedTextBlock(PdfTextBlock block) {
+    final textCtrl = TextEditingController(text: block.text);
+    final aiPromptCtrl = TextEditingController();
+    bool isAiLoading = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            final bg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+            final primary = isDark ? kPrimaryDark : kPrimary;
+
+            return Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                top: 20,
+                left: 20,
+                right: 20,
+              ),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: primary.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.edit_note_rounded, color: primary, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Edit Text In-Place',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Modify existing PDF text line directly:',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: textCtrl,
+                    maxLines: 3,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Enter replacement text',
+                      filled: true,
+                      fillColor: isDark ? const Color(0xFF14141E) : const Color(0xFFF1F5F9),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // AI Restyler Section
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    title: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6), size: 18),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'AI Section Restyler / Polish',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF8B5CF6),
+                          ),
+                        ),
+                      ],
+                    ),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: aiPromptCtrl,
+                                decoration: InputDecoration(
+                                  hintText: 'e.g. Fix grammar, make formal, translate to Spanish',
+                                  filled: true,
+                                  isDense: true,
+                                  fillColor: isDark ? const Color(0xFF14141E) : const Color(0xFFF1F5F9),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: isAiLoading
+                                  ? null
+                                  : () async {
+                                      final prompt = aiPromptCtrl.text.trim();
+                                      if (prompt.isEmpty) return;
+                                      setModalState(() => isAiLoading = true);
+                                      try {
+                                        final res = await _aiService.generateText(
+                                          'Instruction: $prompt\nOriginal text: "${textCtrl.text}"\nOutput ONLY the rewritten text:',
+                                          AiService.modeClean,
+                                        );
+                                        final clean = res.replaceAll(RegExp(r'^["`\*\s]+|["`\*\s]+$'), '').trim();
+                                        if (clean.isNotEmpty) {
+                                          textCtrl.text = clean;
+                                        }
+                                      } catch (_) {} finally {
+                                        setModalState(() => isAiLoading = false);
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF8B5CF6),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: isAiLoading
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Text('Apply AI'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final newText = textCtrl.text.trim();
+                            if (newText.isEmpty || _pdfBytes == null) return;
+                            Navigator.pop(ctx);
+
+                            final updatedBytes = await PdfVectorEditorEngine.replaceTextBlock(
+                              pdfBytes: _pdfBytes!,
+                              pageIndex: _currentPage,
+                              targetBounds: block.bounds,
+                              replacementText: newText,
+                              newFontSize: block.fontSize,
+                              isBold: block.isBold,
+                              isItalic: block.isItalic,
+                            );
+
+                            await _reloadFromBytes(updatedBytes);
+                          },
+                          icon: const Icon(Icons.check_rounded, size: 18),
+                          label: const Text('Save Text Edit', style: TextStyle(fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Opens Page Organizer Manager (Add blank page, delete page, reorder pages).
+  void _openPageManager() {
+    if (_pdfBytes == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final bg = isDark ? const Color(0xFF1E1E2E) : Colors.white;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.layers_rounded, color: Color(0xFF2563EB), size: 24),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Page Organizer ($_pageCount pages)',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.add_to_photos_rounded, color: Color(0xFF10B981)),
+                  title: const Text('Insert Blank Page', style: TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text('Add after Page ${_currentPage + 1}'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final updated = await PdfVectorEditorEngine.insertBlankPage(
+                      pdfBytes: _pdfBytes!,
+                      atIndex: _currentPage + 1,
+                    );
+                    await _reloadFromBytes(updated, targetPage: _currentPage + 1);
+                  },
+                ),
+                if (_pageCount > 1) ...[
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                    title: Text(
+                      'Delete Page ${_currentPage + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.red),
+                    ),
+                    subtitle: const Text('Permanently remove this page from PDF'),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      final updated = await PdfVectorEditorEngine.deletePage(
+                        pdfBytes: _pdfBytes!,
+                        pageIndex: _currentPage,
+                      );
+                      await _reloadFromBytes(updated, targetPage: (_currentPage - 1).clamp(0, _pageCount - 2));
+                    },
+                  ),
+                  if (_currentPage > 0)
+                    ListTile(
+                      leading: const Icon(Icons.arrow_upward_rounded, color: Color(0xFF2563EB)),
+                      title: const Text('Move Page Up / Left', style: TextStyle(fontWeight: FontWeight.w700)),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        final updated = await PdfVectorEditorEngine.reorderPages(
+                          pdfBytes: _pdfBytes!,
+                          oldIndex: _currentPage,
+                          newIndex: _currentPage - 1,
+                        );
+                        await _reloadFromBytes(updated, targetPage: _currentPage - 1);
+                      },
+                    ),
+                  if (_currentPage < _pageCount - 1)
+                    ListTile(
+                      leading: const Icon(Icons.arrow_downward_rounded, color: Color(0xFF2563EB)),
+                      title: const Text('Move Page Down / Right', style: TextStyle(fontWeight: FontWeight.w700)),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        final updated = await PdfVectorEditorEngine.reorderPages(
+                          pdfBytes: _pdfBytes!,
+                          oldIndex: _currentPage,
+                          newIndex: _currentPage + 1,
+                        );
+                        await _reloadFromBytes(updated, targetPage: _currentPage + 1);
+                      },
+                    ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _savePdf() async {
     if (_pdfFile == null || _document == null) return;
     if (!await FileService().isFileAccessible(_pdfFile!.path)) {
@@ -218,6 +616,13 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _saving = false;
         _successPath = savePath;
       });
+
+      // Prompt user to save directly to public Downloads/AIPDFMaker
+      await ShareService.promptAndSaveFileDirectToDownloads(
+        context,
+        sourcePath: savePath,
+        defaultPrefix: 'AIPDF_Edited',
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -246,6 +651,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
       );
+      _extractTextForCurrentPage();
     }
   }
 
@@ -268,6 +674,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
       );
+      _extractTextForCurrentPage();
     }
   }
 
@@ -311,17 +718,17 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         actions: [
           if (_document != null) ...[
             IconButton(
+              icon: const Icon(Icons.layers_rounded),
+              tooltip: 'Manage Pages',
+              onPressed: _openPageManager,
+            ),
+            IconButton(
               icon: Icon(
-                _editMode ? Icons.edit_off_rounded : Icons.edit_rounded,
-                color: _editMode ? primary : null,
+                _detectTextMode ? Icons.find_in_page_rounded : Icons.find_in_page_outlined,
+                color: _detectTextMode ? const Color(0xFF10B981) : null,
               ),
-              tooltip:
-                  _editMode ? 'Switch to View Mode' : 'Switch to Edit Mode',
-              onPressed: () => setState(() {
-                _editMode = !_editMode;
-                _selected = null;
-                _activeTool = null;
-              }),
+              tooltip: _detectTextMode ? 'Text Detection ON' : 'Text Detection OFF',
+              onPressed: () => setState(() => _detectTextMode = !_detectTextMode),
             ),
             TextButton.icon(
               onPressed: _saving ? null : _savePdf,
@@ -331,7 +738,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(Icons.save_rounded, color: primary),
+                  : Icon(Icons.download_rounded, color: primary),
               label: Text(
                 'Save',
                 style: TextStyle(color: primary, fontWeight: FontWeight.w700),
@@ -347,7 +754,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           if (_loading || _saving)
             ToolLoadingBanner(
               message:
-                  _loading ? 'Opening PDF document...' : 'Saving edited PDF...',
+                  _loading ? 'Processing vector PDF...' : 'Saving edited PDF...',
             ),
 
           // Error Banner
@@ -369,11 +776,14 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ToolSuccessCard(
                 title: 'PDF Exported Successfully!',
-                subtitle: 'Exported with annotations preserved.',
+                subtitle: 'Directly downloadable to Downloads/AIPDFMaker.',
                 filePath: _successPath,
                 onSave: () {
                   if (_successPath != null && mounted) {
-                    ShareService.saveFileToUserDestination(context, sourcePath: _successPath!);
+                    ShareService.promptAndSaveFileDirectToDownloads(
+                      context,
+                      sourcePath: _successPath!,
+                    );
                   }
                 },
                 onShare: () {
@@ -397,7 +807,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                     icon: Icons.edit_document,
                     title: 'Open a PDF to Edit',
                     subtitle:
-                        'View document pages, add text & image annotations, and export a clean PDF',
+                        'Detect and edit text in-place, manage pages, add annotations, and restyle with AI',
                     actionLabel: 'Choose PDF File',
                     onAction: _loading ? null : _pickPdf,
                   )
@@ -405,9 +815,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           ),
         ],
       ),
-      floatingActionButton: _document != null &&
-              _editMode &&
-              _activeTool == null
+      floatingActionButton: _document != null && _editMode && _activeTool == null
           ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -424,7 +832,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 FloatingActionButton.small(
                   heroTag: 'txt_fab',
                   backgroundColor: primary,
-                  tooltip: 'Add Text Annotation',
+                  tooltip: 'Add Custom Text',
                   onPressed: _saving
                       ? null
                       : () => setState(() => _activeTool = 'text'),
@@ -443,7 +851,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
 
     return Column(
       children: [
-        // Editor Control Header Barts
+        // Editor Control Header Bar
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
@@ -452,28 +860,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
           ),
           child: Row(
             children: [
-              // Mode switcher chips
-              FilterChip(
-                selected: !_editMode,
-                avatar: const Icon(Icons.visibility_rounded, size: 16),
-                label: const Text('View', style: TextStyle(fontSize: 12)),
-                onSelected: (sel) {
-                  if (sel) {
-                    setState(() {
-                      _editMode = false;
-                      _selected = null;
-                      _activeTool = null;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
               FilterChip(
                 selected: _editMode,
                 avatar: Icon(Icons.edit_rounded,
                     size: 16, color: _editMode ? Colors.white : null),
                 label: Text(
-                  'Edit Mode',
+                  'Vector Edit',
                   style: TextStyle(
                       fontSize: 12, color: _editMode ? Colors.white : null),
                 ),
@@ -488,28 +880,48 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   });
                 },
               ),
+              const SizedBox(width: 8),
+              FilterChip(
+                selected: _detectTextMode,
+                avatar: Icon(Icons.text_format_rounded,
+                    size: 16, color: _detectTextMode ? Colors.white : null),
+                label: Text(
+                  'Text Detection',
+                  style: TextStyle(
+                      fontSize: 12, color: _detectTextMode ? Colors.white : null),
+                ),
+                selectedColor: const Color(0xFF10B981),
+                onSelected: (sel) {
+                  setState(() {
+                    _detectTextMode = sel;
+                  });
+                },
+              ),
               const Spacer(),
-              if (_editMode) ...[
-                IconButton(
-                  icon: Icon(
-                    Icons.text_fields_rounded,
-                    color: _activeTool == 'text' ? primary : null,
-                  ),
-                  tooltip: 'Text Tool',
-                  onPressed: () => setState(() =>
-                      _activeTool = _activeTool == 'text' ? null : 'text'),
+              IconButton(
+                icon: const Icon(Icons.layers_outlined),
+                tooltip: 'Page Organizer',
+                onPressed: _openPageManager,
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.text_fields_rounded,
+                  color: _activeTool == 'text' ? primary : null,
                 ),
-                IconButton(
-                  icon: Icon(
-                    Icons.image_rounded,
-                    color:
-                        _activeTool == 'image' ? const Color(0xFF8B5CF6) : null,
-                  ),
-                  tooltip: 'Image Tool',
-                  onPressed: () => setState(() =>
-                      _activeTool = _activeTool == 'image' ? null : 'image'),
+                tooltip: 'Add Custom Text',
+                onPressed: () => setState(() =>
+                    _activeTool = _activeTool == 'text' ? null : 'text'),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.image_rounded,
+                  color:
+                      _activeTool == 'image' ? const Color(0xFF8B5CF6) : null,
                 ),
-              ],
+                tooltip: 'Add Image',
+                onPressed: () => setState(() =>
+                    _activeTool = _activeTool == 'image' ? null : 'image'),
+              ),
             ],
           ),
         ),
@@ -585,6 +997,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 _selected = null;
               });
               _pdfController?.jumpToPage(i + 1);
+              _extractTextForCurrentPage();
             },
             itemBuilder: (_, idx) => _buildPageCanvas(idx, primary, isDark),
           ),
@@ -640,11 +1053,62 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                                   _currentPage = page - 1;
                                   _selected = null;
                                 });
+                                _extractTextForCurrentPage();
                               }
                             },
                           )
                         : const SizedBox(),
                   ),
+                  // Detected Text Bounding Box Highlights (Tap to edit in-place)
+                  if (_editMode && _detectTextMode && pageIdx == _currentPage)
+                    ..._detectedBlocks.map((block) {
+                      final pageWidth = _pdfPageWidth > 0 ? _pdfPageWidth : 595.2;
+                      final pageHeight = _pdfPageHeight > 0 ? _pdfPageHeight : 841.8;
+
+                      final pageAspect = pageWidth / pageHeight;
+                      final containerAspect = constraints.maxWidth / constraints.maxHeight;
+
+                      double renderW, renderH, offsetX, offsetY;
+                      if (pageAspect > containerAspect) {
+                        renderW = constraints.maxWidth;
+                        renderH = constraints.maxWidth / pageAspect;
+                        offsetX = 0;
+                        offsetY = (constraints.maxHeight - renderH) / 2;
+                      } else {
+                        renderH = constraints.maxHeight;
+                        renderW = constraints.maxHeight * pageAspect;
+                        offsetX = (constraints.maxWidth - renderW) / 2;
+                        offsetY = 0;
+                      }
+
+                      final scaleX = renderW / pageWidth;
+                      final scaleY = renderH / pageHeight;
+
+                      final left = (offsetX + block.bounds.left * scaleX).clamp(0.0, constraints.maxWidth - 20);
+                      final top = (offsetY + block.bounds.top * scaleY).clamp(0.0, constraints.maxHeight - 15);
+                      final width = (block.bounds.width * scaleX).clamp(15.0, constraints.maxWidth - left);
+                      final height = (block.bounds.height * scaleY).clamp(10.0, 60.0);
+
+                      return Positioned(
+                        left: left,
+                        top: top,
+                        width: width,
+                        height: height,
+                        child: GestureDetector(
+                          onTap: () => _editDetectedTextBlock(block),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                              border: Border.all(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                                width: 1.0,
+                              ),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
                   ...(_annotations[pageIdx] ?? []).map((ann) =>
                       _buildAnnotationWidget(ann, constraints, primary)),
                 ],

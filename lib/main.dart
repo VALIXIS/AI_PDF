@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
+import 'package:pdf_ai_toolkit/views/splash/splash_screen.dart';
 import 'package:pdf_ai_toolkit/views/home/home_screen.dart';
 import 'package:pdf_ai_toolkit/views/history/history_screen.dart';
 import 'package:pdf_ai_toolkit/views/settings/settings_screen.dart';
@@ -217,7 +218,7 @@ class _PdfAiToolkitAppState extends State<PdfAiToolkitApp> {
       themeMode: themeNotifier.mode,
       theme: lightTheme,
       darkTheme: darkTheme,
-      home: const HomeScreen(),
+      home: const SplashScreen(),
       routes: {
         '/history': (_) => const HistoryScreen(),
         '/settings': (_) => const SettingsScreen(),

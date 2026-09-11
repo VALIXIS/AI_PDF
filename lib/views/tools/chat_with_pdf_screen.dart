@@ -800,9 +800,12 @@ class _ChatWithPdfScreenState extends State<ChatWithPdfScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => ShareService.saveFileToUserDestination(
-                        context, sourcePath: result.outputPath!),
-                    icon: const Icon(Icons.save_alt_rounded, size: 14),
+                    onPressed: () => ShareService.promptAndSaveFileDirectToDownloads(
+                      context,
+                      sourcePath: result.outputPath!,
+                      defaultPrefix: 'ChatPDF_Export',
+                    ),
+                    icon: const Icon(Icons.download_rounded, size: 14),
                     label: const Text('Save',
                         style: TextStyle(
                             fontSize: 11, fontWeight: FontWeight.bold)),

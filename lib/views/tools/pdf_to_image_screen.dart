@@ -217,10 +217,9 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
   void _saveAll() {
     if (_successImagePaths == null || _successImagePaths!.isEmpty) return;
     if (mounted) {
-      ShareService.saveMultipleFilesToUserDestination(
+      ShareService.saveMultipleFilesDirectToDownloads(
         context,
         sourcePaths: _successImagePaths!,
-        dialogTitle: 'Select Folder to Save Images',
       );
     }
   }

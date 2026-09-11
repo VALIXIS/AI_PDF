@@ -10,18 +10,34 @@ import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 import 'package:uuid/uuid.dart';
 
 class TextToPdfScreen extends StatefulWidget {
-  const TextToPdfScreen({Key? key}) : super(key: key);
+  final String? initialContent;
+
+  const TextToPdfScreen({Key? key, this.initialContent}) : super(key: key);
 
   @override
   State<TextToPdfScreen> createState() => _TextToPdfScreenState();
 }
 
 class _TextToPdfScreenState extends State<TextToPdfScreen> {
-  final TextEditingController _textController = TextEditingController();
-  final TextEditingController _titleController = TextEditingController();
+  late final TextEditingController _textController;
+  late final TextEditingController _titleController;
   final PdfService _pdfService = PdfService();
   final StorageService _storageService = StorageService();
   final FileService _fileService = FileService();
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = TextEditingController(text: widget.initialContent ?? '');
+    _titleController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _titleController.dispose();
+    super.dispose();
+  }
 
   String? _importedFileName;
   bool _isLoading = false;
@@ -173,13 +189,6 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
   }
 
   @override
-  void dispose() {
-    _textController.dispose();
-    _titleController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
@@ -240,7 +249,11 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   filePath: _successPath,
                   onSave: () {
                     if (_successPath != null && mounted) {
-                      ShareService.saveFileToUserDestination(context, sourcePath: _successPath!);
+                      ShareService.promptAndSaveFileDirectToDownloads(
+                        context,
+                        sourcePath: _successPath!,
+                        defaultPrefix: 'TextToPDF',
+                      );
                     }
                   },
                   onShare: () {

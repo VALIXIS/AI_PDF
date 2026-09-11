@@ -139,7 +139,11 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
               filePath: _successPath,
               onSave: () {
                 if (_successPath != null && mounted) {
-                  ShareService.saveFileToUserDestination(context, sourcePath: _successPath!);
+                  ShareService.promptAndSaveFileDirectToDownloads(
+                    context,
+                    sourcePath: _successPath!,
+                    defaultPrefix: 'WatermarkedPDF',
+                  );
                 }
               },
               onShare: () {

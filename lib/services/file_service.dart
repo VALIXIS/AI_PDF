@@ -706,4 +706,53 @@ class FileService {
       return 0;
     }
   }
+
+  /// Resolves the public device download directory (e.g. /storage/emulated/0/Download/AIPDFMaker or user's Downloads/AIPDFMaker)
+  Future<Directory> getPublicDownloadsDirectory() async {
+    if (Platform.isAndroid) {
+      final publicDownload = Directory('/storage/emulated/0/Download/AIPDFMaker');
+      try {
+        if (!await publicDownload.exists()) {
+          await publicDownload.create(recursive: true);
+        }
+        return publicDownload;
+      } catch (_) {
+        try {
+          final extDirs = await getExternalStorageDirectories(type: StorageDirectory.downloads);
+          if (extDirs != null && extDirs.isNotEmpty) {
+            final subDir = Directory(path.join(extDirs.first.path, 'AIPDFMaker'));
+            if (!await subDir.exists()) await subDir.create(recursive: true);
+            return subDir;
+          }
+        } catch (_) {}
+      }
+    } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      try {
+        final downloadsDir = await getDownloadsDirectory();
+        if (downloadsDir != null) {
+          final subDir = Directory(path.join(downloadsDir.path, 'AIPDFMaker'));
+          if (!await subDir.exists()) await subDir.create(recursive: true);
+          return subDir;
+        }
+      } catch (_) {}
+    }
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final defaultDir = Directory(path.join(appDocDir.path, 'AIPDFMaker'));
+    if (!await defaultDir.exists()) await defaultDir.create(recursive: true);
+    return defaultDir;
+  }
+
+  /// Generates a clean timestamped filename: AIPDF_YYYYMMDD_HHMMSS.ext
+  String generateTimestampedFileName({String prefix = 'AIPDF', String extension = 'pdf'}) {
+    final now = DateTime.now();
+    final year = now.year.toString().padLeft(4, '0');
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    final hour = now.hour.toString().padLeft(2, '0');
+    final min = now.minute.toString().padLeft(2, '0');
+    final sec = now.second.toString().padLeft(2, '0');
+    final ext = extension.startsWith('.') ? extension.substring(1) : extension;
+    return '${prefix}_${year}${month}${day}_${hour}${min}${sec}.${ext}';
+  }
 }
+

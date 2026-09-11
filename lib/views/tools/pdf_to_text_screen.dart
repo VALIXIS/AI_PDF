@@ -194,7 +194,7 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: _saveTxtFile,
-                      icon: const Icon(Icons.save_alt_rounded, size: 16),
+                      icon: const Icon(Icons.download_rounded, size: 16),
                       label: const Text('Save TXT'),
                     ),
                   ),
@@ -352,7 +352,8 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
             code: 'PDF_TO_TXT_OUTPUT_NOT_FOUND');
       }
 
-      final text = await txtFile.readAsString(encoding: utf8);
+      final bytes = await txtFile.readAsBytes();
+      final text = utf8.decode(bytes, allowMalformed: true);
       if (text.trim().isEmpty) {
         throw PdfServiceException(
             'No extractable text found in this PDF. Scanned or image-only PDFs do not have a raw text layer.',
@@ -406,7 +407,12 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
 
   void _saveTxtFile() async {
     if (_txtPath != null && mounted) {
-      ShareService.saveFileToUserDestination(context, sourcePath: _txtPath!);
+      ShareService.promptAndSaveFileDirectToDownloads(
+        context,
+        sourcePath: _txtPath!,
+        defaultPrefix: 'ExtractedText',
+        dialogTitle: 'Save Extracted Text',
+      );
     }
   }
 

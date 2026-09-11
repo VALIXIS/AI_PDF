@@ -638,10 +638,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return;
     }
     if (!mounted) return;
-    await ShareService.saveFileToUserDestination(
+    await ShareService.promptAndSaveFileDirectToDownloads(
       context,
       sourcePath: entry.filePath,
-      suggestedFileName: entry.title,
+      defaultPrefix: 'AIPDF',
     );
   }
 

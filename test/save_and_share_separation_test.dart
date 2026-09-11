@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';

@@ -113,7 +113,7 @@ class ToolScreenShell extends StatelessWidget {
                   filePath: successPath,
                   onSave: onSave ??
                       () {
-                        ShareService.saveFileToUserDestination(
+                        ShareService.promptAndSaveFileDirectToDownloads(
                           context,
                           sourcePath: successPath!,
                         );
