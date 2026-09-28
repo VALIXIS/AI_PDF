@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary;
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/views/settings/privacy_policy_screen.dart';
@@ -37,30 +36,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  static const String _privacyPolicyUrl =
-      'https://metspy9069.github.io/AI_PDF/privacy-policy/';
-
   void _openPrivacyPolicy() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
-    );
-  }
-
-  void _showLaunchErrorSnackBar() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Could not open browser. Privacy Policy: $_privacyPolicyUrl',
-        ),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        action: SnackBarAction(
-          label: 'Copy URL',
-          onPressed: () {
-            Clipboard.setData(const ClipboardData(text: _privacyPolicyUrl));
-          },
-        ),
-      ),
     );
   }
 
