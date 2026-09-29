@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary, kPrimaryDark;
@@ -16,6 +15,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late ScrollController _scrollController;
   bool _isScrolled = false;
+  String _selectedCategory = 'All Tools';
+
+  final List<String> _categoryTabs = const [
+    'All Tools',
+    'AI Tools',
+    'Edit & Sign',
+    'Convert & Organize',
+  ];
 
   @override
   void initState() {
@@ -60,29 +67,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildSliverAppBar(BuildContext context, bool isDark, Color textCol) {
+    final primary = isDark ? kPrimaryDark : kPrimary;
+
     return SliverAppBar(
       pinned: true,
       elevation: _isScrolled ? 4 : 0,
-      backgroundColor: isDark 
-          ? const Color(0xFF0A0A10).withOpacity(0.85) 
-          : const Color(0xFFF8FAFC).withOpacity(0.85),
+      backgroundColor: isDark
+          ? const Color(0xFF0A0A10).withValues(alpha: 0.88)
+          : const Color(0xFFF8FAFC).withValues(alpha: 0.88),
       surfaceTintColor: Colors.transparent,
       flexibleSpace: ClipRect(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
           child: FlexibleSpaceBar(
-            titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            titlePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             title: Row(
               children: [
                 Hero(
                   tag: 'app_logo',
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.asset(
-                      'assets/ICON.png',
-                      width: 28,
-                      height: 28,
-                      fit: BoxFit.contain,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: primary.withValues(alpha: 0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.asset(
+                        'assets/ICON.png',
+                        width: 24,
+                        height: 24,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
@@ -90,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 Text(
                   'AI PDF Maker',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 19,
                     fontWeight: FontWeight.w800,
                     color: textCol,
                     letterSpacing: -0.3,
@@ -113,29 +133,159 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildCategoryFilterChips(bool isDark) {
+    final primary = isDark ? kPrimaryDark : kPrimary;
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: _categoryTabs.map((tab) {
+              final isSelected = _selectedCategory == tab;
+
+              IconData tabIcon;
+              switch (tab) {
+                case 'AI Tools':
+                  tabIcon = Icons.auto_awesome_rounded;
+                  break;
+                case 'Edit & Sign':
+                  tabIcon = Icons.edit_note_rounded;
+                  break;
+                case 'Convert & Organize':
+                  tabIcon = Icons.transform_rounded;
+                  break;
+                default:
+                  tabIcon = Icons.grid_view_rounded;
+              }
+
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedCategory = tab;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? (isDark
+                              ? primary.withValues(alpha: 0.18)
+                              : primary.withValues(alpha: 0.12))
+                          : (isDark
+                              ? const Color(0xFF131320).withValues(alpha: 0.6)
+                              : Colors.white.withValues(alpha: 0.8)),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isSelected
+                            ? primary.withValues(alpha: 0.6)
+                            : (isDark
+                                ? const Color(0xFF1F1F35)
+                                : const Color(0xFFE2E8F0)),
+                        width: isSelected ? 1.5 : 1.0,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: primary.withValues(alpha: 0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              tabIcon,
+                              size: 16,
+                              color: isSelected
+                                  ? primary
+                                  : (isDark ? Colors.white60 : const Color(0xFF64748B)),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              tab,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                color: isSelected
+                                    ? (isDark ? Colors.white : primary)
+                                    : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isSelected) ...[
+                          const SizedBox(height: 3),
+                          Container(
+                            width: 16,
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: primary,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildCategoryHeader(String title, bool isDark) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
-          color: isDark ? Colors.white54 : const Color(0xFF64748B),
-        ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: isDark ? kPrimaryDark : kPrimary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildToolsGrid(List<ToolItem> tools, bool isDark) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 220,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
+          mainAxisSpacing: 14,
+          crossAxisSpacing: 14,
           childAspectRatio: 0.88,
         ),
         delegate: SliverChildBuilderDelegate(
@@ -153,11 +303,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  List<ToolItem> _getFilteredTools(String category) {
+    if (category == 'AI Tools') {
+      return appTools.where((t) => t.category == 'AI').toList();
+    } else if (category == 'Edit & Sign') {
+      return appTools
+          .where((t) => t.category == 'Edit' || t.category == 'Security')
+          .toList();
+    } else if (category == 'Convert & Organize') {
+      return appTools
+          .where((t) => t.category == 'Convert' || t.category == 'Organize')
+          .toList();
+    }
+    return appTools;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textCol = isDark ? Colors.white : const Color(0xFF0F172A);
-    
+
     // Group tools by category
     final Map<String, List<ToolItem>> groupedTools = {};
     for (var tool in appTools) {
@@ -169,24 +334,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     final slivers = <Widget>[
       _buildSliverAppBar(context, isDark, textCol),
+      _buildCategoryFilterChips(isDark),
     ];
 
-    // Build categories
-    final categories = ['Convert', 'Organize', 'Edit', 'Security'];
-    for (var cat in categories) {
-      if (groupedTools.containsKey(cat)) {
+    if (_selectedCategory == 'All Tools') {
+      final categories = ['Convert', 'Organize', 'Edit', 'Security', 'AI'];
+      for (var cat in categories) {
+        if (groupedTools.containsKey(cat)) {
+          slivers.add(SliverToBoxAdapter(child: _buildCategoryHeader(cat, isDark)));
+          slivers.add(_buildToolsGrid(groupedTools[cat]!, isDark));
+        }
+      }
+      // Add any other categories
+      groupedTools.keys.where((k) => !categories.contains(k)).forEach((cat) {
         slivers.add(SliverToBoxAdapter(child: _buildCategoryHeader(cat, isDark)));
         slivers.add(_buildToolsGrid(groupedTools[cat]!, isDark));
-      }
+      });
+    } else {
+      final filteredTools = _getFilteredTools(_selectedCategory);
+      slivers.add(SliverToBoxAdapter(child: _buildCategoryHeader(_selectedCategory, isDark)));
+      slivers.add(_buildToolsGrid(filteredTools, isDark));
     }
 
-    // Add remaining categories if any
-    groupedTools.keys.where((k) => !categories.contains(k)).forEach((cat) {
-      slivers.add(SliverToBoxAdapter(child: _buildCategoryHeader(cat, isDark)));
-      slivers.add(_buildToolsGrid(groupedTools[cat]!, isDark));
-    });
-
-    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 40)));
+    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 50)));
 
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
@@ -194,6 +364,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         onPressed: () => _push(const ChatWithPdfScreen()),
         backgroundColor: const Color(0xFF7C3AED),
         foregroundColor: Colors.white,
+        elevation: 4,
         icon: const Icon(Icons.auto_awesome_rounded, size: 20),
         label: const Text('AI Chat', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
@@ -243,10 +414,10 @@ class _ILovePdfToolCardState extends State<ILovePdfToolCard> with SingleTickerPr
     super.initState();
     _hoverController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 140),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _hoverController, curve: Curves.easeInOut),
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
+      CurvedAnimation(parent: _hoverController, curve: Curves.easeOutCubic),
     );
   }
 
@@ -258,9 +429,14 @@ class _ILovePdfToolCardState extends State<ILovePdfToolCard> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = widget.isDark ? const Color(0xFF13131F) : Colors.white;
-    final textCol = widget.isDark ? Colors.white : const Color(0xFF0F172A);
-    final borderCol = widget.isDark ? const Color(0xFF1F1F35) : const Color(0xFFF1F5F9);
+    final isDark = widget.isDark;
+    final cardBg = isDark
+        ? const Color(0xFF131322).withValues(alpha: 0.85)
+        : Colors.white.withValues(alpha: 0.92);
+    final textCol = isDark ? Colors.white : const Color(0xFF0F172A);
+    final borderCol = isDark
+        ? const Color(0xFF222238)
+        : const Color(0xFFE2E8F0);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -274,84 +450,117 @@ class _ILovePdfToolCardState extends State<ILovePdfToolCard> with SingleTickerPr
         onTapCancel: () => _hoverController.reverse(),
         child: ScaleTransition(
           scale: _scaleAnimation,
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
             decoration: BoxDecoration(
               color: cardBg,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: _isHovered ? widget.tool.color.withOpacity(0.5) : borderCol,
-                width: 1.5,
+                color: _isHovered
+                    ? widget.tool.color.withValues(alpha: 0.6)
+                    : (isDark
+                        ? widget.tool.color.withValues(alpha: 0.15)
+                        : borderCol),
+                width: _isHovered ? 1.8 : 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: widget.tool.color.withOpacity(_isHovered ? 0.2 : 0.05),
+                  color: widget.tool.color.withValues(alpha: _isHovered ? 0.22 : 0.06),
                   blurRadius: _isHovered ? 20 : 10,
                   offset: const Offset(0, 4),
-                  spreadRadius: _isHovered ? 2 : 0,
-                )
+                  spreadRadius: _isHovered ? 1 : 0,
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
               ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
-              child: Stack(
-                children: [
-                  // Subtle background glow
-                  Positioned(
-                    right: -20,
-                    top: -20,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: widget.tool.color.withOpacity(0.1),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                child: Stack(
+                  children: [
+                    // Subtle background glow in corner
+                    Positioned(
+                      right: -16,
+                      top: -16,
+                      child: Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.tool.color.withValues(alpha: isDark ? 0.12 : 0.08),
+                        ),
                       ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: widget.tool.color.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(14),
+                    Padding(
+                      padding: const EdgeInsets.all(15.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Colored Icon Container with gradient background
+                          Container(
+                            padding: const EdgeInsets.all(11),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  widget.tool.color.withValues(alpha: 0.22),
+                                  widget.tool.color.withValues(alpha: 0.08),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: widget.tool.color.withValues(alpha: 0.25),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: widget.tool.color.withValues(alpha: 0.15),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              widget.tool.icon,
+                              color: widget.tool.color,
+                              size: 26,
+                            ),
                           ),
-                          child: Icon(
-                            widget.tool.icon,
-                            color: widget.tool.color,
-                            size: 28,
+                          const Spacer(),
+                          Text(
+                            widget.tool.title,
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w700,
+                              color: textCol,
+                              letterSpacing: -0.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          widget.tool.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: textCol,
-                            letterSpacing: -0.3,
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.tool.subtitle,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.tool.subtitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: widget.isDark ? Colors.white54 : const Color(0xFF64748B),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
