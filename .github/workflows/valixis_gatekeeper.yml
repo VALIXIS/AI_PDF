@@ -1,0 +1,84 @@
+name: VALIXIS PR Gatekeeper
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - master
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  gatekeeper:
+    name: VALIXIS PR Gatekeeper Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check for Flutter Project
+        id: check_flutter
+        run: |
+          if [ -f "pubspec.yaml" ]; then
+            echo "is_flutter=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_flutter=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Flutter
+        if: steps.check_flutter.outputs.is_flutter == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter Dependencies
+        if: steps.check_flutter.outputs.is_flutter == 'true'
+        run: flutter pub get
+
+      - name: Run VALIXIS Gatekeeper CI Engine
+        id: gatekeeper_run
+        run: |
+          python .github/scripts/ci_gatekeeper.py
+        continue-on-error: true
+
+      - name: Post Comment on Pull Request
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('GATEKEEPER_REPORT.md')) {
+              const report = fs.readFileSync('GATEKEEPER_REPORT.md', 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: report
+              });
+            }
+
+      - name: Enforce Pass/Fail Gate
+        run: |
+          if [ "${{ steps.gatekeeper_run.outcome }}" != "success" ]; then
+            echo "❌ VALIXIS Gatekeeper detected critical issues! PR blocked."
+            exit 1
+          fi
+          echo "✔ VALIXIS Gatekeeper passed."
