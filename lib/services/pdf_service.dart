@@ -14,6 +14,24 @@ import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 
+/// Represents a page configuration item for PDF page reorganizer.
+class PdfPageReorganizeItem {
+  /// 0-indexed page index in the source PDF
+  final int originalPageIndex;
+
+  /// Rotation angle to apply to this page (0, 90, 180, 270 degrees clockwise)
+  final int rotationAngle;
+
+  const PdfPageReorganizeItem({
+    required this.originalPageIndex,
+    this.rotationAngle = 0,
+  });
+
+  @override
+  String toString() =>
+      'PdfPageReorganizeItem(originalIndex: $originalPageIndex, rotation: $rotationAngle)';
+}
+
 class PdfService {
   /// Generates a PDF from formatted text
   Future<String> generatePdfFromText({
@@ -609,6 +627,196 @@ class PdfService {
       if (e is PdfServiceException) rethrow;
       throw PdfServiceException('Failed to rotate PDF: $e', details: e);
     }
+  }
+
+  /// Reorganizes, rotates, duplicates, and deletes pages of a PDF based on the provided [pages] list.
+  Future<String> reorganizePdfPages({
+    required String pdfPath,
+    required List<PdfPageReorganizeItem> pages,
+    String? customOutputPath,
+  }) async {
+    final fs = FileService();
+    try {
+      if (!await fs.isFileAccessible(pdfPath)) {
+        throw PdfServiceException('Input file does not exist: $pdfPath',
+            code: 'PDF_INPUT_NOT_FOUND');
+      }
+      final file = File(pdfPath);
+      final size = await file.length();
+      if (size > 50 * 1024 * 1024) {
+        throw PdfServiceException(
+            'PDF file exceeds maximum supported size of 50MB.',
+            code: 'PDF_REORGANIZE_FILE_TOO_LARGE');
+      }
+
+      if (!await fs.isPdfFile(pdfPath)) {
+        throw PdfServiceException(
+            'Input PDF file is empty, corrupt, or not a valid PDF: $pdfPath',
+            code: 'PDF_CORRUPT_OR_INVALID');
+      }
+
+      if (pages.isEmpty) {
+        throw PdfServiceException(
+            'At least one page is required to save the reorganized PDF.',
+            code: 'PDF_REORGANIZE_EMPTY_PAGES');
+      }
+
+      final bytes = await file.readAsBytes();
+      sf.PdfDocument? sourceDocument;
+      sf.PdfDocument? outputDocument;
+
+      try {
+        sourceDocument = sf.PdfDocument(inputBytes: bytes);
+        final int totalPages = sourceDocument.pages.count;
+
+        if (totalPages == 0) {
+          throw PdfServiceException('Source PDF contains no pages.',
+              code: 'PDF_EMPTY_PAGES');
+        }
+
+        for (final pageItem in pages) {
+          if (pageItem.originalPageIndex < 0 ||
+              pageItem.originalPageIndex >= totalPages) {
+            throw PdfServiceException(
+                'Invalid page index ${pageItem.originalPageIndex}. Document has $totalPages pages.',
+                code: 'PDF_REORGANIZE_INVALID_PAGE_INDEX');
+          }
+        }
+
+        outputDocument = sf.PdfDocument();
+
+        for (final pageItem in pages) {
+          final sf.PdfPage sourcePage =
+              sourceDocument.pages[pageItem.originalPageIndex];
+          final sf.PdfTemplate template = sourcePage.createTemplate();
+
+          final sf.PdfSection section = outputDocument.sections!.add();
+          section.pageSettings.size = sourcePage.size;
+          section.pageSettings.margins.all = 0;
+
+          // Calculate cumulative rotation angle
+          int sourceDegrees = 0;
+          switch (sourcePage.rotation) {
+            case sf.PdfPageRotateAngle.rotateAngle0:
+              sourceDegrees = 0;
+              break;
+            case sf.PdfPageRotateAngle.rotateAngle90:
+              sourceDegrees = 90;
+              break;
+            case sf.PdfPageRotateAngle.rotateAngle180:
+              sourceDegrees = 180;
+              break;
+            case sf.PdfPageRotateAngle.rotateAngle270:
+              sourceDegrees = 270;
+              break;
+          }
+
+          final int totalDegrees = (sourceDegrees + pageItem.rotationAngle) % 360;
+          if (totalDegrees == 90) {
+            section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle90;
+          } else if (totalDegrees == 180) {
+            section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle180;
+          } else if (totalDegrees == 270) {
+            section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle270;
+          } else {
+            section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle0;
+          }
+
+          final sf.PdfPage newPage = section.pages.add();
+          newPage.graphics.drawPdfTemplate(
+            template,
+            Offset.zero,
+            sourcePage.size,
+          );
+        }
+
+        final List<int> outputBytes = outputDocument.saveSync();
+        final String dirPath =
+            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+        final String baseName = path.basenameWithoutExtension(pdfPath);
+        final fileName = FileService().formatOutputFileName(
+          baseName: baseName,
+          suffix: 'reorganized',
+          extension: 'pdf',
+        );
+        final targetPath = path.join(dirPath, fileName);
+
+        final resultPath =
+            await FileService().safeWriteBytes(targetPath, outputBytes);
+        if (!await fs.isFileValidAndAccessible(resultPath)) {
+          throw PdfServiceException(
+              'Failed to generate valid reorganized PDF output.',
+              code: 'PDF_REORGANIZE_OUTPUT_INVALID');
+        }
+
+        // Verify output by reopening
+        syncfusion.PdfDocument? testDoc;
+        try {
+          testDoc = syncfusion.PdfDocument(inputBytes: outputBytes);
+          if (testDoc.pages.count != pages.length) {
+            throw Exception('Reorganized PDF page count mismatch.');
+          }
+        } catch (e) {
+          throw PdfServiceException(
+              'Generated reorganized PDF is corrupt or invalid: $e',
+              code: 'PDF_REORGANIZE_INVALID_OUTPUT',
+              details: e);
+        } finally {
+          testDoc?.dispose();
+        }
+
+        return resultPath;
+      } finally {
+        sourceDocument?.dispose();
+        outputDocument?.dispose();
+      }
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to reorganize PDF: $e', details: e);
+    }
+  }
+
+  /// Generates thumbnail byte images for each page of the PDF
+  Future<List<Uint8List>> getPdfPageThumbnails(
+    String pdfPath, {
+    double scale = 1.0,
+  }) async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return [];
+    }
+    final List<Uint8List> thumbnails = [];
+    pdfx.PdfDocument? doc;
+    try {
+      doc = await pdfx.PdfDocument.openFile(pdfPath)
+          .timeout(const Duration(milliseconds: 1500));
+      final int pageCount = doc.pagesCount;
+      for (int i = 1; i <= pageCount; i++) {
+        final page = await doc.getPage(i);
+        try {
+          final pageImage = await page.render(
+            width: page.width * scale,
+            height: page.height * scale,
+            format: pdfx.PdfPageImageFormat.png,
+          );
+          if (pageImage != null && pageImage.bytes.isNotEmpty) {
+            thumbnails.add(pageImage.bytes);
+          } else {
+            thumbnails.add(Uint8List(0));
+          }
+        } catch (_) {
+          thumbnails.add(Uint8List(0));
+        } finally {
+          await page.close();
+        }
+      }
+    } catch (_) {
+      // In headless test environments where pdfx native channel isn't available
+    } finally {
+      try {
+        await doc?.close();
+      } catch (_) {}
+    }
+    return thumbnails;
   }
 
   /// Applies a visible text watermark to all pages of a PDF

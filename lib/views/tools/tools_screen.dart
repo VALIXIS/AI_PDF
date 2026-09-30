@@ -17,6 +17,7 @@ import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_page_reorganizer_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -97,6 +98,14 @@ const List<ToolItem> appTools = [
   ),
 
   // Organize
+  ToolItem(
+    title: 'Organize Pages',
+    subtitle: 'Reorder, rotate & delete',
+    icon: Icons.dashboard_customize_rounded,
+    color: Color(0xFF6366F1),
+    screen: PdfPageReorganizerScreen(),
+    category: 'Organize',
+  ),
   ToolItem(
     title: 'Merge PDF',
     subtitle: 'Combine multiple PDFs',
