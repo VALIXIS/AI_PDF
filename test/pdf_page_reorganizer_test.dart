@@ -373,5 +373,91 @@ void main() {
       expect(find.text('Reset all pages to original order'), findsOneWidget);
       expect(find.text('3 pages total'), findsOneWidget);
     });
+
+    testWidgets('Prevents deleting the last remaining page',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: PdfPageReorganizerScreen(),
+        ),
+      );
+      await tester.pump();
+
+      final state = tester.state<PdfPageReorganizerScreenState>(
+          find.byType(PdfPageReorganizerScreen));
+      await tester.runAsync(() async {
+        await state.loadPdf(multiPagePdfPath);
+      });
+      await tester.pump();
+
+      // Delete page 1
+      var deleteIcons = find.byIcon(Icons.delete_outline_rounded);
+      await tester.tap(deleteIcons.first);
+      await tester.pump();
+
+      // Delete page 2 (now first)
+      deleteIcons = find.byIcon(Icons.delete_outline_rounded);
+      await tester.tap(deleteIcons.first);
+      await tester.pump();
+
+      // Now only 1 page remains
+      expect(find.text('1 pages total • page count modified'), findsOneWidget);
+
+      // Attempt to delete last page
+      deleteIcons = find.byIcon(Icons.delete_outline_rounded);
+      await tester.tap(deleteIcons.first);
+      await tester.pump();
+
+      expect(find.text('Cannot delete the last remaining page.'), findsOneWidget);
+      expect(find.text('1 pages total • page count modified'), findsOneWidget);
+    });
+
+    testWidgets('Full 360 degree rotation returns to 0 degrees',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: PdfPageReorganizerScreen(),
+        ),
+      );
+      await tester.pump();
+
+      final state = tester.state<PdfPageReorganizerScreenState>(
+          find.byType(PdfPageReorganizerScreen));
+      await tester.runAsync(() async {
+        await state.loadPdf(multiPagePdfPath);
+      });
+      await tester.pump();
+
+      final rotateBtn = find.text('Rotate 90°').first;
+
+      // 1st rotate -> 90°
+      await tester.tap(rotateBtn);
+      await tester.pump();
+      expect(find.text('90°'), findsOneWidget);
+
+      // 2nd rotate -> 180°
+      await tester.tap(rotateBtn);
+      await tester.pump();
+      expect(find.text('180°'), findsOneWidget);
+
+      // 3rd rotate -> 270°
+      await tester.tap(rotateBtn);
+      await tester.pump();
+      expect(find.text('270°'), findsOneWidget);
+
+      // 4th rotate -> 0° (badge disappears)
+      await tester.tap(rotateBtn);
+      await tester.pump();
+      expect(find.text('270°'), findsNothing);
+      expect(find.text('3 pages total'), findsOneWidget);
+    });
   });
 }
