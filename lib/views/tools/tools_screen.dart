@@ -18,6 +18,7 @@ import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_page_reorganizer_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/ai_summarizer_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -188,6 +189,14 @@ const List<ToolItem> appTools = [
     icon: Icons.chat_rounded,
     color: Color(0xFF10B981),
     screen: ChatWithPdfScreen(),
+    category: 'AI',
+  ),
+  ToolItem(
+    title: 'AI Summarizer',
+    subtitle: 'Executive Brief & Actions',
+    icon: Icons.summarize_rounded,
+    color: Color(0xFFEC4899),
+    screen: AiSummarizerScreen(),
     category: 'AI',
   ),
 ];

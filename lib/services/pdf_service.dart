@@ -1685,6 +1685,94 @@ class PdfService {
     }
   }
 
+  /// Generates a PDF directly from a Markdown string content
+  Future<String> generatePdfFromMarkdownContent({
+    required String title,
+    required String markdownContent,
+    String? customOutputPath,
+  }) async {
+    try {
+      if (markdownContent.trim().isEmpty) {
+        throw PdfServiceException('Markdown content cannot be empty',
+            code: 'MARKDOWN_TO_PDF_INPUT_EMPTY');
+      }
+
+      final pdf = pw.Document();
+      final md.Document document = md.Document(
+        extensionSet: md.ExtensionSet.gitHubFlavored,
+      );
+      final List<md.Node> nodes = document.parseLines(markdownContent.split('\n'));
+      final renderer = MarkdownPdfRenderer();
+      final widgets = renderer.render(nodes);
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(40),
+          build: (pw.Context context) {
+            return [
+              pw.Container(
+                padding: const pw.EdgeInsets.only(bottom: 12),
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(
+                      bottom: pw.BorderSide(color: PdfColors.grey300, width: 1)),
+                ),
+                margin: const pw.EdgeInsets.only(bottom: 20),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      title,
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                    pw.Text(
+                      'Generated: ${DateTime.now().toString().split(' ')[0]}',
+                      style: const pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...widgets,
+            ];
+          },
+        ),
+      );
+
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final fileName = FileService().formatOutputFileName(
+        baseName: title,
+        suffix: 'summary',
+        extension: 'pdf',
+      );
+      final targetPath = path.join(dirPath, fileName);
+      final pdfBytes = await pdf.save();
+
+      final resultPath =
+          await FileService().safeWriteBytes(targetPath, pdfBytes);
+
+      final outputFile = File(resultPath);
+      if (!await outputFile.exists() || await outputFile.length() == 0) {
+        throw PdfServiceException('Failed to create PDF output file',
+            code: 'MARKDOWN_TO_PDF_OUTPUT_EMPTY');
+      }
+
+      return resultPath;
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to generate PDF from Markdown content: $e',
+          code: 'MARKDOWN_TO_PDF_FAILURE', details: e);
+    }
+  }
+
   /// Converts an HTML file to a styled PDF file
   Future<String> convertHtmlToPdf({
     required String htmlPath,
