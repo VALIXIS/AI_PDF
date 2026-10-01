@@ -2,11 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:pdf_ai_toolkit/main.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/views/home/home_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
-import 'package:pdf_ai_toolkit/views/tools/merge_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 
 void main() {

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdfx/pdfx.dart' as pdfx;
@@ -10,6 +10,8 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:image/image.dart' as img;
+import 'package:archive/archive.dart';
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
@@ -1085,10 +1087,11 @@ class PdfService {
     }
   }
 
-  /// Converts a list of image files to a single PDF document
-  Future<String> convertImagesToPdf({
+  /// Converts a batch of images to a single PDF using background isolate processing and targeted DPI compression
+  Future<String> computeBatchImageToPdf({
     required List<String> imagePaths,
-    PdfPageFormat pageFormat = PdfPageFormat.a4,
+    String quality = 'medium',
+    PdfPageFormat? pageFormat,
     bool fitPage = true,
     String? customOutputPath,
   }) async {
@@ -1102,68 +1105,55 @@ class PdfService {
     }
 
     final fs = FileService();
-    try {
-      final pdf = pw.Document();
-
-      for (final imagePath in imagePaths) {
-        if (!await fs.isFileAccessible(imagePath)) {
-          throw PdfServiceException('Image file not found: $imagePath',
-              code: 'IMAGE_TO_PDF_INPUT_NOT_FOUND');
-        }
-        if (!await fs.isImageFile(imagePath)) {
-          throw PdfServiceException(
-              'File is empty, corrupt, or not a supported image format: $imagePath',
-              code: 'IMAGE_TO_PDF_INVALID_IMAGE');
-        }
-
-        final imgFile = File(imagePath);
-        final size = await imgFile.length();
-        if (size > 10 * 1024 * 1024) {
-          throw PdfServiceException(
-              'Image file exceeds maximum supported size of 10MB: $imagePath',
-              code: 'IMAGE_TO_PDF_FILE_TOO_LARGE');
-        }
-
-        final bytes = await imgFile.readAsBytes();
-        if (bytes.isEmpty) {
-          throw PdfServiceException('Image file is empty: $imagePath',
-              code: 'IMAGE_TO_PDF_INPUT_EMPTY');
-        }
-
-        pw.MemoryImage img;
-        try {
-          img = pw.MemoryImage(bytes);
-        } catch (e) {
-          throw PdfServiceException(
-              'Invalid or corrupt image format: $imagePath',
-              code: 'IMAGE_TO_PDF_INVALID_IMAGE',
-              details: e);
-        }
-
-        pdf.addPage(pw.Page(
-          pageFormat: pageFormat,
-          margin: fitPage ? pw.EdgeInsets.zero : const pw.EdgeInsets.all(20),
-          build: (_) => fitPage
-              ? pw.Image(img, fit: pw.BoxFit.contain)
-              : pw.Center(child: pw.Image(img, fit: pw.BoxFit.contain)),
-        ));
+    for (final imagePath in imagePaths) {
+      if (!await fs.isFileAccessible(imagePath)) {
+        throw PdfServiceException('Image file not found: $imagePath',
+            code: 'IMAGE_TO_PDF_INPUT_NOT_FOUND');
       }
+      if (!await fs.isImageFile(imagePath)) {
+        throw PdfServiceException(
+            'File is empty, corrupt, or not a supported image format: $imagePath',
+            code: 'IMAGE_TO_PDF_INVALID_IMAGE');
+      }
+
+      final imgFile = File(imagePath);
+      final size = await imgFile.length();
+      if (size > 10 * 1024 * 1024) {
+        throw PdfServiceException(
+            'Image file exceeds maximum supported size of 10MB: $imagePath',
+            code: 'IMAGE_TO_PDF_FILE_TOO_LARGE');
+      }
+    }
+
+    try {
+      final double targetWidth = (pageFormat != null &&
+              pageFormat != PdfPageFormat.undefined &&
+              pageFormat.width > 0)
+          ? pageFormat.width
+          : 0.0;
+      final double targetHeight = (pageFormat != null &&
+              pageFormat != PdfPageFormat.undefined &&
+              pageFormat.height > 0)
+          ? pageFormat.height
+          : 0.0;
+      final double pageMargin = fitPage ? 0.0 : 20.0;
+      final pdfBytes = await compute(
+        _isolateBatchImageToPdfWorker,
+        BatchImageToPdfParams(
+          imagePaths: imagePaths,
+          quality: quality,
+          pageWidth: targetWidth,
+          pageHeight: targetHeight,
+          pageMargin: pageMargin,
+          fitPage: fitPage,
+        ),
+      );
 
       final String dirPath =
           customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
       final fileName =
           'images_converted_${DateTime.now().millisecondsSinceEpoch}.pdf';
       final targetPath = path.join(dirPath, fileName);
-
-      Uint8List pdfBytes;
-      try {
-        pdfBytes = await pdf.save();
-      } catch (e) {
-        throw PdfServiceException(
-            'Invalid or corrupt image content detected during PDF compilation: $e',
-            code: 'IMAGE_TO_PDF_INVALID_IMAGE',
-            details: e);
-      }
 
       final resultPath =
           await FileService().safeWriteBytes(targetPath, pdfBytes);
@@ -1200,6 +1190,56 @@ class PdfService {
       throw PdfServiceException('Failed to convert images to PDF: $e',
           code: 'IMAGE_TO_PDF_FAILURE', details: e);
     }
+  }
+
+  /// Converts a list of image files to a single PDF document
+  Future<String> convertImagesToPdf({
+    required List<String> imagePaths,
+    PdfPageFormat pageFormat = PdfPageFormat.a4,
+    bool fitPage = true,
+    String? customOutputPath,
+    String quality = 'high',
+  }) async {
+    return computeBatchImageToPdf(
+      imagePaths: imagePaths,
+      quality: quality,
+      pageFormat: pageFormat,
+      fitPage: fitPage,
+      customOutputPath: customOutputPath,
+    );
+  }
+
+  /// Bundles multiple extracted images into a compressed ZIP file
+  Future<String> createZipFromImages({
+    required List<String> imagePaths,
+    required String baseName,
+    String? customOutputPath,
+  }) async {
+    if (imagePaths.isEmpty) {
+      throw PdfServiceException('No images provided to create ZIP archive.',
+          code: 'ZIP_NO_IMAGES');
+    }
+    final dirPath =
+        customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+    final fileName = FileService().formatOutputFileName(
+      baseName: baseName,
+      suffix: 'images',
+      extension: 'zip',
+    );
+    final targetPath = path.join(dirPath, fileName);
+
+    await compute(
+      _isolateZipWorker,
+      _ZipWorkerParams(filePaths: imagePaths, outputPath: targetPath),
+    );
+
+    final zipFile = File(targetPath);
+    if (!await zipFile.exists() || await zipFile.length() == 0) {
+      throw PdfServiceException('Failed to generate ZIP archive.',
+          code: 'ZIP_CREATION_FAILED');
+    }
+
+    return targetPath;
   }
 
   /// Converts a PDF file into a list of image file paths (one per page)
@@ -1278,6 +1318,7 @@ class PdfService {
             width: page.width * scale,
             height: page.height * scale,
             format: pdfx.PdfPageImageFormat.png,
+            backgroundColor: '#FFFFFF',
           );
 
           if (pageImage == null || pageImage.bytes.isEmpty) {
@@ -2142,4 +2183,166 @@ class HtmlPdfRenderer {
 
     return spans;
   }
+}
+
+class BatchImageToPdfParams {
+  final List<String> imagePaths;
+  final String quality;
+  final double pageWidth;
+  final double pageHeight;
+  final double pageMargin;
+  final bool fitPage;
+
+  BatchImageToPdfParams({
+    required this.imagePaths,
+    required this.quality,
+    required this.pageWidth,
+    required this.pageHeight,
+    required this.pageMargin,
+    required this.fitPage,
+  });
+}
+
+Future<Uint8List> _isolateBatchImageToPdfWorker(
+    BatchImageToPdfParams params) async {
+  final pdf = pw.Document();
+
+  int maxDimension;
+  int jpegQuality;
+
+  switch (params.quality.toLowerCase()) {
+    case 'low':
+      maxDimension = 1024;
+      jpegQuality = 50;
+      break;
+    case 'high':
+      maxDimension = 2480;
+      jpegQuality = 88;
+      break;
+    case 'medium':
+    default:
+      maxDimension = 1600;
+      jpegQuality = 72;
+      break;
+  }
+
+  for (final imagePath in params.imagePaths) {
+    final imgFile = File(imagePath);
+    if (!imgFile.existsSync()) {
+      throw PdfServiceException('Image file not found: $imagePath',
+          code: 'IMAGE_TO_PDF_INPUT_NOT_FOUND');
+    }
+    final rawBytes = imgFile.readAsBytesSync();
+    if (rawBytes.isEmpty) {
+      throw PdfServiceException('Image file is empty: $imagePath',
+          code: 'IMAGE_TO_PDF_INPUT_EMPTY');
+    }
+
+    Uint8List processedBytes = rawBytes;
+    int imgWidth = 595;
+    int imgHeight = 842;
+
+    try {
+      final decoded = img.decodeImage(rawBytes);
+      if (decoded != null) {
+        img.Image processed = decoded;
+        if (decoded.width > maxDimension || decoded.height > maxDimension) {
+          if (decoded.width >= decoded.height) {
+            processed = img.copyResize(decoded, width: maxDimension);
+          } else {
+            processed = img.copyResize(decoded, height: maxDimension);
+          }
+        }
+        imgWidth = processed.width;
+        imgHeight = processed.height;
+        processedBytes =
+            Uint8List.fromList(img.encodeJpg(processed, quality: jpegQuality));
+      }
+    } catch (_) {
+      // If decoding fails, fall back to rawBytes
+    }
+
+    pw.MemoryImage imgWidget;
+    try {
+      imgWidget = pw.MemoryImage(processedBytes);
+    } catch (e) {
+      throw PdfServiceException(
+          'Invalid or corrupt image format: $imagePath',
+          code: 'IMAGE_TO_PDF_INVALID_IMAGE',
+          details: e);
+    }
+
+    // Dynamic page format calculation to prevent white top/bottom borders
+    PdfPageFormat pageFormat;
+    if (params.pageWidth <= 0 || params.pageHeight <= 0) {
+      // Auto mode: Page size matches exact photo dimensions
+      pageFormat = PdfPageFormat(
+        imgWidth.toDouble(),
+        imgHeight.toDouble(),
+        marginAll: 0,
+      );
+    } else {
+      // Standard paper format (A4, Letter, A3): Match photo orientation (portrait/landscape)
+      final isLandscape = imgWidth > imgHeight;
+      final base = PdfPageFormat(
+        params.pageWidth,
+        params.pageHeight,
+        marginAll: params.fitPage ? 0.0 : params.pageMargin,
+      );
+      pageFormat = isLandscape ? base.landscape : base.portrait;
+    }
+
+    pdf.addPage(pw.Page(
+      pageFormat: pageFormat,
+      margin: params.fitPage
+          ? pw.EdgeInsets.zero
+          : pw.EdgeInsets.all(params.pageMargin),
+      build: (_) {
+        if (params.fitPage) {
+          return pw.FullPage(
+            ignoreMargins: true,
+            child: pw.Image(
+              imgWidget,
+              fit: params.pageWidth <= 0 ? pw.BoxFit.fill : pw.BoxFit.cover,
+            ),
+          );
+        } else {
+          return pw.Center(
+            child: pw.Image(imgWidget, fit: pw.BoxFit.contain),
+          );
+        }
+      },
+    ));
+  }
+
+  try {
+    return await pdf.save();
+  } catch (e) {
+    throw PdfServiceException(
+        'Invalid or corrupt image content detected during PDF compilation: $e',
+        code: 'IMAGE_TO_PDF_INVALID_IMAGE',
+        details: e);
+  }
+}
+
+class _ZipWorkerParams {
+  final List<String> filePaths;
+  final String outputPath;
+
+  _ZipWorkerParams({required this.filePaths, required this.outputPath});
+}
+
+void _isolateZipWorker(_ZipWorkerParams params) {
+  final archive = Archive();
+  for (final filePath in params.filePaths) {
+    final file = File(filePath);
+    if (file.existsSync()) {
+      final bytes = file.readAsBytesSync();
+      final filename = path.basename(filePath);
+      archive.addFile(ArchiveFile(filename, bytes.length, bytes));
+    }
+  }
+  final encoder = ZipEncoder();
+  final zipData = encoder.encode(archive);
+  File(params.outputPath).writeAsBytesSync(zipData, flush: true);
 }
