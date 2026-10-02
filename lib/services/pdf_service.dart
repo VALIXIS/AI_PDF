@@ -1035,9 +1035,25 @@ class PdfService {
           final double w = nw * pageWidth;
           final double h = nh * pageHeight;
 
-          if (ann.kind == AnnotationKind.text) {
+          if (ann.kind == AnnotationKind.text || ann.kind == AnnotationKind.dateStamp) {
             if (ann.text.trim().isEmpty) continue;
             final double fontSize = ann.fontSize.clamp(6.0, 144.0);
+
+            // Optional background fill
+            if (ann.backgroundColor != null) {
+              final sf.PdfBrush bgBrush = sf.PdfSolidBrush(
+                sf.PdfColor(
+                  (ann.backgroundColor!.r * 255.0).round().clamp(0, 255),
+                  (ann.backgroundColor!.g * 255.0).round().clamp(0, 255),
+                  (ann.backgroundColor!.b * 255.0).round().clamp(0, 255),
+                ),
+              );
+              graphics.drawRectangle(
+                brush: bgBrush,
+                bounds: Rect.fromLTWH(x, y, w, h),
+              );
+            }
+
             final sf.PdfFont font = sf.PdfStandardFont(
               sf.PdfFontFamily.helvetica,
               fontSize,
@@ -1061,6 +1077,41 @@ class PdfService {
               brush: brush,
               bounds: Rect.fromLTWH(x, y, textW, textH),
             );
+          } else if (ann.kind == AnnotationKind.checkmark) {
+            final double checkSize = ann.fontSize.clamp(8.0, 72.0);
+            final sf.PdfPen pen = sf.PdfPen(
+              sf.PdfColor(
+                (ann.color.r * 255.0).round().clamp(0, 255),
+                (ann.color.g * 255.0).round().clamp(0, 255),
+                (ann.color.b * 255.0).round().clamp(0, 255),
+              ),
+              width: (checkSize / 5.5).clamp(1.2, 4.5),
+            );
+            final double boxW = checkSize * 1.1;
+            final double boxH = checkSize * 1.1;
+            final p1 = Offset(x + boxW * 0.12, y + boxH * 0.52);
+            final p2 = Offset(x + boxW * 0.38, y + boxH * 0.80);
+            final p3 = Offset(x + boxW * 0.85, y + boxH * 0.20);
+            graphics.drawLine(pen, p1, p2);
+            graphics.drawLine(pen, p2, p3);
+          } else if (ann.kind == AnnotationKind.highlight) {
+            graphics.save();
+            final double alpha = ann.opacity.clamp(0.05, 1.0);
+            graphics.setTransparency(alpha);
+            final sf.PdfBrush highlightBrush = sf.PdfSolidBrush(
+              sf.PdfColor(
+                (ann.color.r * 255.0).round().clamp(0, 255),
+                (ann.color.g * 255.0).round().clamp(0, 255),
+                (ann.color.b * 255.0).round().clamp(0, 255),
+              ),
+            );
+            final double hlW = w.clamp(1.0, (pageWidth - x).clamp(1.0, pageWidth));
+            final double hlH = h.clamp(1.0, (pageHeight - y).clamp(1.0, pageHeight));
+            graphics.drawRectangle(
+              brush: highlightBrush,
+              bounds: Rect.fromLTWH(x, y, hlW, hlH),
+            );
+            graphics.restore();
           } else if (ann.kind == AnnotationKind.image &&
               ann.imageBytes != null &&
               ann.imageBytes!.isNotEmpty) {
