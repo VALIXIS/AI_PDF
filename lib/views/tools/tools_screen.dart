@@ -19,6 +19,7 @@ import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_page_reorganizer_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/ai_summarizer_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_form_filler_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -141,6 +142,14 @@ const List<ToolItem> appTools = [
   ),
 
   // Edit
+  ToolItem(
+    title: 'Form Filler',
+    subtitle: 'Fill forms & annotate PDF',
+    icon: Icons.assignment_turned_in_rounded,
+    color: Color(0xFF10B981),
+    screen: PdfFormFillerScreen(),
+    category: 'Edit',
+  ),
   ToolItem(
     title: 'PDF Editor',
     subtitle: 'Edit & annotate',
