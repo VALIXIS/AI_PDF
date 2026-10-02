@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
@@ -510,7 +511,11 @@ class AiActionDispatcher {
 
   Future<AiActionResult> _handleCompress(String pdfPath) async {
     try {
+      final origSize = await File(pdfPath).length();
       final outputPath = await _pdfService.compressPdf(pdfPath);
+      final compSize = await File(outputPath).length();
+      final saved = origSize - compSize;
+
       final title = 'AI Compress · ${FileService().getFileName(pdfPath)}';
       try {
         await _storageService.addHistoryEntry(HistoryEntry(
@@ -521,10 +526,23 @@ class AiActionDispatcher {
           toolType: 'ai_compress',
         ));
       } catch (_) {}
+
+      final String message;
+      if (saved > 0) {
+        final percent = (saved / origSize * 100).toStringAsFixed(1);
+        message =
+            'Successfully compressed PDF document! Saved ${FileService().formatBytes(saved)} ($percent% reduction).';
+      } else if (saved == 0) {
+        message = 'Successfully optimized PDF structure (file size unchanged).';
+      } else {
+        message =
+            'Successfully optimized PDF structure (file was already optimized).';
+      }
+
       return AiActionResult(
         type: AiActionType.compress,
         isSuccess: true,
-        message: 'Successfully compressed PDF document!',
+        message: message,
         outputPath: outputPath,
         actionTitle: title,
       );

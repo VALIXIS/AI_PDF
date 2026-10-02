@@ -41,7 +41,7 @@ void main() {
           case 'open.document.file':
             return {
               'id': 'uuid-file-id',
-              'pagesCount': 2,
+              'pagesCount': 3,
             };
           case 'close.document':
             return null;
@@ -415,18 +415,64 @@ void main() {
   });
 
   group('PDF to Image', () {
-    test('Successful PDF to Image conversion', () async {
-      final pdfPath =
-          await createTestPdf(pageTexts: ['Page 1 Content', 'Page 2 Content']);
+    test('Individual page selection exports correct single PNG with deterministic naming', () async {
+      final pdfPath = await createTestPdf(
+          pageTexts: ['Page 1 Content', 'Page 2 Content', 'Page 3 Content']);
 
-      final imagePaths = await pdfService.convertPdfToImages(
-          pdfPath: pdfPath, startPage: 1, endPage: 2);
-      expect(imagePaths.length, equals(2));
+      // 1. Select Page 1
+      final page1Paths = await pdfService.convertPdfToImages(
+          pdfPath: pdfPath, startPage: 1, endPage: 1, customOutputPath: tempDirPath);
+      expect(page1Paths.length, equals(1));
+      expect(page1Paths.first.endsWith('_page_1.png'), isTrue);
+      final file1 = File(page1Paths.first);
+      expect(file1.existsSync(), isTrue);
+      expect(file1.lengthSync(), greaterThan(0));
+      final header1 = await file1.openRead(0, 8).first;
+      expect(header1.take(4).toList(), equals([137, 80, 78, 71])); // PNG signature
 
-      for (int i = 0; i < imagePaths.length; i++) {
-        final imgFile = File(imagePaths[i]);
+      // 2. Select Page 2
+      final page2Paths = await pdfService.convertPdfToImages(
+          pdfPath: pdfPath, startPage: 2, endPage: 2, customOutputPath: tempDirPath);
+      expect(page2Paths.length, equals(1));
+      expect(page2Paths.first.endsWith('_page_2.png'), isTrue);
+      final file2 = File(page2Paths.first);
+      expect(file2.existsSync(), isTrue);
+      expect(file2.lengthSync(), greaterThan(0));
+
+      // 3. Select Page 3
+      final page3Paths = await pdfService.convertPdfToImages(
+          pdfPath: pdfPath, startPage: 3, endPage: 3, customOutputPath: tempDirPath);
+      expect(page3Paths.length, equals(1));
+      expect(page3Paths.first.endsWith('_page_3.png'), isTrue);
+      final file3 = File(page3Paths.first);
+      expect(file3.existsSync(), isTrue);
+      expect(file3.lengthSync(), greaterThan(0));
+
+      await file1.delete();
+      await file2.delete();
+      await file3.delete();
+      await File(pdfPath).delete();
+    });
+
+    test('Save All exports every page of multi-page PDF into individual PNG files', () async {
+      final pdfPath = await createTestPdf(
+          pageTexts: ['Page 1 Content', 'Page 2 Content', 'Page 3 Content']);
+
+      final allImagePaths = await pdfService.convertPdfToImages(
+          pdfPath: pdfPath, customOutputPath: tempDirPath);
+      expect(allImagePaths.length, equals(3));
+
+      expect(allImagePaths[0].endsWith('_page_1.png'), isTrue);
+      expect(allImagePaths[1].endsWith('_page_2.png'), isTrue);
+      expect(allImagePaths[2].endsWith('_page_3.png'), isTrue);
+
+      for (int i = 0; i < allImagePaths.length; i++) {
+        final imgFile = File(allImagePaths[i]);
         expect(imgFile.existsSync(), isTrue);
         expect(imgFile.lengthSync(), greaterThan(0));
+
+        final header = await imgFile.openRead(0, 8).first;
+        expect(header.take(4).toList(), equals([137, 80, 78, 71]));
         await imgFile.delete();
       }
 
@@ -446,6 +492,13 @@ void main() {
       await expectLater(
         pdfService.convertPdfToImages(
             pdfPath: pdfPath, startPage: 0, endPage: 1),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_TO_IMAGE_INVALID_PAGE_RANGE')),
+      );
+
+      await expectLater(
+        pdfService.convertPdfToImages(
+            pdfPath: pdfPath, startPage: 1, endPage: 5),
         throwsA(isA<PdfServiceException>()
             .having((e) => e.code, 'code', 'PDF_TO_IMAGE_INVALID_PAGE_RANGE')),
       );

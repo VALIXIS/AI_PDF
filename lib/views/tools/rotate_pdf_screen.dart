@@ -77,10 +77,6 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
         _isLoading = false;
         _successPath = path;
       });
-
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, path);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -123,9 +119,18 @@ class _RotatePdfScreenState extends State<RotatePdfScreen> {
               title: 'PDF Rotated Successfully!',
               subtitle: 'Orientation rotated by $_rotation°.',
               filePath: _successPath,
+              onSave: () {
+                if (_successPath != null && mounted) {
+                  ShareService.promptAndSaveFileDirectToDownloads(
+                    context,
+                    sourcePath: _successPath!,
+                    defaultPrefix: 'RotatedPDF',
+                  );
+                }
+              },
               onShare: () {
                 if (_successPath != null && mounted) {
-                  ShareService.showSaveShareDialog(context, _successPath!);
+                  ShareService.shareFile(context, filePath: _successPath!);
                 }
               },
               onReset: () {

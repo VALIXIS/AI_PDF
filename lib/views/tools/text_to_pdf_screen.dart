@@ -10,18 +10,34 @@ import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 import 'package:uuid/uuid.dart';
 
 class TextToPdfScreen extends StatefulWidget {
-  const TextToPdfScreen({Key? key}) : super(key: key);
+  final String? initialContent;
+
+  const TextToPdfScreen({Key? key, this.initialContent}) : super(key: key);
 
   @override
   State<TextToPdfScreen> createState() => _TextToPdfScreenState();
 }
 
 class _TextToPdfScreenState extends State<TextToPdfScreen> {
-  final TextEditingController _textController = TextEditingController();
-  final TextEditingController _titleController = TextEditingController();
+  late final TextEditingController _textController;
+  late final TextEditingController _titleController;
   final PdfService _pdfService = PdfService();
   final StorageService _storageService = StorageService();
   final FileService _fileService = FileService();
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = TextEditingController(text: widget.initialContent ?? '');
+    _titleController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    _titleController.dispose();
+    super.dispose();
+  }
 
   String? _importedFileName;
   bool _isLoading = false;
@@ -160,10 +176,6 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
         _isLoading = false;
         _successPath = filePath;
       });
-
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, filePath);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -174,13 +186,6 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    _titleController.dispose();
-    super.dispose();
   }
 
   @override
@@ -242,9 +247,18 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
                   title: 'PDF Generated Successfully!',
                   subtitle: 'Formatted PDF document created.',
                   filePath: _successPath,
+                  onSave: () {
+                    if (_successPath != null && mounted) {
+                      ShareService.promptAndSaveFileDirectToDownloads(
+                        context,
+                        sourcePath: _successPath!,
+                        defaultPrefix: 'TextToPDF',
+                      );
+                    }
+                  },
                   onShare: () {
                     if (_successPath != null && mounted) {
-                      ShareService.showSaveShareDialog(context, _successPath!);
+                      ShareService.shareFile(context, filePath: _successPath!);
                     }
                   },
                   onReset: () {

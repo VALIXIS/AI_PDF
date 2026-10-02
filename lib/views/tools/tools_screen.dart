@@ -153,7 +153,7 @@ const List<ToolItem> appTools = [
     icon: Icons.lock_rounded,
     color: Color(0xFFEF4444),
     screen: ProtectPdfScreen(),
-    category: 'Edit',
+    category: 'Security',
   ),
 
   // AI

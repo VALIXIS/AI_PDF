@@ -89,9 +89,6 @@ void main() {
         () async {
       final tempDir = Directory.systemTemp.createTempSync('pdf_compress_test_');
       try {
-        print(
-            'Supported PdfCompressionLevel values: ${syncfusion.PdfCompressionLevel.values}');
-
         // Create an uncompressed PDF document with multiple pages and distinct content
         final pdf = pw.Document(compress: false);
         pdf.addPage(
@@ -137,7 +134,6 @@ void main() {
 
         // 3. Verify that the compressed file size is strictly smaller than the uncompressed original
         expect(compressedSize, lessThan(originalSize));
-        print('Original Size: $originalSize, Compressed Size: $compressedSize');
 
         // 4. Verify that the original input remains unchanged (bytes and length are identical)
         final originalBytesAfter = await inputFile.readAsBytes();
@@ -174,22 +170,29 @@ void main() {
       }
     });
 
-    test('compressPdf supports low, medium, and high levels', () async {
+    test('compressPdf supports low, medium, and high levels with genuine size reduction', () async {
       final tempDir =
           Directory.systemTemp.createTempSync('pdf_compress_test_levels_');
       try {
         final pdf = pw.Document(compress: false);
-        pdf.addPage(
-          pw.Page(
-            build: (context) => pw.Center(
-              child: pw.Text(
-                  'Testing high-efficiency stream compression engine.\n' * 500),
+        for (int p = 0; p < 3; p++) {
+          pdf.addPage(
+            pw.Page(
+              build: (context) => pw.Column(
+                children: List.generate(
+                  30,
+                  (i) => pw.Text('Page $p Line $i: Testing high-efficiency stream compression engine.\n' * 2),
+                ),
+              ),
             ),
-          ),
-        );
+          );
+        }
 
-        final inputPath = '${tempDir.path}/uncompressed.pdf';
-        await File(inputPath).writeAsBytes(await pdf.save());
+        final inputPath = '${tempDir.path}/uncompressed_levels.pdf';
+        final inputFile = File(inputPath);
+        final uncompressedBytes = await pdf.save();
+        await inputFile.writeAsBytes(uncompressedBytes);
+        final originalSize = inputFile.lengthSync();
 
         final lowPath = await PdfService().compressPdf(inputPath,
             customOutputPath: tempDir.path, compressionLevel: 'low');
@@ -198,19 +201,52 @@ void main() {
         final highPath = await PdfService().compressPdf(inputPath,
             customOutputPath: tempDir.path, compressionLevel: 'high');
 
-        final lowSize = File(lowPath).lengthSync();
-        final mediumSize = File(mediumPath).lengthSync();
-        final highSize = File(highPath).lengthSync();
+        final lowFile = File(lowPath);
+        final mediumFile = File(mediumPath);
+        final highFile = File(highPath);
 
-        print(
-            'Low size: $lowSize, Medium size: $mediumSize, High size: $highSize');
+        final lowSize = lowFile.lengthSync();
+        final mediumSize = mediumFile.lengthSync();
+        final highSize = highFile.lengthSync();
 
+        // 1. All output files must exist and be non-empty
         expect(lowSize, greaterThan(0));
         expect(mediumSize, greaterThan(0));
         expect(highSize, greaterThan(0));
 
-        // High compression should yield smaller or equal file sizes compared to low compression
-        expect(highSize, lessThanOrEqualTo(lowSize));
+        // 2. All compression levels must achieve genuine size reduction over uncompressed original
+        expect(lowSize, lessThan(originalSize));
+        expect(mediumSize, lessThan(originalSize));
+        expect(highSize, lessThan(originalSize));
+
+        // 3. Progressive level hierarchy: High <= Medium <= Low
+        expect(highSize, lessThanOrEqualTo(mediumSize));
+        expect(mediumSize, lessThanOrEqualTo(lowSize));
+
+        // 4. Validate output PDFs are valid, readable, and preserve all 3 pages
+        for (final file in [lowFile, mediumFile, highFile]) {
+          final doc = syncfusion.PdfDocument(inputBytes: await file.readAsBytes());
+          try {
+            expect(doc.pages.count, equals(3));
+            final text = syncfusion.PdfTextExtractor(doc).extractText();
+            final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+            expect(normalized.contains('Page 0'), isTrue);
+            expect(normalized.contains('Page 1'), isTrue);
+            expect(normalized.contains('Page 2'), isTrue);
+          } finally {
+            doc.dispose();
+          }
+        }
+
+        // 5. Verify original input remains untouched
+        expect(inputFile.lengthSync(), equals(originalSize));
+        expect(await inputFile.readAsBytes(), equals(uncompressedBytes));
+
+        // 6. Verify honest reduction calculation
+        final bytesSavedLow = originalSize - lowSize;
+        final percentLow = (bytesSavedLow / originalSize * 100);
+        expect(bytesSavedLow, greaterThan(0));
+        expect(percentLow, greaterThan(0.0));
       } finally {
         tempDir.deleteSync(recursive: true);
       }

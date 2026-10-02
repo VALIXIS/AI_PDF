@@ -103,6 +103,7 @@ class ToolSuccessCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? filePath;
+  final VoidCallback? onSave;
   final VoidCallback? onShare;
   final VoidCallback? onReset;
 
@@ -111,6 +112,7 @@ class ToolSuccessCard extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.filePath,
+    this.onSave,
     this.onShare,
     this.onReset,
   }) : super(key: key);
@@ -125,7 +127,7 @@ class ToolSuccessCard extends StatelessWidget {
 
     String fileName = '';
     if (filePath != null && filePath!.isNotEmpty) {
-      fileName = filePath!.split('/').last.split('\\').last;
+      fileName = filePath!.split(RegExp(r'[/\\]')).where((s) => s.isNotEmpty).last;
     }
 
     return Container(
@@ -210,12 +212,12 @@ class ToolSuccessCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              if (onShare != null)
+              if (onSave != null) ...[
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: onShare,
-                    icon: const Icon(Icons.share_rounded, size: 16),
-                    label: const Text('Save / Share'),
+                    onPressed: onSave,
+                    icon: const Icon(Icons.save_alt_rounded, size: 16),
+                    label: const Text('Save'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: textCol,
                       foregroundColor: isDark ? Colors.black : Colors.white,
@@ -226,7 +228,24 @@ class ToolSuccessCard extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (onShare != null && onReset != null) const SizedBox(width: 10),
+                const SizedBox(width: 8),
+              ],
+              if (onShare != null) ...[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onShare,
+                    icon: Icon(Icons.share_rounded, size: 16, color: textCol),
+                    label: Text('Share', style: TextStyle(color: textCol, fontWeight: FontWeight.w700)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: textCol.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               if (onReset != null)
                 OutlinedButton.icon(
                   onPressed: onReset,
@@ -235,7 +254,7 @@ class ToolSuccessCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: textCol.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                        horizontal: 12, vertical: 10),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),

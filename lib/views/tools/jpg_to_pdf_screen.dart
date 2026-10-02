@@ -101,10 +101,6 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
         _isLoading = false;
         _successPath = path;
       });
-
-      if (mounted) {
-        ShareService.showSaveShareDialog(context, path);
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -151,9 +147,18 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
               title: 'PDF Created Successfully!',
               subtitle: 'Combined ${_images.length} images into PDF.',
               filePath: _successPath,
+              onSave: () {
+                if (_successPath != null && mounted) {
+                  ShareService.promptAndSaveFileDirectToDownloads(
+                    context,
+                    sourcePath: _successPath!,
+                    defaultPrefix: 'ImagesToPDF',
+                  );
+                }
+              },
               onShare: () {
                 if (_successPath != null && mounted) {
-                  ShareService.showSaveShareDialog(context, _successPath!);
+                  ShareService.shareFile(context, filePath: _successPath!);
                 }
               },
               onReset: () {

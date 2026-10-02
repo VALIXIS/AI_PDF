@@ -1,5 +1,5 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
@@ -24,6 +24,7 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _successPath;
+  String? _successSubtitle;
 
   Future<void> _pickPdf() async {
     try {
@@ -34,6 +35,7 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
           _selectedFile = file;
           _errorMessage = null;
           _successPath = null;
+          _successSubtitle = null;
         });
       }
     } catch (e) {
@@ -56,6 +58,7 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
       _isLoading = true;
       _errorMessage = null;
       _successPath = null;
+      _successSubtitle = null;
     });
 
     try {
@@ -68,15 +71,35 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
         return;
       }
 
+      final originalFile = File(_selectedFile!);
+      final originalSize = await originalFile.length();
+
       final filePath = await _pdfService.compressPdf(
         _selectedFile!,
         compressionLevel: _compressionLevel,
       );
 
+      final compressedFile = File(filePath);
+      final compressedSize = await compressedFile.length();
+      final bytesSaved = originalSize - compressedSize;
+
+      String subtitle;
+      if (bytesSaved > 0) {
+        final percent = (bytesSaved / originalSize * 100).toStringAsFixed(1);
+        subtitle =
+            'Level: ${_compressionLevel.toUpperCase()} • Saved ${_fileService.formatBytes(bytesSaved)} ($percent% reduction)\n${_fileService.formatBytes(originalSize)} → ${_fileService.formatBytes(compressedSize)}';
+      } else if (bytesSaved == 0) {
+        subtitle =
+            'Level: ${_compressionLevel.toUpperCase()} • File size unchanged (${_fileService.formatBytes(originalSize)})\nPDF structure optimized';
+      } else {
+        subtitle =
+            'Level: ${_compressionLevel.toUpperCase()} • Already optimized (+${_fileService.formatBytes(-bytesSaved)})\n${_fileService.formatBytes(originalSize)} → ${_fileService.formatBytes(compressedSize)}';
+      }
+
       final entry = HistoryEntry(
         id: const Uuid().v4(),
         title:
-            'Compressed PDF - ${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+            'Compressed PDF (${_compressionLevel.toUpperCase()}) - ${_fileService.formatBytes(compressedSize)}',
         date: DateTime.now(),
         filePath: filePath,
         toolType: 'compress_pdf',
@@ -87,9 +110,8 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
       setState(() {
         _isLoading = false;
         _successPath = filePath;
+        _successSubtitle = subtitle;
       });
-
-      ShareService.showSaveShareDialog(context, filePath);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -120,10 +142,12 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
       errorMessage: _errorMessage,
       onDismissError: () => setState(() => _errorMessage = null),
       successPath: _successPath,
-      successSubtitle: 'Applied level: ${_compressionLevel.toUpperCase()}',
+      successSubtitle:
+          _successSubtitle ?? 'Applied level: ${_compressionLevel.toUpperCase()}',
       onReset: () {
         setState(() {
           _successPath = null;
+          _successSubtitle = null;
           _selectedFile = null;
           _errorMessage = null;
         });
