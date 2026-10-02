@@ -19,6 +19,7 @@ import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/signature_canvas_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_page_reorganizer_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_signature_overlay_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/ai_summarizer_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_form_filler_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
@@ -143,6 +144,14 @@ const List<ToolItem> appTools = [
   ),
 
   // Edit
+  ToolItem(
+    title: 'Sign & Stamp PDF',
+    subtitle: 'Place signatures & stamps',
+    icon: Icons.draw_rounded,
+    color: Color(0xFF0284C7),
+    screen: PdfSignatureOverlayScreen(),
+    category: 'Edit',
+  ),
   ToolItem(
     title: 'Form Filler',
     subtitle: 'Fill forms & annotate PDF',

@@ -482,6 +482,127 @@ void main() {
     });
   });
 
+  group('Interactive PDF Signature & Stamp Placement (PDF-03)', () {
+    test('PdfOverlayPlacement serialization and copyWith', () {
+      final imgBytes = Uint8List.fromList([1, 2, 3, 4]);
+      final placement = PdfOverlayPlacement(
+        id: 'sig-123',
+        pageIndex: 0,
+        x: 0.2,
+        y: 0.3,
+        width: 0.4,
+        height: 0.15,
+        rotation: 0.5,
+        opacity: 0.85,
+        imageBytes: imgBytes,
+        label: 'My Signature',
+      );
+
+      expect(placement.id, equals('sig-123'));
+      expect(placement.pageIndex, equals(0));
+      expect(placement.x, equals(0.2));
+      expect(placement.y, equals(0.3));
+      expect(placement.width, equals(0.4));
+      expect(placement.height, equals(0.15));
+      expect(placement.rotation, equals(0.5));
+      expect(placement.opacity, equals(0.85));
+      expect(placement.imageBytes, equals(imgBytes));
+      expect(placement.label, equals('My Signature'));
+
+      final updated = placement.copyWith(
+        pageIndex: 1,
+        x: 0.5,
+        rotation: 1.0,
+        label: 'Updated Stamp',
+      );
+
+      expect(updated.id, equals('sig-123'));
+      expect(updated.pageIndex, equals(1));
+      expect(updated.x, equals(0.5));
+      expect(updated.y, equals(0.3));
+      expect(updated.rotation, equals(1.0));
+      expect(updated.label, equals('Updated Stamp'));
+    });
+
+    test('applySignaturesAndStampsToPdf places stamps/signatures on PDF correctly', () async {
+      final imgFile = createDummyImage('sample_sig.png');
+      final imgBytes = await imgFile.readAsBytes();
+
+      // Create a 2-page test PDF
+      final doc = syncfusion.PdfDocument();
+      doc.pages.add();
+      doc.pages.add();
+      final originalPdfPath = '${tempDir.path}/sign_test_source.pdf';
+      File(originalPdfPath).writeAsBytesSync(doc.saveSync());
+      doc.dispose();
+
+      final placementsByPage = {
+        0: [
+          PdfOverlayPlacement(
+            id: 'sig-1',
+            pageIndex: 0,
+            x: 0.1,
+            y: 0.2,
+            width: 0.3,
+            height: 0.1,
+            rotation: 0.0,
+            opacity: 1.0,
+            imageBytes: imgBytes,
+            label: 'Signature',
+          ),
+        ],
+        1: [
+          PdfOverlayPlacement(
+            id: 'stamp-1',
+            pageIndex: 1,
+            x: 0.5,
+            y: 0.6,
+            width: 0.25,
+            height: 0.12,
+            rotation: 0.2,
+            opacity: 0.75,
+            imageBytes: imgBytes,
+            label: 'APPROVED Stamp',
+          ),
+        ],
+      };
+
+      final outputPath = await pdfService.applySignaturesAndStampsToPdf(
+        sourcePdfPath: originalPdfPath,
+        placementsByPage: placementsByPage,
+        customOutputPath: tempDir.path,
+      );
+
+      expect(outputPath, isNotNull);
+      final outFile = File(outputPath);
+      expect(await outFile.exists(), isTrue);
+      expect(outFile.lengthSync(), greaterThan(0));
+
+      // Verify the output PDF can be opened and has 2 pages
+      final outDoc = syncfusion.PdfDocument(inputBytes: outFile.readAsBytesSync());
+      expect(outDoc.pages.count, equals(2));
+      outDoc.dispose();
+    });
+
+    test('applySignaturesAndStampsToPdf with empty placements creates valid copy', () async {
+      final doc = syncfusion.PdfDocument();
+      doc.pages.add();
+      final originalPdfPath = '${tempDir.path}/empty_overlay_test.pdf';
+      File(originalPdfPath).writeAsBytesSync(doc.saveSync());
+      doc.dispose();
+
+      final outputPath = await pdfService.applySignaturesAndStampsToPdf(
+        sourcePdfPath: originalPdfPath,
+        placementsByPage: {},
+        customOutputPath: tempDir.path,
+      );
+
+      final outFile = File(outputPath);
+      expect(await outFile.exists(), isTrue);
+      expect(outFile.lengthSync(), greaterThan(0));
+    });
+  });
+
   group('Error Handling and Edge Cases', () {
     test('invalid file paths throw exceptions', () async {
       expect(

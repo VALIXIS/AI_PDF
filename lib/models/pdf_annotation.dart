@@ -135,3 +135,57 @@ class Annotation {
     );
   }
 }
+
+/// Represents an interactive signature or stamp overlay placed on a PDF page
+class PdfOverlayPlacement {
+  final String id;
+  final int pageIndex; // 0-indexed
+  double x; // Normalized 0.0 to 1.0 (relative to page width)
+  double y; // Normalized 0.0 to 1.0 (relative to page height)
+  double width; // Normalized relative to page width (e.g. 0.35)
+  double height; // Normalized relative to page height (e.g. 0.15)
+  double rotation; // In radians (-pi to pi)
+  double opacity; // 0.1 to 1.0
+  final Uint8List imageBytes;
+  final String label;
+
+  PdfOverlayPlacement({
+    required this.id,
+    required this.pageIndex,
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+    this.rotation = 0.0,
+    this.opacity = 1.0,
+    required this.imageBytes,
+    this.label = 'Signature',
+  });
+
+  PdfOverlayPlacement copyWith({
+    String? id,
+    int? pageIndex,
+    double? x,
+    double? y,
+    double? width,
+    double? height,
+    double? rotation,
+    double? opacity,
+    Uint8List? imageBytes,
+    String? label,
+  }) {
+    return PdfOverlayPlacement(
+      id: id ?? this.id,
+      pageIndex: pageIndex ?? this.pageIndex,
+      x: x ?? this.x,
+      y: y ?? this.y,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      rotation: rotation ?? this.rotation,
+      opacity: opacity ?? this.opacity,
+      imageBytes: imageBytes ?? this.imageBytes,
+      label: label ?? this.label,
+    );
+  }
+}
+

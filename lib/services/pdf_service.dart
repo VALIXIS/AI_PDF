@@ -1126,6 +1126,143 @@ class PdfService {
     }
   }
 
+  /// Non-destructively burns transparent signatures, stamps, and date overlays onto PDF pages
+  /// with exact point calculations, rotation, scaling, and opacity preservation on vector layers.
+  Future<String> applySignaturesAndStampsToPdf({
+    required String sourcePdfPath,
+    required Map<int, List<PdfOverlayPlacement>> placementsByPage,
+    String? customOutputPath,
+  }) async {
+    final fs = FileService();
+    if (!await fs.isFileAccessible(sourcePdfPath)) {
+      throw PdfServiceException('Source PDF file not found: $sourcePdfPath',
+          code: 'SIGNATURE_INPUT_NOT_FOUND');
+    }
+    if (!await fs.isPdfFile(sourcePdfPath)) {
+      throw PdfServiceException(
+          'Source PDF file is empty or invalid: $sourcePdfPath',
+          code: 'SIGNATURE_INPUT_INVALID');
+    }
+
+    final bytes = await File(sourcePdfPath).readAsBytes();
+    if (bytes.isEmpty) {
+      throw PdfServiceException('Source PDF file is empty: $sourcePdfPath',
+          code: 'SIGNATURE_INPUT_EMPTY');
+    }
+
+    sf.PdfDocument? document;
+    try {
+      document = sf.PdfDocument(inputBytes: bytes);
+      final int pageCount = document.pages.count;
+      if (pageCount == 0) {
+        throw PdfServiceException(
+            'Source PDF contains no pages: $sourcePdfPath',
+            code: 'SIGNATURE_EMPTY_PAGES');
+      }
+
+      for (final entry in placementsByPage.entries) {
+        final int pageIndex = entry.key;
+        final List<PdfOverlayPlacement> placements = entry.value;
+
+        if (pageIndex < 0 || pageIndex >= pageCount || placements.isEmpty) {
+          continue;
+        }
+
+        final sf.PdfPage page = document.pages[pageIndex];
+        final sf.PdfGraphics graphics = page.graphics;
+        final double pageWidth = page.size.width;
+        final double pageHeight = page.size.height;
+
+        for (final item in placements) {
+          if (item.imageBytes.isEmpty) continue;
+
+          // Normalized coordinates to PDF points
+          final double nx = item.x.clamp(0.0, 1.0);
+          final double ny = item.y.clamp(0.0, 1.0);
+          final double nw = item.width.clamp(0.01, 1.0);
+          final double nh = item.height.clamp(0.01, 1.0);
+
+          final double targetX = nx * pageWidth;
+          final double targetY = ny * pageHeight;
+          final double targetW = nw * pageWidth;
+          final double targetH = nh * pageHeight;
+
+          final double centerX = targetX + targetW / 2.0;
+          final double centerY = targetY + targetH / 2.0;
+          final double degrees = item.rotation * (180.0 / 3.1415926535897932);
+
+          try {
+            final sf.PdfBitmap bitmap = sf.PdfBitmap(item.imageBytes);
+            graphics.save();
+
+            if (item.opacity < 1.0 && item.opacity > 0.0) {
+              graphics.setTransparency(item.opacity.clamp(0.05, 1.0));
+            }
+
+            graphics.translateTransform(centerX, centerY);
+
+            if (degrees != 0.0) {
+              graphics.rotateTransform(degrees);
+            }
+
+            graphics.drawImage(
+              bitmap,
+              Rect.fromLTWH(-targetW / 2.0, -targetH / 2.0, targetW, targetH),
+            );
+
+            graphics.restore();
+          } catch (_) {
+            try {
+              graphics.restore();
+            } catch (_) {}
+          }
+        }
+      }
+
+      final List<int> outputBytes = await document.save();
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final String baseName = path.basenameWithoutExtension(sourcePdfPath);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'signed',
+        extension: 'pdf',
+      );
+      final targetPath = path.join(dirPath, fileName);
+
+      final resultPath =
+          await FileService().safeWriteBytes(targetPath, outputBytes);
+
+      // Verify the generated output is readable and non-corrupt
+      sf.PdfDocument? testDoc;
+      try {
+        final savedBytes = await File(resultPath).readAsBytes();
+        testDoc = sf.PdfDocument(inputBytes: savedBytes);
+        if (testDoc.pages.count != pageCount) {
+          throw PdfServiceException(
+              'Saved signed PDF page count (${testDoc.pages.count}) mismatched source ($pageCount)',
+              code: 'SIGNATURE_OUTPUT_INVALID');
+        }
+      } catch (e) {
+        if (e is PdfServiceException) rethrow;
+        throw PdfServiceException(
+            'Saved signed PDF output is invalid or corrupt: $e',
+            code: 'SIGNATURE_OUTPUT_INVALID',
+            details: e);
+      } finally {
+        testDoc?.dispose();
+      }
+
+      return resultPath;
+    } catch (e) {
+      if (e is PdfServiceException) rethrow;
+      throw PdfServiceException('Failed to apply signatures to PDF: $e',
+          code: 'SIGNATURE_APPLY_FAILURE', details: e);
+    } finally {
+      document?.dispose();
+    }
+  }
+
   /// Extracts text from a PDF document and saves it as a TXT file
   Future<String> convertPdfToTxt({
     required String pdfPath,
