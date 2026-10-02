@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
 
 class ShareService {
   /// Saves a file directly to a user-selected destination using the native system
@@ -281,7 +282,7 @@ class ShareService {
                 if (onOpen != null) {
                   onOpen();
                 } else {
-                  shareFile(context, filePath: savedPath, text: 'Here is the downloaded file.');
+                  openDownloadedFile(context, savedPath);
                 }
               },
               style: TextButton.styleFrom(
@@ -299,6 +300,106 @@ class ShareService {
         ),
       ),
     );
+  }
+
+  /// Opens the downloaded file appropriately based on its type (PDF in editor/viewer, Image preview, ZIP details, Text preview).
+  static void openDownloadedFile(BuildContext context, String filePath) {
+    if (!context.mounted) return;
+    final ext = FileService().getExtension(filePath).toLowerCase();
+
+    if (ext == '.pdf') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PdfEditorScreen(initialFilePath: filePath),
+        ),
+      );
+    } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'].contains(ext)) {
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                title: Text(
+                  FileService().getFileName(filePath),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.share_rounded),
+                    tooltip: 'Share Image',
+                    onPressed: () => shareFile(ctx, filePath: filePath),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Image.file(File(filePath), fit: BoxFit.contain),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (ext == '.zip') {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.folder_zip_rounded, color: Color(0xFF10B981)),
+              SizedBox(width: 8),
+              Text('ZIP Archive Saved'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('File: ${FileService().getFileName(filePath)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Location: $filePath',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                shareFile(context, filePath: filePath, text: 'Here is my ZIP file.');
+              },
+              icon: const Icon(Icons.share_rounded, size: 16),
+              label: const Text('Share ZIP'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('File Saved'),
+          content: Text('File saved successfully at:\n$filePath'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          ],
+        ),
+      );
+    }
   }
 
   /// Prompts the user with an optional custom filename input dialog, then saves directly to Downloads/AIPDFMaker.
