@@ -17,6 +17,7 @@ import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/signature_canvas_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -145,6 +146,14 @@ const List<ToolItem> appTools = [
     icon: Icons.branding_watermark_rounded,
     color: Color(0xFFD97706),
     screen: WatermarkScreen(),
+    category: 'Edit',
+  ),
+  ToolItem(
+    title: 'E-Signature Pad',
+    subtitle: 'Sign & save digital signatures',
+    icon: Icons.draw_rounded,
+    color: Color(0xFF2563EB),
+    screen: SignatureCanvasScreen(),
     category: 'Edit',
   ),
   ToolItem(
