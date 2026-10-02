@@ -21,4 +21,7 @@ abstract class AiProvider {
     required String question,
     String? conversationHistory,
   });
+
+  /// Generates an executive summary and brief from document text
+  Future<String> generateExecutiveBrief({required String pdfText});
 }

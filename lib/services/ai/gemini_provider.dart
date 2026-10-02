@@ -105,6 +105,35 @@ Detailed Analysis & Comparison:''';
     return await _callGeminiApi(prompt);
   }
 
+  @override
+  Future<String> generateExecutiveBrief({required String pdfText}) async {
+    if (!isConfigured) {
+      throw Exception('Gemini API key is not configured in .env');
+    }
+
+    final limitedPdfText = ContextHelper.limitText(pdfText, maxChars: 600000);
+
+    final prompt =
+        '''You are an expert executive document analyst and summarizer. Analyze the provided multi-page document text and generate a comprehensive Executive Brief in clean, formatted Markdown.
+
+Your summary MUST include the following 3 distinct sections with clear Markdown headers:
+
+# Executive Summary
+Provide a high-level executive summary of the document's main background, purpose, key findings, and core subject matter.
+
+## Key Action Items
+- Provide clear, actionable bullet points highlighting mandatory tasks, decisions, requirements, and next steps outlined in the document.
+
+## Critical Dates
+- List all critical deadlines, milestones, dates, or time-sensitive events mentioned in the document. (If no specific dates are present, explicitly state "No specific critical dates mentioned in document.")
+
+--- DOCUMENT TEXT ---
+$limitedPdfText
+--- END DOCUMENT TEXT ---''';
+
+    return await _callGeminiApi(prompt);
+  }
+
   Future<String> _callGeminiApi(String prompt) async {
     developer.log('AI Provider: Gemini', name: 'GeminiProvider');
     Object? lastError;
