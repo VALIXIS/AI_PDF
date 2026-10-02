@@ -351,11 +351,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   // AI Restyler Section
                   ExpansionTile(
                     tilePadding: EdgeInsets.zero,
-                    title: Row(
+                    title: const Row(
                       children: [
-                        const Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6), size: 18),
-                        const SizedBox(width: 8),
-                        const Text(
+                        Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6), size: 18),
+                        SizedBox(width: 8),
+                        Text(
                           'AI Section Restyler / Polish',
                           style: TextStyle(
                             fontSize: 13,

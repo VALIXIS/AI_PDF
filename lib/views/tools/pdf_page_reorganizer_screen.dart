@@ -294,12 +294,9 @@ class PdfPageReorganizerScreenState extends State<PdfPageReorganizerScreen>
     );
   }
 
-  void _reorderPages(int oldIndex, int newIndex) {
+  void _reorderPagesItem(int oldIndex, int newIndex) {
     HapticFeedback.selectionClick();
     setState(() {
-      if (oldIndex < newIndex) {
-        newIndex -= 1;
-      }
       final VisualPdfPage item = _pages.removeAt(oldIndex);
       _pages.insert(newIndex, item);
     });
@@ -586,7 +583,7 @@ class PdfPageReorganizerScreenState extends State<PdfPageReorganizerScreen>
       onReorderEnd: (index) {
         setState(() => _draggingIndex = null);
       },
-      onReorder: _reorderPages,
+      onReorderItem: _reorderPagesItem,
       proxyDecorator: (child, index, animation) {
         return AnimatedBuilder(
           animation: animation,

@@ -62,7 +62,13 @@ class PrivacyPolicyScreen extends StatelessWidget {
               textCol: textCol,
             ),
             _buildSection(
-              title: '5. Changes to this Policy',
+              title: '5. Play Store Compliance & Data Retention',
+              content:
+                  'AI PDF Maker fully complies with Google Play Store Developer Policies, Scoped Storage mandates (Android 11-14 API 30-34), and 14-Day Testing Guidelines. Zero personal data, location data, or document content is harvested or retained. Temporary working files are automatically cleaned up.',
+              textCol: textCol,
+            ),
+            _buildSection(
+              title: '6. Changes to this Policy',
               content:
                   'We may update our Privacy Policy from time to time. Thus, you are advised to review this page periodically for any changes. We will notify you of any changes by posting the new Privacy Policy on this page.',
               textCol: textCol,
@@ -98,7 +104,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               height: 1.5,
-              color: textCol.withOpacity(0.85),
+              color: textCol.withValues(alpha: 0.85),
             ),
           ),
         ],

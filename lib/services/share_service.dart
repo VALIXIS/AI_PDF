@@ -120,6 +120,7 @@ class ShareService {
 
     // If single file, use standard single-file save dialog
     if (validSources.length == 1) {
+      if (!context.mounted) return null;
       final saved = await saveFileToUserDestination(
         context,
         sourcePath: validSources.first,
@@ -328,6 +329,7 @@ class ShareService {
     );
 
     final textController = TextEditingController(text: defaultGeneratedName);
+    if (!context.mounted) return null;
 
     final confirmedName = await showDialog<String>(
       context: context,
@@ -529,6 +531,7 @@ class ShareService {
         }
       }
 
+      // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(filePath)],
         text: defaultShareText,
@@ -576,6 +579,7 @@ class ShareService {
     }
 
     try {
+      // ignore: deprecated_member_use
       await Share.shareXFiles(
         validFiles.map((p) => XFile(p)).toList(),
         text: text ?? 'Here are my files.',
