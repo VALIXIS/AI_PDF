@@ -433,9 +433,8 @@ class _CameraScanScreenState extends State<CameraScanScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 20),
                                   itemCount: _pages.length,
-                                  onReorder: (oldIndex, newIndex) {
+                                  onReorderItem: (oldIndex, newIndex) {
                                     setState(() {
-                                      if (newIndex > oldIndex) newIndex -= 1;
                                       final item = _pages.removeAt(oldIndex);
                                       _pages.insert(newIndex, item);
                                     });

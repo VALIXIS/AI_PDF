@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:ui';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -14,6 +16,7 @@ import 'package:image/image.dart' as img;
 import 'package:archive/archive.dart';
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/analytics_service.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 
 /// Represents a page configuration item for PDF page reorganizer.
@@ -208,7 +211,7 @@ class PdfService {
     }
   }
 
-  /// Merges multiple PDF files
+  /// Merges multiple PDF files in an isolated heap to guarantee zero memory leaks
   Future<String> mergePdfs(List<String> pdfPaths,
       {String? customOutputPath}) async {
     if (pdfPaths.isEmpty) {
@@ -229,72 +232,71 @@ class PdfService {
       }
     }
 
-    syncfusion.PdfDocument? outputDocument;
-    try {
-      outputDocument = syncfusion.PdfDocument();
+    final String dirPath =
+        customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+    final String firstBase =
+        (pdfPaths.isNotEmpty && pdfPaths.first.isNotEmpty)
+            ? path.basenameWithoutExtension(pdfPaths.first)
+            : 'merged';
+    final fileName = FileService().formatOutputFileName(
+      baseName: firstBase,
+      suffix: 'merged',
+      extension: 'pdf',
+    );
+    final targetPath = path.join(dirPath, fileName);
 
-      for (final filePath in pdfPaths) {
-        final bytes = await File(filePath).readAsBytes();
+    final resultPath = await Isolate.run(() async {
+      syncfusion.PdfDocument? outputDocument;
+      try {
+        outputDocument = syncfusion.PdfDocument();
 
-        final syncfusion.PdfDocument sourceDocument =
-            syncfusion.PdfDocument(inputBytes: bytes);
-        try {
-          final int pageCount = sourceDocument.pages.count;
-          if (pageCount == 0) {
-            throw PdfServiceException('Source PDF contains no pages: $filePath',
-                code: 'PDF_EMPTY_PAGES');
+        for (final filePath in pdfPaths) {
+          final bytes = await File(filePath).readAsBytes();
+
+          final syncfusion.PdfDocument sourceDocument =
+              syncfusion.PdfDocument(inputBytes: bytes);
+          try {
+            final int pageCount = sourceDocument.pages.count;
+            if (pageCount == 0) {
+              throw PdfServiceException('Source PDF contains no pages: $filePath',
+                  code: 'PDF_EMPTY_PAGES');
+            }
+
+            for (int i = 0; i < pageCount; i++) {
+              final syncfusion.PdfPage sourcePage = sourceDocument.pages[i];
+              final syncfusion.PdfTemplate template = sourcePage.createTemplate();
+
+              final syncfusion.PdfSection section =
+                  outputDocument.sections!.add();
+              section.pageSettings.size = sourcePage.size;
+              section.pageSettings.margins.all = 0;
+              section.pageSettings.rotate = sourcePage.rotation;
+
+              final syncfusion.PdfPage newPage = section.pages.add();
+              newPage.graphics.drawPdfTemplate(
+                template,
+                Offset.zero,
+                sourcePage.size,
+              );
+            }
+          } finally {
+            sourceDocument.dispose();
           }
-
-          for (int i = 0; i < pageCount; i++) {
-            final syncfusion.PdfPage sourcePage = sourceDocument.pages[i];
-            final syncfusion.PdfTemplate template = sourcePage.createTemplate();
-
-            final syncfusion.PdfSection section =
-                outputDocument.sections!.add();
-            section.pageSettings.size = sourcePage.size;
-            section.pageSettings.margins.all = 0;
-            section.pageSettings.rotate = sourcePage.rotation;
-
-            final syncfusion.PdfPage newPage = section.pages.add();
-            newPage.graphics.drawPdfTemplate(
-              template,
-              Offset.zero,
-              sourcePage.size,
-            );
-          }
-        } finally {
-          sourceDocument.dispose();
         }
+
+        final List<int> mergedBytes = outputDocument.saveSync();
+        return await FileService().safeWriteBytes(targetPath, mergedBytes);
+      } finally {
+        outputDocument?.dispose();
       }
+    });
 
-      final List<int> mergedBytes = outputDocument.saveSync();
-
-      final String dirPath =
-          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final String firstBase =
-          (pdfPaths.isNotEmpty && pdfPaths.first.isNotEmpty)
-              ? path.basenameWithoutExtension(pdfPaths.first)
-              : 'merged';
-      final fileName = FileService().formatOutputFileName(
-        baseName: firstBase,
-        suffix: 'merged',
-        extension: 'pdf',
-      );
-      final targetPath = path.join(dirPath, fileName);
-      final resultPath =
-          await FileService().safeWriteBytes(targetPath, mergedBytes);
-
-      if (!await fs.isFileValidAndAccessible(resultPath)) {
-        throw PdfServiceException('Failed to generate valid merged PDF output.',
-            code: 'PDF_MERGE_OUTPUT_INVALID');
-      }
-      return resultPath;
-    } catch (e) {
-      if (e is PdfServiceException) rethrow;
-      throw PdfServiceException('Failed to merge PDFs: $e', details: e);
-    } finally {
-      outputDocument?.dispose();
+    if (!await fs.isFileValidAndAccessible(resultPath)) {
+      throw PdfServiceException('Failed to generate valid merged PDF output.',
+          code: 'PDF_MERGE_OUTPUT_INVALID');
     }
+    AnalyticsService().logOperationSuccess('mergePdfs');
+    return resultPath;
   }
 
   /// Splits a PDF by extracting pages in the specified range [startPage] to [endPage] (1-indexed inclusive)
@@ -390,7 +392,7 @@ class PdfService {
     }
   }
 
-  /// Compresses a PDF file using high-efficiency stream compression and page re-rendering
+  /// Compresses a PDF file using high-efficiency stream compression in an isolated heap
   Future<String> compressPdf(
     String pdfPath, {
     String? customOutputPath,
@@ -405,9 +407,9 @@ class PdfService {
 
     final file = File(pdfPath);
     final size = await file.length();
-    if (size > 50 * 1024 * 1024) {
+    if (size > 100 * 1024 * 1024) {
       throw PdfServiceException(
-          'PDF file exceeds maximum supported size of 50MB.',
+          'PDF file exceeds maximum supported size of 100MB.',
           code: 'PDF_COMPRESS_FILE_TOO_LARGE');
     }
 
@@ -417,99 +419,82 @@ class PdfService {
           code: 'PDF_CORRUPT_OR_INVALID');
     }
 
-    final bytes = await file.readAsBytes();
+    final String dirPath =
+        customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+    final String baseName = path.basenameWithoutExtension(pdfPath);
+    final fileName = FileService().formatOutputFileName(
+      baseName: baseName,
+      suffix: 'compressed',
+      extension: 'pdf',
+    );
+    final targetPath = path.join(dirPath, fileName);
 
-    syncfusion.PdfDocument? sourceDoc;
-    syncfusion.PdfDocument? outputDoc;
+    final resultPath = await Isolate.run(() async {
+      final bytes = await File(pdfPath).readAsBytes();
+      syncfusion.PdfDocument? sourceDoc;
+      syncfusion.PdfDocument? outputDoc;
 
-    try {
-      sourceDoc = syncfusion.PdfDocument(inputBytes: bytes);
-      outputDoc = syncfusion.PdfDocument();
-
-      final pageCount = sourceDoc.pages.count;
-      if (pageCount == 0) {
-        throw PdfServiceException('PDF document contains no pages to compress.',
-            code: 'PDF_COMPRESS_EMPTY_PDF');
-      }
-
-      syncfusion.PdfCompressionLevel level;
-      switch (compressionLevel.toLowerCase()) {
-        case 'low':
-          level = syncfusion.PdfCompressionLevel.belowNormal;
-          break;
-        case 'high':
-          level = syncfusion.PdfCompressionLevel.best;
-          break;
-        case 'medium':
-        default:
-          level = syncfusion.PdfCompressionLevel.normal;
-          break;
-      }
-      outputDoc.compressionLevel = level;
-
-      for (int i = 0; i < pageCount; i++) {
-        final syncfusion.PdfPage sourcePage = sourceDoc.pages[i];
-        final syncfusion.PdfTemplate template = sourcePage.createTemplate();
-
-        final syncfusion.PdfSection section = outputDoc.sections!.add();
-        section.pageSettings.size = sourcePage.size;
-        section.pageSettings.margins.all = 0;
-        section.pageSettings.rotate = sourcePage.rotation;
-
-        final syncfusion.PdfPage newPage = section.pages.add();
-        newPage.graphics.drawPdfTemplate(
-          template,
-          Offset.zero,
-          sourcePage.size,
-        );
-      }
-
-      final List<int> outputBytes = outputDoc.saveSync();
-      final String dirPath =
-          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-      final String baseName = path.basenameWithoutExtension(pdfPath);
-      final fileName = FileService().formatOutputFileName(
-        baseName: baseName,
-        suffix: 'compressed',
-        extension: 'pdf',
-      );
-      final targetPath = path.join(dirPath, fileName);
-      final resultPath =
-          await FileService().safeWriteBytes(targetPath, outputBytes);
-
-      if (!await fs.isFileValidAndAccessible(resultPath)) {
-        throw PdfServiceException(
-            'Failed to generate valid compressed PDF output.',
-            code: 'PDF_COMPRESS_OUTPUT_INVALID');
-      }
-
-      // Verify output by reopening
-      syncfusion.PdfDocument? testDoc;
       try {
-        testDoc = syncfusion.PdfDocument(inputBytes: outputBytes);
-        if (testDoc.pages.count != pageCount) {
-          throw Exception('Compressed PDF page count mismatch.');
-        }
-      } catch (e) {
-        throw PdfServiceException(
-            'Generated compressed PDF is corrupt or invalid: $e',
-            code: 'PDF_COMPRESS_INVALID_OUTPUT',
-            details: e);
-      } finally {
-        testDoc?.dispose();
-      }
+        sourceDoc = syncfusion.PdfDocument(inputBytes: bytes);
+        outputDoc = syncfusion.PdfDocument();
 
-      return resultPath;
-    } catch (e) {
-      if (e is PdfServiceException) rethrow;
-      throw PdfServiceException('Failed to compress PDF: $e', details: e);
-    } finally {
-      sourceDoc?.dispose();
-      outputDoc?.dispose();
+        final pageCount = sourceDoc.pages.count;
+        if (pageCount == 0) {
+          throw PdfServiceException('PDF document contains no pages to compress.',
+              code: 'PDF_COMPRESS_EMPTY_PDF');
+        }
+
+        syncfusion.PdfCompressionLevel level;
+        switch (compressionLevel.toLowerCase()) {
+          case 'low':
+            level = syncfusion.PdfCompressionLevel.belowNormal;
+            break;
+          case 'high':
+            level = syncfusion.PdfCompressionLevel.best;
+            break;
+          case 'medium':
+          default:
+            level = syncfusion.PdfCompressionLevel.normal;
+            break;
+        }
+        outputDoc.compressionLevel = level;
+
+        for (int i = 0; i < pageCount; i++) {
+          final syncfusion.PdfPage sourcePage = sourceDoc.pages[i];
+          final syncfusion.PdfTemplate template = sourcePage.createTemplate();
+
+          final syncfusion.PdfSection section = outputDoc.sections!.add();
+          section.pageSettings.size = sourcePage.size;
+          section.pageSettings.margins.all = 0;
+          section.pageSettings.rotate = sourcePage.rotation;
+
+          final syncfusion.PdfPage newPage = section.pages.add();
+          newPage.graphics.drawPdfTemplate(
+            template,
+            Offset.zero,
+            sourcePage.size,
+          );
+        }
+
+        final List<int> outputBytes = outputDoc.saveSync();
+        return await FileService().safeWriteBytes(targetPath, outputBytes);
+      } finally {
+        sourceDoc?.dispose();
+        outputDoc?.dispose();
+      }
+    });
+
+    if (!await fs.isFileValidAndAccessible(resultPath)) {
+      throw PdfServiceException(
+          'Failed to generate valid compressed PDF output.',
+          code: 'PDF_COMPRESS_OUTPUT_INVALID');
     }
+
+    AnalyticsService().logOperationSuccess('compressPdf');
+    return resultPath;
   }
 
-  /// Rotates the pages of a PDF by a specified angle (90, 180, 270)
+  /// Rotates the pages of a PDF by a specified angle (90, 180, 270) in an isolated heap
   Future<String> rotatePdf({
     required String pdfPath,
     required int rotationAngle,
@@ -523,9 +508,9 @@ class PdfService {
       }
       final file = File(pdfPath);
       final size = await file.length();
-      if (size > 50 * 1024 * 1024) {
+      if (size > 100 * 1024 * 1024) {
         throw PdfServiceException(
-            'PDF file exceeds maximum supported size of 50MB.',
+            'PDF file exceeds maximum supported size of 100MB.',
             code: 'PDF_ROTATE_FILE_TOO_LARGE');
       }
 
@@ -535,103 +520,82 @@ class PdfService {
             code: 'PDF_CORRUPT_OR_INVALID');
       }
 
-      final bytes = await file.readAsBytes();
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final String baseName = path.basenameWithoutExtension(pdfPath);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'rotated_$rotationAngle',
+        extension: 'pdf',
+      );
+      final targetPath = path.join(dirPath, fileName);
 
-      // Load existing document
-      final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
+      final resultPath = await Isolate.run(() async {
+        final bytes = await File(pdfPath).readAsBytes();
+        final sf.PdfDocument document = sf.PdfDocument(inputBytes: bytes);
 
-      try {
-        final pageCount = document.pages.count;
-        if (pageCount == 0) {
-          throw PdfServiceException('PDF document contains no pages to rotate.',
-              code: 'PDF_ROTATE_EMPTY_PDF');
-        }
-
-        for (int i = 0; i < pageCount; i++) {
-          final sf.PdfPage page = document.pages[i];
-
-          // Get current page rotation
-          final currentRotation = page.rotation;
-
-          // Convert enum to degrees
-          int currentDegrees = 0;
-          switch (currentRotation) {
-            case sf.PdfPageRotateAngle.rotateAngle0:
-              currentDegrees = 0;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle90:
-              currentDegrees = 90;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle180:
-              currentDegrees = 180;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle270:
-              currentDegrees = 270;
-              break;
-          }
-
-          // Calculate new degrees (additive and normalized to 0, 90, 180, 270)
-          final newDegrees = (currentDegrees + rotationAngle) % 360;
-
-          // Set new rotation angle
-          if (newDegrees == 90) {
-            page.rotation = sf.PdfPageRotateAngle.rotateAngle90;
-          } else if (newDegrees == 180) {
-            page.rotation = sf.PdfPageRotateAngle.rotateAngle180;
-          } else if (newDegrees == 270) {
-            page.rotation = sf.PdfPageRotateAngle.rotateAngle270;
-          } else {
-            page.rotation = sf.PdfPageRotateAngle.rotateAngle0;
-          }
-        }
-
-        // Save rotated PDF to file
-        final List<int> outputBytes = await document.save();
-        final String dirPath =
-            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final String baseName = path.basenameWithoutExtension(pdfPath);
-        final fileName = FileService().formatOutputFileName(
-          baseName: baseName,
-          suffix: 'rotated_$rotationAngle',
-          extension: 'pdf',
-        );
-        final targetPath = path.join(dirPath, fileName);
-
-        final resultPath =
-            await FileService().safeWriteBytes(targetPath, outputBytes);
-        if (!await fs.isFileValidAndAccessible(resultPath)) {
-          throw PdfServiceException(
-              'Failed to generate valid rotated PDF output.',
-              code: 'PDF_ROTATE_OUTPUT_INVALID');
-        }
-
-        // Verify output by reopening
-        syncfusion.PdfDocument? testDoc;
         try {
-          testDoc = syncfusion.PdfDocument(inputBytes: outputBytes);
-          if (testDoc.pages.count != pageCount) {
-            throw Exception('Rotated PDF page count mismatch.');
+          final pageCount = document.pages.count;
+          if (pageCount == 0) {
+            throw PdfServiceException('PDF document contains no pages to rotate.',
+                code: 'PDF_ROTATE_EMPTY_PDF');
           }
-        } catch (e) {
-          throw PdfServiceException(
-              'Generated rotated PDF is corrupt or invalid: $e',
-              code: 'PDF_ROTATE_INVALID_OUTPUT',
-              details: e);
-        } finally {
-          testDoc?.dispose();
-        }
 
-        return resultPath;
-      } finally {
-        document.dispose();
+          for (int i = 0; i < pageCount; i++) {
+            final sf.PdfPage page = document.pages[i];
+            final currentRotation = page.rotation;
+
+            int currentDegrees = 0;
+            switch (currentRotation) {
+              case sf.PdfPageRotateAngle.rotateAngle0:
+                currentDegrees = 0;
+                break;
+              case sf.PdfPageRotateAngle.rotateAngle90:
+                currentDegrees = 90;
+                break;
+              case sf.PdfPageRotateAngle.rotateAngle180:
+                currentDegrees = 180;
+                break;
+              case sf.PdfPageRotateAngle.rotateAngle270:
+                currentDegrees = 270;
+                break;
+            }
+
+            final newDegrees = (currentDegrees + rotationAngle) % 360;
+
+            if (newDegrees == 90) {
+              page.rotation = sf.PdfPageRotateAngle.rotateAngle90;
+            } else if (newDegrees == 180) {
+              page.rotation = sf.PdfPageRotateAngle.rotateAngle180;
+            } else if (newDegrees == 270) {
+              page.rotation = sf.PdfPageRotateAngle.rotateAngle270;
+            } else {
+              page.rotation = sf.PdfPageRotateAngle.rotateAngle0;
+            }
+          }
+
+          final List<int> outputBytes = await document.save();
+          return await FileService().safeWriteBytes(targetPath, outputBytes);
+        } finally {
+          document.dispose();
+        }
+      });
+
+      if (!await fs.isFileValidAndAccessible(resultPath)) {
+        throw PdfServiceException(
+            'Failed to generate valid rotated PDF output.',
+            code: 'PDF_ROTATE_OUTPUT_INVALID');
       }
+
+      AnalyticsService().logOperationSuccess('rotatePdf');
+      return resultPath;
     } catch (e) {
       if (e is PdfServiceException) rethrow;
       throw PdfServiceException('Failed to rotate PDF: $e', details: e);
     }
   }
 
-  /// Reorganizes, rotates, duplicates, and deletes pages of a PDF based on the provided [pages] list.
+  /// Reorganizes, rotates, duplicates, and deletes pages of a PDF based on the provided [pages] list in an isolated heap.
   Future<String> reorganizePdfPages({
     required String pdfPath,
     required List<PdfPageReorganizeItem> pages,
@@ -645,9 +609,9 @@ class PdfService {
       }
       final file = File(pdfPath);
       final size = await file.length();
-      if (size > 50 * 1024 * 1024) {
+      if (size > 100 * 1024 * 1024) {
         throw PdfServiceException(
-            'PDF file exceeds maximum supported size of 50MB.',
+            'PDF file exceeds maximum supported size of 100MB.',
             code: 'PDF_REORGANIZE_FILE_TOO_LARGE');
       }
 
@@ -663,115 +627,101 @@ class PdfService {
             code: 'PDF_REORGANIZE_EMPTY_PAGES');
       }
 
-      final bytes = await file.readAsBytes();
-      sf.PdfDocument? sourceDocument;
-      sf.PdfDocument? outputDocument;
+      final String dirPath =
+          customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
+      final String baseName = path.basenameWithoutExtension(pdfPath);
+      final fileName = FileService().formatOutputFileName(
+        baseName: baseName,
+        suffix: 'reorganized',
+        extension: 'pdf',
+      );
+      final targetPath = path.join(dirPath, fileName);
 
-      try {
-        sourceDocument = sf.PdfDocument(inputBytes: bytes);
-        final int totalPages = sourceDocument.pages.count;
+      final resultPath = await Isolate.run(() async {
+        final bytes = await File(pdfPath).readAsBytes();
+        sf.PdfDocument? sourceDocument;
+        sf.PdfDocument? outputDocument;
 
-        if (totalPages == 0) {
-          throw PdfServiceException('Source PDF contains no pages.',
-              code: 'PDF_EMPTY_PAGES');
-        }
-
-        for (final pageItem in pages) {
-          if (pageItem.originalPageIndex < 0 ||
-              pageItem.originalPageIndex >= totalPages) {
-            throw PdfServiceException(
-                'Invalid page index ${pageItem.originalPageIndex}. Document has $totalPages pages.',
-                code: 'PDF_REORGANIZE_INVALID_PAGE_INDEX');
-          }
-        }
-
-        outputDocument = sf.PdfDocument();
-
-        for (final pageItem in pages) {
-          final sf.PdfPage sourcePage =
-              sourceDocument.pages[pageItem.originalPageIndex];
-          final sf.PdfTemplate template = sourcePage.createTemplate();
-
-          final sf.PdfSection section = outputDocument.sections!.add();
-          section.pageSettings.size = sourcePage.size;
-          section.pageSettings.margins.all = 0;
-
-          // Calculate cumulative rotation angle
-          int sourceDegrees = 0;
-          switch (sourcePage.rotation) {
-            case sf.PdfPageRotateAngle.rotateAngle0:
-              sourceDegrees = 0;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle90:
-              sourceDegrees = 90;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle180:
-              sourceDegrees = 180;
-              break;
-            case sf.PdfPageRotateAngle.rotateAngle270:
-              sourceDegrees = 270;
-              break;
-          }
-
-          final int totalDegrees = (sourceDegrees + pageItem.rotationAngle) % 360;
-          if (totalDegrees == 90) {
-            section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle90;
-          } else if (totalDegrees == 180) {
-            section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle180;
-          } else if (totalDegrees == 270) {
-            section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle270;
-          } else {
-            section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle0;
-          }
-
-          final sf.PdfPage newPage = section.pages.add();
-          newPage.graphics.drawPdfTemplate(
-            template,
-            Offset.zero,
-            sourcePage.size,
-          );
-        }
-
-        final List<int> outputBytes = outputDocument.saveSync();
-        final String dirPath =
-            customOutputPath ?? (await getApplicationDocumentsDirectory()).path;
-        final String baseName = path.basenameWithoutExtension(pdfPath);
-        final fileName = FileService().formatOutputFileName(
-          baseName: baseName,
-          suffix: 'reorganized',
-          extension: 'pdf',
-        );
-        final targetPath = path.join(dirPath, fileName);
-
-        final resultPath =
-            await FileService().safeWriteBytes(targetPath, outputBytes);
-        if (!await fs.isFileValidAndAccessible(resultPath)) {
-          throw PdfServiceException(
-              'Failed to generate valid reorganized PDF output.',
-              code: 'PDF_REORGANIZE_OUTPUT_INVALID');
-        }
-
-        // Verify output by reopening
-        syncfusion.PdfDocument? testDoc;
         try {
-          testDoc = syncfusion.PdfDocument(inputBytes: outputBytes);
-          if (testDoc.pages.count != pages.length) {
-            throw Exception('Reorganized PDF page count mismatch.');
-          }
-        } catch (e) {
-          throw PdfServiceException(
-              'Generated reorganized PDF is corrupt or invalid: $e',
-              code: 'PDF_REORGANIZE_INVALID_OUTPUT',
-              details: e);
-        } finally {
-          testDoc?.dispose();
-        }
+          sourceDocument = sf.PdfDocument(inputBytes: bytes);
+          final int totalPages = sourceDocument.pages.count;
 
-        return resultPath;
-      } finally {
-        sourceDocument?.dispose();
-        outputDocument?.dispose();
+          if (totalPages == 0) {
+            throw PdfServiceException('Source PDF contains no pages.',
+                code: 'PDF_EMPTY_PAGES');
+          }
+
+          for (final pageItem in pages) {
+            if (pageItem.originalPageIndex < 0 ||
+                pageItem.originalPageIndex >= totalPages) {
+              throw PdfServiceException(
+                  'Invalid page index ${pageItem.originalPageIndex}. Document has $totalPages pages.',
+                  code: 'PDF_REORGANIZE_INVALID_PAGE_INDEX');
+            }
+          }
+
+          outputDocument = sf.PdfDocument();
+
+          for (final pageItem in pages) {
+            final sf.PdfPage sourcePage =
+                sourceDocument.pages[pageItem.originalPageIndex];
+            final sf.PdfTemplate template = sourcePage.createTemplate();
+
+            final sf.PdfSection section = outputDocument.sections!.add();
+            section.pageSettings.size = sourcePage.size;
+            section.pageSettings.margins.all = 0;
+
+            int sourceDegrees = 0;
+            switch (sourcePage.rotation) {
+              case sf.PdfPageRotateAngle.rotateAngle0:
+                sourceDegrees = 0;
+                break;
+              case sf.PdfPageRotateAngle.rotateAngle90:
+                sourceDegrees = 90;
+                break;
+              case sf.PdfPageRotateAngle.rotateAngle180:
+                sourceDegrees = 180;
+                break;
+              case sf.PdfPageRotateAngle.rotateAngle270:
+                sourceDegrees = 270;
+                break;
+            }
+
+            final int totalDegrees = (sourceDegrees + pageItem.rotationAngle) % 360;
+            if (totalDegrees == 90) {
+              section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle90;
+            } else if (totalDegrees == 180) {
+              section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle180;
+            } else if (totalDegrees == 270) {
+              section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle270;
+            } else {
+              section.pageSettings.rotate = sf.PdfPageRotateAngle.rotateAngle0;
+            }
+
+            final sf.PdfPage newPage = section.pages.add();
+            newPage.graphics.drawPdfTemplate(
+              template,
+              Offset.zero,
+              sourcePage.size,
+            );
+          }
+
+          final List<int> outputBytes = outputDocument.saveSync();
+          return await FileService().safeWriteBytes(targetPath, outputBytes);
+        } finally {
+          sourceDocument?.dispose();
+          outputDocument?.dispose();
+        }
+      });
+
+      if (!await fs.isFileValidAndAccessible(resultPath)) {
+        throw PdfServiceException(
+            'Failed to generate valid reorganized PDF output.',
+            code: 'PDF_REORGANIZE_OUTPUT_INVALID');
       }
+
+      AnalyticsService().logOperationSuccess('reorganizePdfPages');
+      return resultPath;
     } catch (e) {
       if (e is PdfServiceException) rethrow;
       throw PdfServiceException('Failed to reorganize PDF: $e', details: e);

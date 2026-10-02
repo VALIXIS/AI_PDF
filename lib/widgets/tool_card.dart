@@ -49,7 +49,7 @@ class _ToolCardState extends State<ToolCard>
 
   @override
   Widget build(BuildContext context) {
-    final cardColor = const Color(0xFF161B22);
+    const cardColor = Color(0xFF161B22);
     return GestureDetector(
       onTap: widget.onTap,
       onTapDown: _onTapDown,
@@ -65,21 +65,21 @@ class _ToolCardState extends State<ToolCard>
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [cardColor, cardColor.withOpacity(0.95)],
+              colors: [cardColor, cardColor.withValues(alpha: 0.95)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha: 0.6),
                 blurRadius: 10,
                 offset: const Offset(0, 6),
               ),
             ],
             border: widget.highlighted
                 ? Border.all(
-                    color: const Color(0xFF4DA3FF).withOpacity(0.25),
+                    color: const Color(0xFF4DA3FF).withValues(alpha: 0.25),
                     width: 1.5)
                 : null,
           ),
@@ -99,7 +99,7 @@ class _ToolCardState extends State<ToolCard>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4DA3FF).withOpacity(0.12),
+                        color: const Color(0xFF4DA3FF).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text('AI',

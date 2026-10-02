@@ -234,7 +234,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.15),
+                              color: Colors.orange.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
