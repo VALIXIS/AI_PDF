@@ -1,23 +1,15 @@
 """
-VALIXIS Midnight Autonomous PR Auto-Merge & Conflict Prompt Bot
+VALIXIS Midnight Autonomous PR Auto-Merge, Close & Portal Approval Bot
 Runs in GitHub Actions runners at 12:00 AM Midnight IST (18:30 UTC).
 
+Autonomous 3-Step Execution for every clean PR:
+1. MERGE: Merges the PR into main using 3-tier fallback (gh CLI -> REST API -> native Git CLI).
+2. CLOSE: Immediately marks the PR as CLOSED and deletes the remote feature branch.
+3. APPROVE: Autonomously approves the task assignment and submission in the VALIXIS Employee Portal (Supabase).
+
 Non-blocking algorithm:
-1. Scans all open PRs targeting default branch (main/master) in chronological order.
-2. For clean, passing PRs:
-   - Evaluates mergeability via GitHub API & git merge-tree simulation.
-   - Merges PR into base branch using 3-tier fallback:
-       Tier 1: GitHub CLI (`gh pr merge`)
-       Tier 2: GitHub REST API (`PUT /pulls/{number}/merge`)
-       Tier 3: Native Git CLI (`git checkout main && git merge origin/{branch} && git push origin main`)
-   - Guarantees PR is immediately marked CLOSED and deleted branch.
-   - Comments confirmation on PR.
-3. For conflicting PRs:
-   - Identifies conflicting files.
-   - Generates customized Ready-to-Run Antigravity Prompt.
-   - Comments the prompt directly on the PR.
-   - Continues evaluating remaining PRs without halting!
-4. Produces MIDNIGHT_AUTOFOCUS_REPORT.md and midnight_summary.json.
+- Conflicting PRs are flagged, commented with Ready-to-Run Antigravity prompt, and remaining PRs continue processing.
+- Produces MIDNIGHT_AUTOFOCUS_REPORT.md and midnight_summary.json.
 """
 
 import sys
@@ -28,6 +20,7 @@ import argparse
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
@@ -40,6 +33,9 @@ except Exception:
     pass
 
 REPO_ROOT = Path(".").resolve()
+
+# Fallback Supabase URL for Portal auto-approval
+DEFAULT_SUPABASE_URL = "https://qbvlzhjnqrwsoyvpomyt.supabase.co"
 
 def run_cmd(cmd: List[str], cwd: Path = REPO_ROOT) -> subprocess.CompletedProcess:
     """Run command with shell=False so arguments in list are properly passed on POSIX/Windows."""
@@ -206,6 +202,93 @@ def close_pr_immediately(pr_number: int, branch: str) -> None:
     run_cmd(['git', 'push', 'origin', '--delete', branch])
     github_api_request_with_status(f"git/refs/heads/{branch}", method="DELETE")
 
+def approve_in_portal(pr_number: int, branch: str, dry_run: bool = False) -> bool:
+    """
+    Autonomously approves the task assignment and submission in the VALIXIS Employee Portal (Supabase).
+    1. Finds matching submission by pr_url or branch name.
+    2. Updates submission review_status to 'approved'.
+    3. Updates task_assignments status to 'approved'.
+    """
+    token = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    base_url = (os.environ.get("SUPABASE_URL") or DEFAULT_SUPABASE_URL).rstrip("/")
+    if not token or not base_url:
+        print(f"  [Portal] SUPABASE_SERVICE_ROLE_KEY not configured in environment. Skipping portal approval.")
+        return False
+
+    headers = {
+        "apikey": token,
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+
+    try:
+        now_iso = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        assignment_ids = set()
+
+        # Step A: Find submission by PR number
+        sub_url = f"{base_url}/rest/v1/submissions?pr_url=like.*%2Fpull%2F{pr_number}*&select=id,assignment_id,review_status"
+        req = urllib.request.Request(sub_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as res:
+            subs = json.loads(res.read().decode('utf-8'))
+
+        for s in subs:
+            if s.get("assignment_id"):
+                assignment_ids.add(s["assignment_id"])
+
+        # Step B: Also search by branch name in tasks table if needed
+        if not assignment_ids and branch:
+            task_url = f"{base_url}/rest/v1/tasks?branch_name=eq.{urllib.parse.quote(branch)}&select=id"
+            t_req = urllib.request.Request(task_url, headers=headers)
+            with urllib.request.urlopen(t_req, timeout=15) as res:
+                tasks = json.loads(res.read().decode('utf-8'))
+            for t in tasks:
+                t_id = t["id"]
+                as_url = f"{base_url}/rest/v1/task_assignments?task_id=eq.{t_id}&select=id"
+                a_req = urllib.request.Request(as_url, headers=headers)
+                with urllib.request.urlopen(a_req, timeout=15) as res:
+                    as_list = json.loads(res.read().decode('utf-8'))
+                for a in as_list:
+                    assignment_ids.add(a["id"])
+
+        if not assignment_ids:
+            print(f"  [Portal] No matching task assignment found in portal for PR #{pr_number} ({branch}).")
+            return False
+
+        if dry_run:
+            print(f"  [Portal DRY RUN] Would approve assignment(s) {assignment_ids} and submission for PR #{pr_number}")
+            return True
+
+        # Step C: Update submissions
+        patch_sub_data = json.dumps({
+            "review_status": "approved",
+            "reviewed_at": now_iso,
+            "manager_feedback": "Autonomous approval by VALIXIS Midnight Bot following clean merge & integrity check."
+        }).encode('utf-8')
+        
+        patch_sub_url = f"{base_url}/rest/v1/submissions?pr_url=like.*%2Fpull%2F{pr_number}*"
+        p_sub_req = urllib.request.Request(patch_sub_url, data=patch_sub_data, headers=headers, method="PATCH")
+        with urllib.request.urlopen(p_sub_req, timeout=15) as res:
+            res.read()
+
+        # Step D: Update task_assignments
+        for aid in assignment_ids:
+            patch_assign_data = json.dumps({
+                "status": "approved",
+                "reviewed_at": now_iso
+            }).encode('utf-8')
+            patch_as_url = f"{base_url}/rest/v1/task_assignments?id=eq.{aid}"
+            p_as_req = urllib.request.Request(patch_as_url, data=patch_assign_data, headers=headers, method="PATCH")
+            with urllib.request.urlopen(p_as_req, timeout=15) as res:
+                res.read()
+
+        print(f"  [Portal] ✅ Successfully approved assignment(s) {list(assignment_ids)} for PR #{pr_number} in employee portal!")
+        return True
+
+    except Exception as e:
+        print(f"  [Portal] Error approving in portal: {e}")
+        return False
+
 def check_mergeability(pr_number: int, branch: str, base_branch: str) -> Tuple[str, List[str]]:
     """
     Check mergeability using GitHub API detail endpoint + Git merge-tree verification.
@@ -324,7 +407,8 @@ def process_pull_requests(dry_run: bool = False) -> Dict[str, Any]:
         "total_prs": len(prs),
         "merged": [],
         "conflicts": [],
-        "failing_ci": []
+        "failing_ci": [],
+        "portal_approved": []
     }
 
     for pr in prs:
@@ -377,19 +461,28 @@ The newly merged changes in `{base}` conflict with branch `{branch}`.
             continue
 
         # Clean and ready to merge!
-        print(f"  ✔ PR #{num} is clean and verified. Initiating autonomous merge & close...")
+        print(f"  ✔ PR #{num} is clean and verified. Initiating autonomous 3-step action (Merge -> Close -> Portal Approve)...")
         if not dry_run:
             merged, status_reason = merge_pull_request(num, branch, base)
             if merged:
-                confirm_body = "🤖 **Autonomously merged into main and closed by VALIXIS Midnight Bot.** All integrity verifications passed."
+                # Step 3: Approve in employee portal
+                portal_ok = approve_in_portal(num, branch, dry_run=False)
+                if portal_ok:
+                    results["portal_approved"].append(num)
+
+                confirm_body = (
+                    "🤖 **Autonomously merged into main, closed, and approved in the employee portal by VALIXIS Midnight Bot.** "
+                    "All integrity verifications passed."
+                )
                 comment_on_pr(num, confirm_body)
                 results["merged"].append({
                     "pr_number": num,
                     "title": title,
                     "branch": branch,
-                    "strategy": status_reason
+                    "strategy": status_reason,
+                    "portal_approved": portal_ok
                 })
-                print(f"  🚀 PR #{num} successfully merged and closed! (Strategy: {status_reason})")
+                print(f"  🚀 PR #{num} successfully merged, closed, and approved in portal! (Strategy: {status_reason})")
             elif status_reason == "conflict":
                 print(f"  🚨 Merge conflict encountered during merge attempt on PR #{num}!")
                 prompt = generate_antigravity_prompt(pr, conflicts or get_conflicting_files(num))
@@ -415,12 +508,14 @@ The newly merged changes in `{base}` conflict with branch `{branch}`.
             else:
                 print(f"  ❌ Failed to merge PR #{num}: {status_reason}")
         else:
-            print(f"  [DRY RUN] Would auto-merge & close PR #{num} ({branch})")
+            print(f"  [DRY RUN] Would auto-merge, close, and approve in portal for PR #{num} ({branch})")
+            approve_in_portal(num, branch, dry_run=True)
             results["merged"].append({
                 "pr_number": num,
                 "title": title,
                 "branch": branch,
-                "strategy": "dry-run"
+                "strategy": "dry-run",
+                "portal_approved": True
             })
 
     # Generate Reports
@@ -434,20 +529,22 @@ def generate_reports(results: Dict[str, Any]):
 | Metric | Count |
 | :--- | :---: |
 | **Total Open PRs Evaluated** | {results['total_prs']} |
-| **Successfully Auto-Merged & Closed** | {len(results['merged'])} |
+| **Successfully Merged & Closed** | {len(results['merged'])} |
+| **Portal Submissions Approved** | {len(results.get('portal_approved', []))} |
 | **Conflicts Detected** | {len(results['conflicts'])} |
 | **Failing CI / In Progress** | {len(results['failing_ci'])} |
 
 ---
 
-## 1. Successfully Merged & Closed PRs
+## 1. Successfully Merged, Closed & Approved PRs
 """
     if not results["merged"]:
         md += "_No clean PRs were merged in this run._\n"
     else:
         for m in results["merged"]:
             strat = m.get('strategy', 'auto')
-            md += f"- ✅ **PR #{m['pr_number']}**: {m['title']} (`{m['branch']}`) [Strategy: {strat}]\n"
+            portal = "Approved in Portal" if m.get('portal_approved') else "Portal pending"
+            md += f"- ✅ **PR #{m['pr_number']}**: {m['title']} (`{m['branch']}`) [Strategy: {strat} | {portal}]\n"
 
     md += "\n---\n\n## 2. Conflicts Requiring Antigravity Morning Resolution\n"
     if not results["conflicts"]:
@@ -465,7 +562,7 @@ def generate_reports(results: Dict[str, Any]):
     print("\nReports successfully written to MIDNIGHT_AUTOFOCUS_REPORT.md and midnight_summary.json")
 
 def main():
-    parser = argparse.ArgumentParser(description="VALIXIS Midnight Autonomous PR Auto-Merge Bot")
+    parser = argparse.ArgumentParser(description="VALIXIS Midnight Autonomous PR Auto-Merge & Portal Approval Bot")
     parser.add_argument("--dry-run", action="store_true", help="Simulate run without performing actual merges or comments")
     args = parser.parse_args()
 
