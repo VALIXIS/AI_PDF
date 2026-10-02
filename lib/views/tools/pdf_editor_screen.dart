@@ -16,6 +16,7 @@ import 'package:pdf_ai_toolkit/services/ai_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_vector_editor_engine.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/views/tools/signature_canvas_screen.dart';
 
 class PdfEditorScreen extends StatefulWidget {
   final String? initialFilePath;
@@ -269,6 +270,107 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _errorMessage = 'Failed to select image: $e';
       });
     }
+  }
+
+  Future<void> _addSignature(double rx, double ry) async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Add E-Signature',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.draw_rounded, color: Color(0xFF2563EB)),
+                title: const Text('Draw New Signature'),
+                subtitle: const Text('Sign on digital signature pad'),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                tileColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1E1E2D)
+                    : const Color(0xFFF1F5F9),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final bytes = await Navigator.push<Uint8List>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const SignatureCanvasScreen(returnSignature: true),
+                    ),
+                  );
+                  if (bytes != null && mounted) {
+                    _stampSignature(bytes, rx, ry);
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.folder_special_rounded,
+                    color: Color(0xFF8B5CF6)),
+                title: const Text('Saved Signatures'),
+                subtitle: const Text('Choose from your saved signatures'),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                tileColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1E1E2D)
+                    : const Color(0xFFF1F5F9),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => SavedSignaturesSheet(
+                      onSignatureSelected: (sig) {
+                        Navigator.pop(context);
+                        _stampSignature(sig.pngBytes, rx, ry);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _stampSignature(Uint8List bytes, double rx, double ry) {
+    final ann = Annotation.image(
+      id: UniqueKey().toString(),
+      x: rx,
+      y: ry,
+      width: 0.35,
+      height: 0.12,
+      imageBytes: bytes,
+    );
+    setState(() {
+      _pageAnnotations.add(ann);
+      _selected = ann;
+      _activeTool = null;
+    });
   }
 
   /// Opens the interactive In-Place Vector Text Editor Dialog for a detected text block.
@@ -922,6 +1024,16 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 onPressed: () => setState(() =>
                     _activeTool = _activeTool == 'image' ? null : 'image'),
               ),
+              IconButton(
+                icon: Icon(
+                  Icons.draw_rounded,
+                  color:
+                      _activeTool == 'signature' ? const Color(0xFF2563EB) : null,
+                ),
+                tooltip: 'Add E-Signature',
+                onPressed: () => setState(() =>
+                    _activeTool = _activeTool == 'signature' ? null : 'signature'),
+              ),
             ],
           ),
         ),
@@ -937,7 +1049,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Tap anywhere on Page ${_currentPage + 1} to place ${_activeTool == 'text' ? 'text' : 'an image'}',
+                    'Tap anywhere on Page ${_currentPage + 1} to place ${_activeTool == 'text' ? 'text' : _activeTool == 'signature' ? 'a signature' : 'an image'}',
                     style: TextStyle(
                         color: primary,
                         fontSize: 13,
@@ -1029,6 +1141,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                         _addText(rx, ry);
                       } else if (_activeTool == 'image') {
                         _addImage(rx, ry);
+                      } else if (_activeTool == 'signature') {
+                        _addSignature(rx, ry);
                       } else {
                         setState(() {
                           _selected = null;

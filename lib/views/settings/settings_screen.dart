@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary;
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/views/settings/privacy_policy_screen.dart';

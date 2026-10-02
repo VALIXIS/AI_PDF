@@ -17,8 +17,11 @@ import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/signature_canvas_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_page_reorganizer_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_signature_overlay_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/ai_summarizer_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_form_filler_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -150,6 +153,14 @@ const List<ToolItem> appTools = [
     category: 'Edit',
   ),
   ToolItem(
+    title: 'Form Filler',
+    subtitle: 'Fill forms & annotate PDF',
+    icon: Icons.assignment_turned_in_rounded,
+    color: Color(0xFF10B981),
+    screen: PdfFormFillerScreen(),
+    category: 'Edit',
+  ),
+  ToolItem(
     title: 'PDF Editor',
     subtitle: 'Edit & annotate',
     icon: Icons.edit_document,
@@ -163,6 +174,14 @@ const List<ToolItem> appTools = [
     icon: Icons.branding_watermark_rounded,
     color: Color(0xFFD97706),
     screen: WatermarkScreen(),
+    category: 'Edit',
+  ),
+  ToolItem(
+    title: 'E-Signature Pad',
+    subtitle: 'Sign & save digital signatures',
+    icon: Icons.draw_rounded,
+    color: Color(0xFF2563EB),
+    screen: SignatureCanvasScreen(),
     category: 'Edit',
   ),
   ToolItem(
@@ -197,6 +216,14 @@ const List<ToolItem> appTools = [
     icon: Icons.chat_rounded,
     color: Color(0xFF10B981),
     screen: ChatWithPdfScreen(),
+    category: 'AI',
+  ),
+  ToolItem(
+    title: 'AI Summarizer',
+    subtitle: 'Executive Brief & Actions',
+    icon: Icons.summarize_rounded,
+    color: Color(0xFFEC4899),
+    screen: AiSummarizerScreen(),
     category: 'AI',
   ),
 ];

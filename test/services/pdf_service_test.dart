@@ -397,6 +397,30 @@ void main() {
           isTrue);
     });
 
+    test('computeBatchImageToPdf creates PDF with targeted DPI quality', () async {
+      final img1 = createDummyImage('batch1.png');
+      final img2 = createDummyImage('batch2.png');
+
+      final pdfPath = await pdfService.computeBatchImageToPdf(
+        imagePaths: [img1.path, img2.path],
+        quality: 'medium',
+        customOutputPath: tempDir.path,
+      );
+
+      final file = File(pdfPath);
+      expect(await file.exists(), isTrue);
+      expect(await pdfService.getPdfPageCount(pdfPath), equals(2));
+
+      final zipPath = await pdfService.createZipFromImages(
+        imagePaths: [img1.path, img2.path],
+        baseName: 'batch_test',
+        customOutputPath: tempDir.path,
+      );
+      final zipFile = File(zipPath);
+      expect(await zipFile.exists(), isTrue);
+      expect(await zipFile.length(), greaterThan(0));
+    });
+
     test('convertImagesToPdf creates PDF from images', () async {
       final img1 = createDummyImage('img1.png');
       final img2 = createDummyImage('img2.png');
