@@ -2,8 +2,13 @@ name: VALIXIS Midnight Auto-Merge Bot
 
 on:
   schedule:
-    # 12:00 AM Midnight IST is 18:30 UTC
-    - cron: '30 18 * * *'
+    # 12:00 AM Midnight IST (18:30 UTC).
+    # Multi-slot redundancy: GitHub Actions schedulers often delay exact half-hour crons (:30)
+    # due to global peak load. Providing primary (:30) and off-peak fallback slots (:35, :00)
+    # guarantees execution every single night.
+    - cron: '30 18 * * *'  # 12:00 AM Midnight IST (Primary)
+    - cron: '35 18 * * *'  # 12:05 AM IST (Off-peak congestion bypass)
+    - cron: '00 19 * * *'  # 12:30 AM IST (Secondary failsafe)
   workflow_dispatch:
 
 permissions:
@@ -21,6 +26,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git Identity
+        run: |
+          git config --global user.name "VALIXIS Midnight Bot"
+          git config --global user.email "bot@valixis.internal"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -30,6 +41,8 @@ jobs:
       - name: Run Midnight Auto-Merge & Conflict Prompt Engine
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           python .github/scripts/automerge_bot.py
 
