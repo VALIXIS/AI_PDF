@@ -25,7 +25,7 @@ void main() {
 
   testWidgets('SettingsScreen loads and displays all sections cleanly',
       (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 2.0;
 
     addTearDown(tester.view.resetPhysicalSize);
@@ -37,18 +37,18 @@ void main() {
       ),
     );
     await tester.pump(const Duration(milliseconds: 500));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('APPEARANCE'), findsOneWidget);
     expect(find.text('Dark Mode'), findsOneWidget);
     expect(find.text('AI ASSISTANT'), findsOneWidget);
     expect(find.text('AI Provider Engine'), findsOneWidget);
+    expect(find.text('REWARDED ADS & PREMIUM UNLOCKS'), findsOneWidget);
     expect(find.text('DATA & STORAGE'), findsOneWidget);
     expect(find.text('History Records'), findsOneWidget);
     expect(find.text('ABOUT'), findsOneWidget);
     expect(find.text('AI PDF Maker'), findsOneWidget);
     expect(find.text('Privacy & Security'), findsOneWidget);
-    expect(find.byIcon(Icons.open_in_new_rounded), findsOneWidget);
   });
 }

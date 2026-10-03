@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/saved_signature.dart';
 import 'package:pdf_ai_toolkit/services/signature_storage_service.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/views/tools/signature_viewer_screen.dart';
 import 'package:uuid/uuid.dart';
 

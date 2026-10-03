@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
@@ -2147,155 +2146,182 @@ class PdfService {
 }
 
 class MarkdownPdfRenderer {
+  static String _sanitize(String text) {
+    return text
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('‘', "'")
+        .replaceAll('’', "'")
+        .replaceAll('—', ' - ')
+        .replaceAll('–', '-')
+        .replaceAll('…', '...')
+        .replaceAll('•', '*')
+        .replaceAll('★', '*')
+        .replaceAll('✓', '[x]')
+        .replaceAll('✔', '[x]')
+        .replaceAll(RegExp(r'[^\x00-\xFF]'), '');
+  }
+
   List<pw.Widget> render(List<md.Node> nodes) {
     final List<pw.Widget> widgets = [];
     for (final node in nodes) {
-      final widget = _renderNode(node);
-      if (widget != null) {
-        widgets.add(widget);
-      }
+      _renderNodeInto(node, widgets);
     }
     return widgets;
   }
 
-  pw.Widget? _renderNode(md.Node node) {
+  void _renderNodeInto(md.Node node, List<pw.Widget> out) {
     if (node is md.Text) {
-      return pw.Paragraph(
-        text: node.text,
-        style: const pw.TextStyle(fontSize: 11),
-      );
+      final sanitized = _sanitize(node.text).trim();
+      if (sanitized.isNotEmpty) {
+        out.add(pw.Paragraph(
+          text: sanitized,
+          style: const pw.TextStyle(fontSize: 10.5, lineSpacing: 1.4),
+        ));
+      }
     } else if (node is md.Element) {
       switch (node.tag) {
         case 'h1':
-          return _renderHeader(node, 24, pw.FontWeight.bold, 16);
+          out.add(_renderHeader(node, 18, pw.FontWeight.bold, 10));
+          break;
         case 'h2':
-          return _renderHeader(node, 18, pw.FontWeight.bold, 12);
+          out.add(_renderHeader(node, 15, pw.FontWeight.bold, 8));
+          break;
         case 'h3':
-          return _renderHeader(node, 14, pw.FontWeight.bold, 10);
+          out.add(_renderHeader(node, 13, pw.FontWeight.bold, 6));
+          break;
         case 'h4':
         case 'h5':
         case 'h6':
-          return _renderHeader(node, 12, pw.FontWeight.bold, 8);
+          out.add(_renderHeader(node, 11, pw.FontWeight.bold, 4));
+          break;
         case 'p':
-          return pw.Container(
-            margin: const pw.EdgeInsets.only(bottom: 8),
-            child: pw.RichText(
-              text: pw.TextSpan(
-                style: const pw.TextStyle(fontSize: 11, lineSpacing: 2),
-                children: _renderInlineSpans(node.children ?? []),
+          final spans = _renderInlineSpans(node.children ?? []);
+          if (spans.isNotEmpty) {
+            out.add(pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 6),
+              child: pw.RichText(
+                text: pw.TextSpan(
+                  style: const pw.TextStyle(fontSize: 10.5, lineSpacing: 1.5),
+                  children: spans,
+                ),
               ),
-            ),
-          );
+            ));
+          }
+          break;
         case 'ul':
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: (node.children ?? [])
-                .map((li) => _renderListItem(li, isOrdered: false))
-                .toList(),
-          );
+          for (final li in (node.children ?? [])) {
+            final item = _renderListItem(li, isOrdered: false);
+            if (item != null) out.add(item);
+          }
+          break;
         case 'ol':
           int index = 1;
-          final listItems = <pw.Widget>[];
           for (final li in (node.children ?? [])) {
-            listItems.add(_renderListItem(li, isOrdered: true, index: index++));
+            final item = _renderListItem(li, isOrdered: true, index: index++);
+            if (item != null) out.add(item);
           }
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: listItems,
-          );
+          break;
         case 'blockquote':
-          return pw.Container(
-            decoration: const pw.BoxDecoration(
-              border: pw.Border(
-                  left: pw.BorderSide(color: PdfColors.grey400, width: 3)),
-            ),
-            padding: const pw.EdgeInsets.only(left: 12, top: 4, bottom: 4),
-            margin: const pw.EdgeInsets.only(bottom: 12, top: 4),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: (node.children ?? [])
-                  .map((child) => _renderNode(child))
-                  .whereType<pw.Widget>()
-                  .toList(),
-            ),
-          );
-        case 'pre':
-          final codeText = node.textContent.trim();
-          return pw.Container(
-            width: double.infinity,
-            decoration: const pw.BoxDecoration(
-              color: PdfColors.grey100,
-              borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
-            ),
-            padding: const pw.EdgeInsets.all(8),
-            margin: const pw.EdgeInsets.only(bottom: 12),
-            child: pw.Text(
-              codeText,
-              style: pw.TextStyle(
-                font: pw.Font.courier(),
-                fontSize: 9,
-                color: PdfColors.grey800,
+          final blockChildren = <pw.Widget>[];
+          for (final child in (node.children ?? [])) {
+            _renderNodeInto(child, blockChildren);
+          }
+          for (final w in blockChildren) {
+            out.add(pw.Container(
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                    left: pw.BorderSide(color: PdfColors.blueGrey400, width: 3)),
               ),
-            ),
-          );
+              padding: const pw.EdgeInsets.only(left: 8, top: 2, bottom: 2),
+              margin: const pw.EdgeInsets.only(bottom: 4, top: 2),
+              child: w,
+            ));
+          }
+          break;
+        case 'pre':
+          final codeText = _sanitize(node.textContent.trim());
+          if (codeText.isNotEmpty) {
+            out.add(pw.Container(
+              width: double.infinity,
+              decoration: const pw.BoxDecoration(
+                color: PdfColors.grey100,
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+              ),
+              padding: const pw.EdgeInsets.all(6),
+              margin: const pw.EdgeInsets.only(bottom: 6),
+              child: pw.Text(
+                codeText,
+                style: pw.TextStyle(
+                  font: pw.Font.courier(),
+                  fontSize: 8.5,
+                  color: PdfColors.grey800,
+                ),
+              ),
+            ));
+          }
+          break;
         case 'hr':
-          return pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(vertical: 16),
+          out.add(pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(vertical: 8),
             child: pw.Divider(color: PdfColors.grey300, thickness: 1),
-          );
+          ));
+          break;
         default:
           if (node.children != null && node.children!.isNotEmpty) {
-            return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: node.children!
-                  .map((child) => _renderNode(child))
-                  .whereType<pw.Widget>()
-                  .toList(),
-            );
+            for (final child in node.children!) {
+              _renderNodeInto(child, out);
+            }
           }
       }
     }
-    return null;
   }
 
   pw.Widget _renderHeader(md.Element node, double fontSize,
       pw.FontWeight fontWeight, double bottomMargin) {
     return pw.Container(
-      margin: pw.EdgeInsets.only(top: 16, bottom: bottomMargin),
+      margin: pw.EdgeInsets.only(top: 10, bottom: bottomMargin),
       child: pw.RichText(
         text: pw.TextSpan(
-          style: pw.TextStyle(fontSize: fontSize, fontWeight: fontWeight),
+          style: pw.TextStyle(
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            color: PdfColors.blue900,
+          ),
           children: _renderInlineSpans(node.children ?? []),
         ),
       ),
     );
   }
 
-  pw.Widget _renderListItem(md.Node node,
+  pw.Widget? _renderListItem(md.Node node,
       {required bool isOrdered, int? index}) {
     if (node is! md.Element || node.tag != 'li') {
-      final childWidget = _renderNode(node);
-      return childWidget ?? pw.SizedBox();
+      final list = <pw.Widget>[];
+      _renderNodeInto(node, list);
+      return list.isNotEmpty ? list.first : null;
     }
 
     final childrenSpans = _renderInlineSpans(node.children ?? []);
+    if (childrenSpans.isEmpty) return null;
 
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(left: 12, bottom: 4),
+      padding: const pw.EdgeInsets.only(left: 8, bottom: 3),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Container(
             width: 16,
-            padding: const pw.EdgeInsets.only(top: 4),
+            padding: const pw.EdgeInsets.only(top: 1.5),
             child: isOrdered
-                ? pw.Text('$index.', style: const pw.TextStyle(fontSize: 11))
+                ? pw.Text('$index.',
+                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800))
                 : pw.Bullet(),
           ),
           pw.Expanded(
             child: pw.RichText(
               text: pw.TextSpan(
-                style: const pw.TextStyle(fontSize: 11),
+                style: const pw.TextStyle(fontSize: 10, lineSpacing: 1.4),
                 children: childrenSpans,
               ),
             ),
@@ -2316,7 +2342,7 @@ class MarkdownPdfRenderer {
   void _renderInlineNode(
       md.Node node, List<pw.InlineSpan> spans, pw.TextStyle style) {
     if (node is md.Text) {
-      spans.add(pw.TextSpan(text: node.text, style: style));
+      spans.add(pw.TextSpan(text: _sanitize(node.text), style: style));
     } else if (node is md.Element) {
       switch (node.tag) {
         case 'strong':
@@ -2336,7 +2362,7 @@ class MarkdownPdfRenderer {
             font: pw.Font.courier(),
             color: PdfColors.red700,
           );
-          spans.add(pw.TextSpan(text: node.textContent, style: newStyle));
+          spans.add(pw.TextSpan(text: _sanitize(node.textContent), style: newStyle));
           break;
         case 'a':
           final newStyle = style.copyWith(
@@ -2432,16 +2458,10 @@ class HtmlPdfRenderer {
           ));
           break;
         case 'ul':
-          widgets.add(pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: _parseListItems(content, isOrdered: false),
-          ));
+          widgets.addAll(_parseListItems(content, isOrdered: false));
           break;
         case 'ol':
-          widgets.add(pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: _parseListItems(content, isOrdered: true),
-          ));
+          widgets.addAll(_parseListItems(content, isOrdered: true));
           break;
         case 'blockquote':
           widgets.add(pw.Container(

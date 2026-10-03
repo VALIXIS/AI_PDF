@@ -7,6 +7,7 @@ import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/ai_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
+import 'package:pdf_ai_toolkit/services/ad_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
@@ -207,10 +208,19 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: _isBusy ? null : _exportSummaryToPdf,
-                        icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                        label: const Text(
-                          'Export Summary to PDF',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        icon: _isExportingPdf
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                        label: Text(
+                          _isExportingPdf ? 'Exporting...' : 'Export Summary to PDF',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -374,6 +384,53 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
               ),
             ],
           ),
+          if (_pageCount > 1) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.stars_rounded, color: Color(0xFF8B5CF6), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Multi-Page AI Document',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          AdService().isFeatureUnlocked(UnlockFeature.aiSummaries)
+                              ? '✨ Unlocked (${AdService().getRemainingMinutes(UnlockFeature.aiSummaries)}m remaining)'
+                              : 'Watch a quick video ad for free 1-hour access.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  WatchAdUnlockButton(
+                    feature: UnlockFeature.aiSummaries,
+                    onUnlocked: () => setState(() {}),
+                    customLabel: 'Watch Ad',
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -538,6 +595,19 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
       return;
     }
 
+    // Gate multi-page summaries with High-eCPM Rewarded Ad
+    if (_pageCount > 1 && !AdService().isFeatureUnlocked(UnlockFeature.aiSummaries)) {
+      final unlocked = await AdService().ensureFeatureUnlocked(
+        context,
+        feature: UnlockFeature.aiSummaries,
+        customPrompt:
+            'Unlock Gemini AI multi-page document intelligence for executive summaries & action items.',
+      );
+      if (!unlocked) {
+        return;
+      }
+    }
+
     setState(() {
       _isGeneratingSummary = true;
       _errorMessage = null;
@@ -587,6 +657,19 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
   Future<void> _exportSummaryToPdf() async {
     if (_summaryMarkdown == null || _summaryMarkdown!.trim().isEmpty) return;
 
+    final isUnlocked = AdService().isFeatureUnlocked(UnlockFeature.aiSummaries) ||
+        AdService().isFeatureUnlocked(UnlockFeature.vectorExport);
+
+    if (!isUnlocked) {
+      final unlocked = await AdService().ensureFeatureUnlocked(
+        context,
+        feature: UnlockFeature.vectorExport,
+        customPrompt:
+            'Watch a short video ad to unlock crisp High-Resolution Vector PDF Export for 1 hour.',
+      );
+      if (!unlocked) return;
+    }
+
     setState(() {
       _isExportingPdf = true;
       _errorMessage = null;
@@ -617,6 +700,14 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
         _exportedPdfPath = pdfPath;
         _isExportingPdf = false;
       });
+
+      // Prompt to save / open / share the exported summary PDF
+      ShareService.promptAndSaveFileDirectToDownloads(
+        context,
+        sourcePath: pdfPath,
+        defaultPrefix: 'ExecutiveSummary',
+        dialogTitle: 'Save Summary PDF',
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {

@@ -8,6 +8,7 @@ import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
+import 'package:pdf_ai_toolkit/services/ad_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
@@ -124,6 +125,17 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
         _errorMessage = 'Please select at least one image.';
       });
       return;
+    }
+
+    // Gate High 300 DPI Vector Export
+    if (_qualitySliderValue == 2 && !AdService().isFeatureUnlocked(UnlockFeature.vectorExport)) {
+      final unlocked = await AdService().ensureFeatureUnlocked(
+        context,
+        feature: UnlockFeature.vectorExport,
+        customPrompt:
+            'Watch a short video ad to unlock 300 DPI High-Resolution Vector Export for 1 hour.',
+      );
+      if (!unlocked) return;
     }
 
     setState(() {
@@ -307,6 +319,42 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                           style: TextStyle(fontSize: 11, color: sub)),
                     ],
                   ),
+                  if (_qualitySliderValue == 2) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFF0EA5E9).withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.high_quality_rounded,
+                              color: Color(0xFF0EA5E9), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                                  ? '✨ High-Res Vector Export Unlocked (${AdService().getRemainingMinutes(UnlockFeature.vectorExport)}m left)'
+                                  : '300 DPI Ultra Vector Mode (High-eCPM Feature)',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          WatchAdUnlockButton(
+                            feature: UnlockFeature.vectorExport,
+                            onUnlocked: () => setState(() {}),
+                            customLabel: 'Unlock Free',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const Divider(height: 24),
 
                   // Page Size Selection

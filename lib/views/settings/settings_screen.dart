@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary;
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/analytics_service.dart';
+import 'package:pdf_ai_toolkit/services/ad_service.dart';
 import 'package:pdf_ai_toolkit/views/settings/privacy_policy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -244,6 +245,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: 'Multi-Format Understanding',
                       subtitle: 'Full PDF, DOCX, and TXT contextual extraction',
                       isLast: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // ── Rewarded Ads & High-eCPM Pass ───────────────────────
+              _SectionHeader(label: 'REWARDED ADS & PREMIUM UNLOCKS', color: sectionColor),
+              Container(
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF14141E) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF1F1F2E)
+                          : const Color(0xFFE5E7EB)),
+                ),
+                child: Column(
+                  children: [
+                    _SettingsTile(
+                      icon: Icons.high_quality_rounded,
+                      iconColor: const Color(0xFF0EA5E9),
+                      title: 'High-Res Vector Export',
+                      subtitle: AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                          ? '✨ Unlocked (${AdService().getRemainingMinutes(UnlockFeature.vectorExport)}m left)'
+                          : 'Watch ad for 1-hour 300 DPI vector pass',
+                      trailing: AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                          ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20)
+                          : const Icon(Icons.play_circle_filled_rounded, color: Color(0xFF8B5CF6), size: 22),
+                      onTap: () async {
+                        await AdService().showRewardedVideoAd(
+                          context: context,
+                          featureToUnlock: UnlockFeature.vectorExport,
+                          onRewarded: () => setState(() {}),
+                        );
+                      },
+                    ),
+                    _SettingsTile(
+                      icon: Icons.auto_awesome_rounded,
+                      iconColor: const Color(0xFF8B5CF6),
+                      title: 'Multi-Page AI Summaries',
+                      subtitle: AdService().isFeatureUnlocked(UnlockFeature.aiSummaries)
+                          ? '✨ Unlocked (${AdService().getRemainingMinutes(UnlockFeature.aiSummaries)}m left)'
+                          : 'Watch ad for 1-hour multi-page AI pass',
+                      trailing: AdService().isFeatureUnlocked(UnlockFeature.aiSummaries)
+                          ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20)
+                          : const Icon(Icons.play_circle_filled_rounded, color: Color(0xFF8B5CF6), size: 22),
+                      isLast: true,
+                      onTap: () async {
+                        await AdService().showRewardedVideoAd(
+                          context: context,
+                          featureToUnlock: UnlockFeature.aiSummaries,
+                          onRewarded: () => setState(() {}),
+                        );
+                      },
                     ),
                   ],
                 ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/ad_service.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
 
 class ShareService {
@@ -834,6 +835,70 @@ class ShareService {
                       ]),
                     ),
                   ),
+
+                  // Watch Ad to Unlock High-Resolution Vector Export Pass
+                  if (ext == '.pdf') ...[
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await AdService().showRewardedVideoAd(
+                          context: context,
+                          featureToUnlock: UnlockFeature.vectorExport,
+                          onRewarded: () {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✨ High-Resolution Vector Export Pass Active for 1 Hour!'),
+                                  backgroundColor: Color(0xFF16A34A),
+                                ),
+                              );
+                            }
+                          },
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.35)),
+                          borderRadius: BorderRadius.circular(16),
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.stars_rounded, color: Color(0xFF8B5CF6), size: 26),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                                        ? '✨ High-Res Vector Pass Active'
+                                        : 'Watch Ad for Free High-Res Pass',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF8B5CF6),
+                                    ),
+                                  ),
+                                  Text(
+                                    AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                                        ? '${AdService().getRemainingMinutes(UnlockFeature.vectorExport)}m remaining for 300 DPI exports'
+                                        : 'Unlock 1 hour of unlimited 300 DPI vector exports',
+                                    style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.play_circle_filled_rounded, color: Color(0xFF8B5CF6)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
