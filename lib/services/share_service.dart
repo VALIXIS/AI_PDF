@@ -4,7 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/ad_service.dart';
-import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
+import 'package:pdf_ai_toolkit/views/viewer/pdf_document_viewer_screen.dart';
 
 class ShareService {
   /// Saves a file directly to a user-selected destination using the native system
@@ -257,7 +257,7 @@ class ShareService {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Download Complete',
+                    'Saved to Device',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -276,7 +276,24 @@ class ShareService {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
+            TextButton(
+              onPressed: () {
+                messenger.hideCurrentSnackBar();
+                shareFile(context, filePath: savedPath);
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text(
+                'SHARE',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 6),
             TextButton(
               onPressed: () {
                 messenger.hideCurrentSnackBar();
@@ -289,12 +306,12 @@ class ShareService {
               style: TextButton.styleFrom(
                 backgroundColor: const Color(0xFF22C55E),
                 foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text(
-                'OPEN',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                'VIEW',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
               ),
             ),
           ],
@@ -303,7 +320,7 @@ class ShareService {
     );
   }
 
-  /// Opens the downloaded file appropriately based on its type (PDF in editor/viewer, Image preview, ZIP details, Text preview).
+  /// Opens the downloaded file appropriately based on its type (PDF in read-only viewer, Image preview, ZIP details, Text preview).
   static void openDownloadedFile(BuildContext context, String filePath) {
     if (!context.mounted) return;
     final ext = FileService().getExtension(filePath).toLowerCase();
@@ -311,7 +328,7 @@ class ShareService {
     if (ext == '.pdf') {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => PdfEditorScreen(initialFilePath: filePath),
+          builder: (_) => PdfDocumentViewerScreen(filePath: filePath),
         ),
       );
     } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'].contains(ext)) {
@@ -403,7 +420,7 @@ class ShareService {
     }
   }
 
-  /// Prompts the user with an optional custom filename input dialog, then saves directly to Downloads/AIPDFMaker.
+  /// Saves directly to Downloads/AIPDFMaker and displays the Chrome-style notification with Share and View options.
   static Future<String?> promptAndSaveFileDirectToDownloads(
     BuildContext context, {
     required String sourcePath,
@@ -425,112 +442,18 @@ class ShareService {
     }
 
     final ext = fileService.getExtension(sourcePath).toLowerCase();
+    final cleanExt =
+        ext.startsWith('.') ? ext.substring(1) : (ext.isNotEmpty ? ext : 'pdf');
+
     final defaultGeneratedName = fileService.generateTimestampedFileName(
       prefix: defaultPrefix ?? 'AIPDF',
-      extension: ext.startsWith('.') ? ext.substring(1) : (ext.isNotEmpty ? ext : 'pdf'),
+      extension: cleanExt,
     );
 
-    final textController = TextEditingController(text: defaultGeneratedName);
-    if (!context.mounted) return null;
-
-    final confirmedName = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.download_rounded, color: Color(0xFF10B981), size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  dialogTitle ?? 'Save PDF to Downloads',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter filename or save with default timestamp:',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: textController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: 'File Name',
-                  hintText: 'e.g. My_Certificate.pdf',
-                  filled: true,
-                  fillColor: isDark ? const Color(0xFF14141E) : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  prefixIcon: const Icon(Icons.description_outlined),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.folder_outlined, size: 14, color: Colors.grey[500]),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Saved directly to: Downloads/AIPDFMaker',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                final name = textController.text.trim();
-                Navigator.pop(ctx, name.isNotEmpty ? name : defaultGeneratedName);
-              },
-              icon: const Icon(Icons.save_alt_rounded, size: 18),
-              label: const Text('Save File', style: TextStyle(fontWeight: FontWeight.w700)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmedName == null) {
-      return null;
-    }
-
+    // Save directly to public Downloads directory immediately without blocking dialog
     String? savedPath = await saveFileDirectToPublicDownloads(
       sourcePath: sourcePath,
-      customFileName: confirmedName,
+      customFileName: defaultGeneratedName,
     );
 
     // Fallback to native system destination saver if direct filesystem write fails
@@ -538,7 +461,7 @@ class ShareService {
       savedPath = await saveFileToUserDestination(
         context,
         sourcePath: sourcePath,
-        suggestedFileName: confirmedName,
+        suggestedFileName: defaultGeneratedName,
       );
     } else if (savedPath != null && context.mounted) {
       showChromeDownloadBanner(

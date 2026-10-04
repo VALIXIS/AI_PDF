@@ -42,8 +42,8 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
     expect(find.text('APPEARANCE'), findsOneWidget);
     expect(find.text('Dark Mode'), findsOneWidget);
-    expect(find.text('AI ASSISTANT'), findsOneWidget);
-    expect(find.text('AI Provider Engine'), findsOneWidget);
+    expect(find.text('AI ASSISTANT'), findsNothing);
+    expect(find.text('AI Provider Engine'), findsNothing);
     expect(find.text('REWARDED ADS & PREMIUM UNLOCKS'), findsOneWidget);
     expect(find.text('DATA & STORAGE'), findsOneWidget);
     expect(find.text('History Records'), findsOneWidget);

@@ -259,14 +259,10 @@ void main() {
         () async {
       final hugePath = '$tempDirPath/huge_rotate.pdf';
       final file = File(hugePath);
-      final sink = file.openWrite();
-      sink.add(List<int>.generate(
-          1024, (i) => i == 100 ? 0x25 : 0x00)); // contains %PDF-
-      final block = List<int>.filled(1024 * 1024, 0);
-      for (int i = 0; i < 51; i++) {
-        sink.add(block);
-      }
-      await sink.close();
+      final raf = await file.open(mode: FileMode.write);
+      await raf.writeFrom([0x25, 0x50, 0x44, 0x46, 0x2D]); // %PDF- magic bytes
+      await raf.truncate(101 * 1024 * 1024);
+      await raf.close();
 
       await expectLater(
         pdfService.rotatePdf(pdfPath: hugePath, rotationAngle: 90),
@@ -326,14 +322,10 @@ void main() {
         () async {
       final hugePath = '$tempDirPath/huge_compress.pdf';
       final file = File(hugePath);
-      final sink = file.openWrite();
-      sink.add(List<int>.generate(
-          1024, (i) => i == 100 ? 0x25 : 0x00)); // contains %PDF-
-      final block = List<int>.filled(1024 * 1024, 0);
-      for (int i = 0; i < 51; i++) {
-        sink.add(block);
-      }
-      await sink.close();
+      final raf = await file.open(mode: FileMode.write);
+      await raf.writeFrom([0x25, 0x50, 0x44, 0x46, 0x2D]); // %PDF- magic bytes
+      await raf.truncate(101 * 1024 * 1024);
+      await raf.close();
 
       await expectLater(
         pdfService.compressPdf(hugePath),

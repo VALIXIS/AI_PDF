@@ -595,17 +595,15 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
       return;
     }
 
-    // Gate multi-page summaries with High-eCPM Rewarded Ad
-    if (_pageCount > 1 && !AdService().isFeatureUnlocked(UnlockFeature.aiSummaries)) {
-      final unlocked = await AdService().ensureFeatureUnlocked(
-        context,
-        feature: UnlockFeature.aiSummaries,
-        customPrompt:
-            'Unlock Gemini AI multi-page document intelligence for executive summaries & action items.',
-      );
-      if (!unlocked) {
-        return;
-      }
+    // Always play ad before generating AI summary to conserve tokens and monetize
+    final adWatched = await AdService().showRewardedVideoAd(
+      context: context,
+      featureToUnlock: UnlockFeature.aiSummaries,
+      customRewardTitle: 'AI Executive Brief Generated',
+      onRewarded: () {},
+    );
+    if (!adWatched) {
+      return;
     }
 
     setState(() {

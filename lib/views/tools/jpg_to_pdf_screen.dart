@@ -11,7 +11,7 @@ import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/ad_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
-import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
+import 'package:pdf_ai_toolkit/views/viewer/pdf_document_viewer_screen.dart';
 
 class JpgToPdfScreen extends StatefulWidget {
   const JpgToPdfScreen({Key? key}) : super(key: key);
@@ -239,7 +239,7 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
-                              PdfEditorScreen(initialFilePath: _successPath!),
+                              PdfDocumentViewerScreen(filePath: _successPath!),
                         ),
                       );
                     },

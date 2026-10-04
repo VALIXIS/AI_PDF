@@ -19,10 +19,10 @@ class GeminiProvider implements AiProvider {
 
   // Model endpoints list for maximum API compatibility
   static const List<String> _modelEndpoints = [
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent',
   ];
 
   @override
@@ -114,18 +114,23 @@ Detailed Analysis & Comparison:''';
     final limitedPdfText = ContextHelper.limitText(pdfText, maxChars: 600000);
 
     final prompt =
-        '''You are an expert executive document analyst and summarizer. Analyze the provided multi-page document text and generate a comprehensive Executive Brief in clean, formatted Markdown.
+        '''You are an expert senior executive document analyst and intelligence briefer. Analyze the provided document text thoroughly and produce a deep, highly insightful Executive Brief formatted in clean Markdown.
 
-Your summary MUST include the following 3 distinct sections with clear Markdown headers:
+Avoid generic placeholders, fluff, or superficial summaries. Extract concrete facts, exact metrics, named entities, key clauses, obligations, and strategic insights directly from the document.
+
+Structure your brief with these exact Markdown sections:
 
 # Executive Summary
-Provide a high-level executive summary of the document's main background, purpose, key findings, and core subject matter.
+Provide a comprehensive, authoritative 2-3 paragraph executive synthesis detailing the document's background, core objectives, pivotal findings, and overarching implications.
+
+## Key Findings & Core Takeaways
+- Highlight all critical facts, statistics, operational insights, and notable provisions as clear, substantive bullet points.
 
 ## Key Action Items
-- Provide clear, actionable bullet points highlighting mandatory tasks, decisions, requirements, and next steps outlined in the document.
+- Detail every mandatory decision, task, compliance requirement, or actionable follow-up mentioned in or required by the document.
 
 ## Critical Dates
-- List all critical deadlines, milestones, dates, or time-sensitive events mentioned in the document. (If no specific dates are present, explicitly state "No specific critical dates mentioned in document.")
+- List all specific deadlines, effective dates, milestones, or expiration dates identified in the text. (If no dates exist in the text, explicitly state "No specific critical dates mentioned in document.")
 
 --- DOCUMENT TEXT ---
 $limitedPdfText

@@ -13,7 +13,7 @@ import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
-import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
+import 'package:pdf_ai_toolkit/views/viewer/pdf_document_viewer_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class PdfSignatureOverlayScreen extends StatefulWidget {
@@ -507,8 +507,8 @@ class _PdfSignatureOverlayScreenState extends State<PdfSignatureOverlayScreen> {
                         onOpen: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => PdfEditorScreen(
-                                initialFilePath: _successPath!,
+                              builder: (_) => PdfDocumentViewerScreen(
+                                filePath: _successPath!,
                               ),
                             ),
                           );

@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
-import 'package:pdf_ai_toolkit/views/tools/pdf_editor_screen.dart';
+import 'package:pdf_ai_toolkit/views/viewer/pdf_document_viewer_screen.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -354,7 +354,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => PdfEditorScreen(initialFilePath: entry.filePath),
+          builder: (_) => PdfDocumentViewerScreen(filePath: entry.filePath),
         ),
       );
     } else if (ext == '.txt' || ext == '.md') {
