@@ -22,6 +22,7 @@ import 'package:pdf_ai_toolkit/views/tools/pdf_page_reorganizer_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_signature_overlay_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/ai_summarizer_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_form_filler_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/redaction_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -192,6 +193,14 @@ const List<ToolItem> appTools = [
     screen: ProtectPdfScreen(),
     category: 'Security',
   ),
+  ToolItem(
+    title: 'Redact PDF',
+    subtitle: 'Blackout sensitive content',
+    icon: Icons.find_replace_rounded,
+    color: Color(0xFF1E293B),
+    screen: RedactionScreen(),
+    category: 'Security',
+  ),
 
   // AI
   ToolItem(
@@ -244,6 +253,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
     'Convert',
     'Organize',
     'Edit',
+    'Security',
     'AI'
   ];
 

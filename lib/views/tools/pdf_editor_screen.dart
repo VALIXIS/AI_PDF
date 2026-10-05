@@ -104,7 +104,53 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       }
 
       final bytes = await file.readAsBytes();
-      final doc = await pdfx.PdfDocument.openData(bytes);
+      pdfx.PdfDocument? doc;
+      String? pdfPassword;
+
+      // Pre-check with Syncfusion to detect encryption across all platforms
+      bool isEncrypted = false;
+      try {
+        final sfCheck = sf.PdfDocument(inputBytes: bytes);
+        sfCheck.dispose();
+      } catch (sfErr) {
+        final sfErrStr = sfErr.toString().toLowerCase();
+        if (sfErrStr.contains('encrypted') ||
+            sfErrStr.contains('password') ||
+            sfErrStr.contains('invalid')) {
+          isEncrypted = true;
+        }
+      }
+
+      if (isEncrypted) {
+        if (!mounted) return;
+        pdfPassword = await _promptPasswordDialog(context);
+        if (pdfPassword != null && pdfPassword.isNotEmpty) {
+          try {
+            doc = await pdfx.PdfDocument.openData(bytes, password: pdfPassword);
+          } catch (e) {
+            throw Exception('Incorrect password provided for protected PDF.');
+          }
+        } else {
+          throw Exception('Password required to open protected PDF.');
+        }
+      } else {
+        try {
+          doc = await pdfx.PdfDocument.openData(bytes);
+        } catch (e) {
+          if (!mounted) return;
+          pdfPassword = await _promptPasswordDialog(context);
+          if (pdfPassword != null && pdfPassword.isNotEmpty) {
+            try {
+              doc = await pdfx.PdfDocument.openData(bytes, password: pdfPassword);
+            } catch (_) {
+              throw Exception('Incorrect password or corrupt PDF document.');
+            }
+          } else {
+            throw Exception('Failed to open PDF document: $e');
+          }
+        }
+      }
+
       final pdfCtrl = pdfx.PdfController(
         document: Future.value(doc),
         initialPage: 1,
@@ -113,7 +159,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       double pdfW = 595.2;
       double pdfH = 841.8;
       try {
-        final sfDoc = sf.PdfDocument(inputBytes: bytes);
+        final sfDoc = sf.PdfDocument(inputBytes: bytes, password: pdfPassword);
         if (sfDoc.pages.count > 0) {
           pdfW = sfDoc.pages[0].size.width;
           pdfH = sfDoc.pages[0].size.height;
@@ -127,7 +173,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _pdfBytes = bytes;
         _document = doc;
         _pdfController = pdfCtrl;
-        _pageCount = doc.pagesCount;
+        _pageCount = doc!.pagesCount;
         _currentPage = 0;
         _pdfPageWidth = pdfW;
         _pdfPageHeight = pdfH;
@@ -143,6 +189,85 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _errorMessage = 'Could not open PDF: $e';
       });
     }
+  }
+
+  Future<String?> _promptPasswordDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_rounded, color: Color(0xFFEF4444), size: 24),
+              const SizedBox(width: 10),
+              Text(
+                'Password Protected',
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This PDF document is encrypted. Enter password to unlock:',
+                style: TextStyle(
+                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                autofocus: true,
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Enter password',
+                  hintStyle: TextStyle(
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Unlock Document'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _reloadFromBytes(Uint8List newBytes, {int? targetPage}) async {
@@ -1129,6 +1254,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         child: LayoutBuilder(
           builder: (ctx, constraints) {
             return GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTapUp: _editMode
                   ? (details) {
                       final rx =
