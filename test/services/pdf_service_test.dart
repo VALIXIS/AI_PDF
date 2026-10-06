@@ -319,7 +319,10 @@ void main() {
     test('protectPdf encrypts PDF and returns output', () async {
       final protectedPath = await pdfService.protectPdf(
         pdfPath: sourcePdf,
-        password: 'TestPassword123',
+        userPassword: 'TestPassword123',
+        ownerPassword: 'OwnerPassword456',
+        allowPrinting: true,
+        allowCopying: false,
         customOutputPath: tempDir.path,
       );
 
@@ -334,6 +337,21 @@ void main() {
       } finally {
         doc.dispose();
       }
+    });
+
+    test('redactPdf rasterizes blackout rectangles onto PDF', () async {
+      final redactions = {
+        0: [const Rect.fromLTRB(0.1, 0.1, 0.5, 0.5)]
+      };
+      final redactedPath = await pdfService.redactPdf(
+        pdfPath: sourcePdf,
+        redactionsByPage: redactions,
+        customOutputPath: tempDir.path,
+      );
+
+      final file = File(redactedPath);
+      expect(await file.exists(), isTrue);
+      expect(await pdfService.getPdfPageCount(redactedPath), equals(1));
     });
   });
 
