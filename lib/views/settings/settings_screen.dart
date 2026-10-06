@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pdf_ai_toolkit/main.dart' show themeNotifier, kPrimary;
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
+import 'package:pdf_ai_toolkit/services/ad_service.dart';
 import 'package:pdf_ai_toolkit/views/settings/privacy_policy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -123,8 +123,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ── AI Assistant ──────────────────────────────────────────
-              _SectionHeader(label: 'AI ASSISTANT', color: sectionColor),
+
+
+              // ── Rewarded Ads & High-eCPM Pass ───────────────────────
+              _SectionHeader(label: 'REWARDED ADS & PREMIUM UNLOCKS', color: sectionColor),
               Container(
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF14141E) : Colors.white,
@@ -134,21 +136,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ? const Color(0xFF1F1F2E)
                           : const Color(0xFFE5E7EB)),
                 ),
-                child: const Column(
+                child: Column(
                   children: [
                     _SettingsTile(
-                      icon: Icons.auto_awesome_rounded,
-                      iconColor: Color(0xFF7C3AED),
-                      title: 'AI Provider Engine',
-                      subtitle:
-                          'Google Gemini 2.5 Flash (Resilient Fallback Active)',
+                      icon: Icons.high_quality_rounded,
+                      iconColor: const Color(0xFF0EA5E9),
+                      title: 'High-Res Vector Export',
+                      subtitle: AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                          ? '✨ Unlocked (${AdService().getRemainingMinutes(UnlockFeature.vectorExport)}m left)'
+                          : 'Watch ad for 1-hour 300 DPI vector pass',
+                      trailing: AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                          ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20)
+                          : const Icon(Icons.play_circle_filled_rounded, color: Color(0xFF8B5CF6), size: 22),
+                      onTap: () async {
+                        await AdService().showRewardedVideoAd(
+                          context: context,
+                          featureToUnlock: UnlockFeature.vectorExport,
+                          onRewarded: () => setState(() {}),
+                        );
+                      },
                     ),
                     _SettingsTile(
-                      icon: Icons.document_scanner_rounded,
-                      iconColor: Color(0xFF0284C7),
-                      title: 'Multi-Format Understanding',
-                      subtitle: 'Full PDF, DOCX, and TXT contextual extraction',
+                      icon: Icons.auto_awesome_rounded,
+                      iconColor: const Color(0xFF8B5CF6),
+                      title: 'Multi-Page AI Summaries',
+                      subtitle: AdService().isFeatureUnlocked(UnlockFeature.aiSummaries)
+                          ? '✨ Unlocked (${AdService().getRemainingMinutes(UnlockFeature.aiSummaries)}m left)'
+                          : 'Watch ad for 1-hour multi-page AI pass',
+                      trailing: AdService().isFeatureUnlocked(UnlockFeature.aiSummaries)
+                          ? const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 20)
+                          : const Icon(Icons.play_circle_filled_rounded, color: Color(0xFF8B5CF6), size: 22),
                       isLast: true,
+                      onTap: () async {
+                        await AdService().showRewardedVideoAd(
+                          context: context,
+                          featureToUnlock: UnlockFeature.aiSummaries,
+                          onRewarded: () => setState(() {}),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -193,6 +218,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 24),
 
+
+
               // ── About ────────────────────────────────────────────────
               _SectionHeader(label: 'ABOUT', color: sectionColor),
               Container(
@@ -217,7 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       title: 'AI PDF Maker',
-                      subtitle: 'Version 1.0.4+5 (Release Build)',
+                      subtitle: 'Version 1.0.6+7 (Play Store QA Build)',
                     ),
                     _SettingsTile(
                       icon: Icons.shield_rounded,

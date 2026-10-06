@@ -17,6 +17,13 @@ import 'package:pdf_ai_toolkit/views/tools/chat_with_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_to_image_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/markdown_to_pdf_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/html_to_pdf_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/signature_canvas_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_page_reorganizer_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_signature_overlay_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/ai_summarizer_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/pdf_form_filler_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/redaction_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/scan_filter_preview_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -72,6 +79,14 @@ const List<ToolItem> appTools = [
     category: 'Convert',
   ),
   ToolItem(
+    title: 'Scan Filters',
+    subtitle: 'Magic Color & Clean B&W',
+    icon: Icons.auto_awesome_rounded,
+    color: Color(0xFF10B981),
+    screen: ScanFilterPreviewScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
     title: 'PDF to Image',
     subtitle: 'Extract PNG pages',
     icon: Icons.collections_rounded,
@@ -97,6 +112,14 @@ const List<ToolItem> appTools = [
   ),
 
   // Organize
+  ToolItem(
+    title: 'Organize Pages',
+    subtitle: 'Reorder, rotate & delete',
+    icon: Icons.dashboard_customize_rounded,
+    color: Color(0xFF6366F1),
+    screen: PdfPageReorganizerScreen(),
+    category: 'Organize',
+  ),
   ToolItem(
     title: 'Merge PDF',
     subtitle: 'Combine multiple PDFs',
@@ -132,6 +155,22 @@ const List<ToolItem> appTools = [
 
   // Edit
   ToolItem(
+    title: 'Sign & Stamp PDF',
+    subtitle: 'Place signatures & stamps',
+    icon: Icons.draw_rounded,
+    color: Color(0xFF0284C7),
+    screen: PdfSignatureOverlayScreen(),
+    category: 'Edit',
+  ),
+  ToolItem(
+    title: 'Form Filler',
+    subtitle: 'Fill forms & annotate PDF',
+    icon: Icons.assignment_turned_in_rounded,
+    color: Color(0xFF10B981),
+    screen: PdfFormFillerScreen(),
+    category: 'Edit',
+  ),
+  ToolItem(
     title: 'PDF Editor',
     subtitle: 'Edit & annotate',
     icon: Icons.edit_document,
@@ -148,11 +187,27 @@ const List<ToolItem> appTools = [
     category: 'Edit',
   ),
   ToolItem(
+    title: 'E-Signature Pad',
+    subtitle: 'Sign & save digital signatures',
+    icon: Icons.draw_rounded,
+    color: Color(0xFF2563EB),
+    screen: SignatureCanvasScreen(),
+    category: 'Edit',
+  ),
+  ToolItem(
     title: 'Protect PDF',
     subtitle: 'Set PDF password',
     icon: Icons.lock_rounded,
     color: Color(0xFFEF4444),
     screen: ProtectPdfScreen(),
+    category: 'Security',
+  ),
+  ToolItem(
+    title: 'Redact PDF',
+    subtitle: 'Blackout sensitive content',
+    icon: Icons.find_replace_rounded,
+    color: Color(0xFF1E293B),
+    screen: RedactionScreen(),
     category: 'Security',
   ),
 
@@ -181,6 +236,14 @@ const List<ToolItem> appTools = [
     screen: ChatWithPdfScreen(),
     category: 'AI',
   ),
+  ToolItem(
+    title: 'AI Summarizer',
+    subtitle: 'Executive Brief & Actions',
+    icon: Icons.summarize_rounded,
+    color: Color(0xFFEC4899),
+    screen: AiSummarizerScreen(),
+    category: 'AI',
+  ),
 ];
 
 class ToolsScreen extends StatefulWidget {
@@ -199,6 +262,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
     'Convert',
     'Organize',
     'Edit',
+    'Security',
     'AI'
   ];
 

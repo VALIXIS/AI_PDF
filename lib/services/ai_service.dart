@@ -42,6 +42,11 @@ class AiService {
     );
   }
 
+  /// Generates an executive summary, key action items, and critical dates from PDF text
+  Future<String> generateExecutiveBrief({required String pdfText}) async {
+    return await _factory.generateExecutiveBrief(pdfText: pdfText);
+  }
+
   /// Legacy method for backward compatibility
   @Deprecated('Use generateText instead')
   Future<String> callAi(String prompt) async {

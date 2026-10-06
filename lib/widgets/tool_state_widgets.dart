@@ -51,11 +51,16 @@ class ToolErrorBanner extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      message,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: textCol.withValues(alpha: 0.9),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 120),
+                      child: SingleChildScrollView(
+                        child: Text(
+                          message,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: textCol.withValues(alpha: 0.9),
+                          ),
+                        ),
                       ),
                     ),
                   ],

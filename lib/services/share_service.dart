@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/ad_service.dart';
+import 'package:pdf_ai_toolkit/views/viewer/pdf_document_viewer_screen.dart';
 
 class ShareService {
   /// Saves a file directly to a user-selected destination using the native system
@@ -120,6 +122,7 @@ class ShareService {
 
     // If single file, use standard single-file save dialog
     if (validSources.length == 1) {
+      if (!context.mounted) return null;
       final saved = await saveFileToUserDestination(
         context,
         sourcePath: validSources.first,
@@ -254,7 +257,7 @@ class ShareService {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Download Complete',
+                    'Saved to Device',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -273,25 +276,42 @@ class ShareService {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
+            TextButton(
+              onPressed: () {
+                messenger.hideCurrentSnackBar();
+                shareFile(context, filePath: savedPath);
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text(
+                'SHARE',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 6),
             TextButton(
               onPressed: () {
                 messenger.hideCurrentSnackBar();
                 if (onOpen != null) {
                   onOpen();
                 } else {
-                  shareFile(context, filePath: savedPath, text: 'Here is the downloaded file.');
+                  openDownloadedFile(context, savedPath);
                 }
               },
               style: TextButton.styleFrom(
                 backgroundColor: const Color(0xFF22C55E),
                 foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text(
-                'OPEN',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                'VIEW',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
               ),
             ),
           ],
@@ -300,7 +320,107 @@ class ShareService {
     );
   }
 
-  /// Prompts the user with an optional custom filename input dialog, then saves directly to Downloads/AIPDFMaker.
+  /// Opens the downloaded file appropriately based on its type (PDF in read-only viewer, Image preview, ZIP details, Text preview).
+  static void openDownloadedFile(BuildContext context, String filePath) {
+    if (!context.mounted) return;
+    final ext = FileService().getExtension(filePath).toLowerCase();
+
+    if (ext == '.pdf') {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => PdfDocumentViewerScreen(filePath: filePath),
+        ),
+      );
+    } else if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'].contains(ext)) {
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppBar(
+                title: Text(
+                  FileService().getFileName(filePath),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.share_rounded),
+                    tooltip: 'Share Image',
+                    onPressed: () => shareFile(ctx, filePath: filePath),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Image.file(File(filePath), fit: BoxFit.contain),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (ext == '.zip') {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.folder_zip_rounded, color: Color(0xFF10B981)),
+              SizedBox(width: 8),
+              Text('ZIP Archive Saved'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('File: ${FileService().getFileName(filePath)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('Location: $filePath',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                shareFile(context, filePath: filePath, text: 'Here is my ZIP file.');
+              },
+              icon: const Icon(Icons.share_rounded, size: 16),
+              label: const Text('Share ZIP'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('File Saved'),
+          content: Text('File saved successfully at:\n$filePath'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          ],
+        ),
+      );
+    }
+  }
+
+  /// Saves directly to Downloads/AIPDFMaker and displays the Chrome-style notification with Share and View options.
   static Future<String?> promptAndSaveFileDirectToDownloads(
     BuildContext context, {
     required String sourcePath,
@@ -322,111 +442,18 @@ class ShareService {
     }
 
     final ext = fileService.getExtension(sourcePath).toLowerCase();
+    final cleanExt =
+        ext.startsWith('.') ? ext.substring(1) : (ext.isNotEmpty ? ext : 'pdf');
+
     final defaultGeneratedName = fileService.generateTimestampedFileName(
       prefix: defaultPrefix ?? 'AIPDF',
-      extension: ext.startsWith('.') ? ext.substring(1) : (ext.isNotEmpty ? ext : 'pdf'),
+      extension: cleanExt,
     );
 
-    final textController = TextEditingController(text: defaultGeneratedName);
-
-    final confirmedName = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final isDark = Theme.of(ctx).brightness == Brightness.dark;
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.download_rounded, color: Color(0xFF10B981), size: 24),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  dialogTitle ?? 'Save PDF to Downloads',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Enter filename or save with default timestamp:',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: textController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: 'File Name',
-                  hintText: 'e.g. My_Certificate.pdf',
-                  filled: true,
-                  fillColor: isDark ? const Color(0xFF14141E) : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  prefixIcon: const Icon(Icons.description_outlined),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.folder_outlined, size: 14, color: Colors.grey[500]),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Saved directly to: Downloads/AIPDFMaker',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                final name = textController.text.trim();
-                Navigator.pop(ctx, name.isNotEmpty ? name : defaultGeneratedName);
-              },
-              icon: const Icon(Icons.save_alt_rounded, size: 18),
-              label: const Text('Save File', style: TextStyle(fontWeight: FontWeight.w700)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmedName == null) {
-      return null;
-    }
-
+    // Save directly to public Downloads directory immediately without blocking dialog
     String? savedPath = await saveFileDirectToPublicDownloads(
       sourcePath: sourcePath,
-      customFileName: confirmedName,
+      customFileName: defaultGeneratedName,
     );
 
     // Fallback to native system destination saver if direct filesystem write fails
@@ -434,7 +461,7 @@ class ShareService {
       savedPath = await saveFileToUserDestination(
         context,
         sourcePath: sourcePath,
-        suggestedFileName: confirmedName,
+        suggestedFileName: defaultGeneratedName,
       );
     } else if (savedPath != null && context.mounted) {
       showChromeDownloadBanner(
@@ -529,6 +556,7 @@ class ShareService {
         }
       }
 
+      // ignore: deprecated_member_use
       await Share.shareXFiles(
         [XFile(filePath)],
         text: defaultShareText,
@@ -576,6 +604,7 @@ class ShareService {
     }
 
     try {
+      // ignore: deprecated_member_use
       await Share.shareXFiles(
         validFiles.map((p) => XFile(p)).toList(),
         text: text ?? 'Here are my files.',
@@ -729,6 +758,70 @@ class ShareService {
                       ]),
                     ),
                   ),
+
+                  // Watch Ad to Unlock High-Resolution Vector Export Pass
+                  if (ext == '.pdf') ...[
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await AdService().showRewardedVideoAd(
+                          context: context,
+                          featureToUnlock: UnlockFeature.vectorExport,
+                          onRewarded: () {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('✨ High-Resolution Vector Export Pass Active for 1 Hour!'),
+                                  backgroundColor: Color(0xFF16A34A),
+                                ),
+                              );
+                            }
+                          },
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.35)),
+                          borderRadius: BorderRadius.circular(16),
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.stars_rounded, color: Color(0xFF8B5CF6), size: 26),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                                        ? '✨ High-Res Vector Pass Active'
+                                        : 'Watch Ad for Free High-Res Pass',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF8B5CF6),
+                                    ),
+                                  ),
+                                  Text(
+                                    AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                                        ? '${AdService().getRemainingMinutes(UnlockFeature.vectorExport)}m remaining for 300 DPI exports'
+                                        : 'Unlock 1 hour of unlimited 300 DPI vector exports',
+                                    style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.play_circle_filled_rounded, color: Color(0xFF8B5CF6)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

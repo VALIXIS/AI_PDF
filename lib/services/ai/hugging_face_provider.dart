@@ -95,6 +95,29 @@ Detailed Analysis & Comparison:''';
     return await _callApi(prompt);
   }
 
+  @override
+  Future<String> generateExecutiveBrief({required String pdfText}) async {
+    final limitedPdfText = ContextHelper.limitText(pdfText, maxChars: 30000);
+
+    final prompt =
+        '''You are an expert executive document summarizer. Analyze the document text and generate an executive brief in clean Markdown.
+
+Format with headers:
+# Executive Summary
+## Key Action Items
+## Critical Dates
+
+--- DOCUMENT TEXT ---
+$limitedPdfText
+--- END DOCUMENT TEXT ---''';
+
+    if (!isConfigured) {
+      throw Exception('Hugging Face API key is not configured in .env');
+    }
+
+    return await _callApi(prompt);
+  }
+
   Future<String> _callApi(String prompt) async {
     final response = await http
         .post(

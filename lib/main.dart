@@ -1,13 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/views/splash/splash_screen.dart';
-import 'package:pdf_ai_toolkit/views/home/home_screen.dart';
 import 'package:pdf_ai_toolkit/views/history/history_screen.dart';
 import 'package:pdf_ai_toolkit/views/settings/settings_screen.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
+import 'package:pdf_ai_toolkit/services/analytics_service.dart';
 
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _mode = ThemeMode.light;
@@ -36,13 +37,13 @@ ThemeData get lightTheme => ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: kBgLight,
-      colorScheme: ColorScheme(
+      colorScheme: const ColorScheme(
         brightness: Brightness.light,
         primary: kPrimary,
         onPrimary: Colors.white,
-        secondary: const Color(0xFF0EA5E9),
+        secondary: Color(0xFF0EA5E9),
         onSecondary: Colors.white,
-        error: const Color(0xFFDC2626),
+        error: Color(0xFFDC2626),
         onError: Colors.white,
         surface: kCardLight,
         onSurface: kTextLight,
@@ -112,13 +113,13 @@ ThemeData get darkTheme => ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: kBgDark,
-      colorScheme: ColorScheme(
+      colorScheme: const ColorScheme(
         brightness: Brightness.dark,
         primary: kPrimaryDark,
         onPrimary: Colors.white,
-        secondary: const Color(0xFF38BDF8),
+        secondary: Color(0xFF38BDF8),
         onSecondary: Colors.white,
-        error: const Color(0xFFF87171),
+        error: Color(0xFFF87171),
         onError: Colors.white,
         surface: kCardDark,
         onSurface: kTextDark,
@@ -183,18 +184,26 @@ ThemeData get darkTheme => ThemeData(
 
 // ── Entry point ───────────────────────────────────────────────────────────
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await dotenv.load(fileName: '.env');
-  } catch (_) {}
-  await Hive.initFlutter();
-  Hive.registerAdapter(HistoryEntryAdapter());
-  await Hive.openBox<HistoryEntry>('historyBox');
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    FlutterError.onError = (FlutterErrorDetails details) {
+      AnalyticsService().logNonFatalException(details.exception, details.stack);
+    };
 
-  // Asynchronous background cleanup of orphaned temporary working files
-  FileService().cleanOrphanedTempFiles();
+    try {
+      await dotenv.load(fileName: '.env');
+    } catch (_) {}
+    await Hive.initFlutter();
+    Hive.registerAdapter(HistoryEntryAdapter());
+    await Hive.openBox<HistoryEntry>('historyBox');
 
-  runApp(const PdfAiToolkitApp());
+    // Asynchronous background cleanup of orphaned temporary working files
+    FileService().cleanOrphanedTempFiles();
+
+    runApp(const PdfAiToolkitApp());
+  }, (error, stack) {
+    AnalyticsService().logNonFatalException(error, stack);
+  });
 }
 
 class PdfAiToolkitApp extends StatefulWidget {

@@ -478,7 +478,7 @@ class AiActionDispatcher {
       // Create a password protected copy
       final outputPath = await _pdfService.protectPdf(
         pdfPath: pdfPath,
-        password: password,
+        userPassword: password,
       );
 
       final title = 'AI Protected · ${FileService().getFileName(pdfPath)}';

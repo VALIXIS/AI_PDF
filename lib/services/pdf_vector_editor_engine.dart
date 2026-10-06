@@ -137,9 +137,9 @@ class PdfVectorEditorEngine {
           // 1. Erase original text bounds with clean background
           final bgBrush = sf.PdfSolidBrush(
             sf.PdfColor(
-              backgroundColor.red,
-              backgroundColor.green,
-              backgroundColor.blue,
+              (backgroundColor.r * 255.0).round().clamp(0, 255),
+              (backgroundColor.g * 255.0).round().clamp(0, 255),
+              (backgroundColor.b * 255.0).round().clamp(0, 255),
             ),
           );
 
@@ -178,9 +178,9 @@ class PdfVectorEditorEngine {
 
           final textBrush = sf.PdfSolidBrush(
             sf.PdfColor(
-              fontColor.red,
-              fontColor.green,
-              fontColor.blue,
+              (fontColor.r * 255.0).round().clamp(0, 255),
+              (fontColor.g * 255.0).round().clamp(0, 255),
+              (fontColor.b * 255.0).round().clamp(0, 255),
             ),
           );
 
@@ -380,7 +380,11 @@ class PdfVectorEditorEngine {
       );
 
       final brush = sf.PdfSolidBrush(
-        sf.PdfColor(color.red, color.green, color.blue),
+        sf.PdfColor(
+          (color.r * 255.0).round().clamp(0, 255),
+          (color.g * 255.0).round().clamp(0, 255),
+          (color.b * 255.0).round().clamp(0, 255),
+        ),
       );
 
       page.graphics.drawString(
