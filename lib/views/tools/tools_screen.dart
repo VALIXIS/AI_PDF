@@ -23,6 +23,7 @@ import 'package:pdf_ai_toolkit/views/tools/pdf_signature_overlay_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/ai_summarizer_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_form_filler_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/redaction_screen.dart';
+import 'package:pdf_ai_toolkit/views/tools/scan_filter_preview_screen.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -75,6 +76,14 @@ const List<ToolItem> appTools = [
     icon: Icons.document_scanner_rounded,
     color: Color(0xFF059669),
     screen: CameraScanScreen(),
+    category: 'Convert',
+  ),
+  ToolItem(
+    title: 'Scan Filters',
+    subtitle: 'Magic Color & Clean B&W',
+    icon: Icons.auto_awesome_rounded,
+    color: Color(0xFF10B981),
+    screen: ScanFilterPreviewScreen(),
     category: 'Convert',
   ),
   ToolItem(
