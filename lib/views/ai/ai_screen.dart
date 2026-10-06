@@ -168,7 +168,7 @@ class _AiScreenState extends State<AiScreen> {
                       _previewText = null;
                       _errorMessage = null;
                     }),
-                    selectedColor: kPrimary.withOpacity(0.15),
+                    selectedColor: kPrimary.withValues(alpha: 0.15),
                     checkmarkColor: kPrimary,
                     labelStyle: TextStyle(
                       color: selected ? kPrimary : subtitleColor,
@@ -210,8 +210,8 @@ class _AiScreenState extends State<AiScreen> {
                   boxShadow: [
                     BoxShadow(
                       color: isDark
-                          ? Colors.black.withOpacity(0.25)
-                          : const Color(0xFF0F172A).withOpacity(0.04),
+                          ? Colors.black.withValues(alpha: 0.25)
+                          : const Color(0xFF0F172A).withValues(alpha: 0.04),
                       blurRadius: 12,
                       offset: const Offset(0, 3),
                     ),
@@ -242,10 +242,10 @@ class _AiScreenState extends State<AiScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDC2626).withOpacity(0.08),
+                    color: const Color(0xFFDC2626).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                        color: const Color(0xFFDC2626).withOpacity(0.25)),
+                        color: const Color(0xFFDC2626).withValues(alpha: 0.25)),
                   ),
                   child: Row(
                     children: [
@@ -386,8 +386,8 @@ class _AiScreenState extends State<AiScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kPrimary,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: kPrimary.withOpacity(0.35),
-                        disabledForegroundColor: Colors.white.withOpacity(0.6),
+                        disabledBackgroundColor: kPrimary.withValues(alpha: 0.35),
+                        disabledForegroundColor: Colors.white.withValues(alpha: 0.6),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),

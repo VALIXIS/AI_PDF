@@ -16,6 +16,7 @@ import 'package:pdf_ai_toolkit/services/ai_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_vector_editor_engine.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/views/tools/signature_canvas_screen.dart';
 
 class PdfEditorScreen extends StatefulWidget {
   final String? initialFilePath;
@@ -103,7 +104,53 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       }
 
       final bytes = await file.readAsBytes();
-      final doc = await pdfx.PdfDocument.openData(bytes);
+      pdfx.PdfDocument? doc;
+      String? pdfPassword;
+
+      // Pre-check with Syncfusion to detect encryption across all platforms
+      bool isEncrypted = false;
+      try {
+        final sfCheck = sf.PdfDocument(inputBytes: bytes);
+        sfCheck.dispose();
+      } catch (sfErr) {
+        final sfErrStr = sfErr.toString().toLowerCase();
+        if (sfErrStr.contains('encrypted') ||
+            sfErrStr.contains('password') ||
+            sfErrStr.contains('invalid')) {
+          isEncrypted = true;
+        }
+      }
+
+      if (isEncrypted) {
+        if (!mounted) return;
+        pdfPassword = await _promptPasswordDialog(context);
+        if (pdfPassword != null && pdfPassword.isNotEmpty) {
+          try {
+            doc = await pdfx.PdfDocument.openData(bytes, password: pdfPassword);
+          } catch (e) {
+            throw Exception('Incorrect password provided for protected PDF.');
+          }
+        } else {
+          throw Exception('Password required to open protected PDF.');
+        }
+      } else {
+        try {
+          doc = await pdfx.PdfDocument.openData(bytes);
+        } catch (e) {
+          if (!mounted) return;
+          pdfPassword = await _promptPasswordDialog(context);
+          if (pdfPassword != null && pdfPassword.isNotEmpty) {
+            try {
+              doc = await pdfx.PdfDocument.openData(bytes, password: pdfPassword);
+            } catch (_) {
+              throw Exception('Incorrect password or corrupt PDF document.');
+            }
+          } else {
+            throw Exception('Failed to open PDF document: $e');
+          }
+        }
+      }
+
       final pdfCtrl = pdfx.PdfController(
         document: Future.value(doc),
         initialPage: 1,
@@ -112,7 +159,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
       double pdfW = 595.2;
       double pdfH = 841.8;
       try {
-        final sfDoc = sf.PdfDocument(inputBytes: bytes);
+        final sfDoc = sf.PdfDocument(inputBytes: bytes, password: pdfPassword);
         if (sfDoc.pages.count > 0) {
           pdfW = sfDoc.pages[0].size.width;
           pdfH = sfDoc.pages[0].size.height;
@@ -126,7 +173,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _pdfBytes = bytes;
         _document = doc;
         _pdfController = pdfCtrl;
-        _pageCount = doc.pagesCount;
+        _pageCount = doc!.pagesCount;
         _currentPage = 0;
         _pdfPageWidth = pdfW;
         _pdfPageHeight = pdfH;
@@ -142,6 +189,85 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         _errorMessage = 'Could not open PDF: $e';
       });
     }
+  }
+
+  Future<String?> _promptPasswordDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.lock_rounded, color: Color(0xFFEF4444), size: 24),
+              const SizedBox(width: 10),
+              Text(
+                'Password Protected',
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This PDF document is encrypted. Enter password to unlock:',
+                style: TextStyle(
+                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                autofocus: true,
+                style: TextStyle(
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Enter password',
+                  hintStyle: TextStyle(
+                      color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                  filled: true,
+                  fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Unlock Document'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _reloadFromBytes(Uint8List newBytes, {int? targetPage}) async {
@@ -271,6 +397,107 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     }
   }
 
+  Future<void> _addSignature(double rx, double ry) async {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Add E-Signature',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.draw_rounded, color: Color(0xFF2563EB)),
+                title: const Text('Draw New Signature'),
+                subtitle: const Text('Sign on digital signature pad'),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                tileColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1E1E2D)
+                    : const Color(0xFFF1F5F9),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final bytes = await Navigator.push<Uint8List>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const SignatureCanvasScreen(returnSignature: true),
+                    ),
+                  );
+                  if (bytes != null && mounted) {
+                    _stampSignature(bytes, rx, ry);
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.folder_special_rounded,
+                    color: Color(0xFF8B5CF6)),
+                title: const Text('Saved Signatures'),
+                subtitle: const Text('Choose from your saved signatures'),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                tileColor: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF1E1E2D)
+                    : const Color(0xFFF1F5F9),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => SavedSignaturesSheet(
+                      onSignatureSelected: (sig) {
+                        Navigator.pop(context);
+                        _stampSignature(sig.pngBytes, rx, ry);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _stampSignature(Uint8List bytes, double rx, double ry) {
+    final ann = Annotation.image(
+      id: UniqueKey().toString(),
+      x: rx,
+      y: ry,
+      width: 0.35,
+      height: 0.12,
+      imageBytes: bytes,
+    );
+    setState(() {
+      _pageAnnotations.add(ann);
+      _selected = ann;
+      _activeTool = null;
+    });
+  }
+
   /// Opens the interactive In-Place Vector Text Editor Dialog for a detected text block.
   void _editDetectedTextBlock(PdfTextBlock block) {
     final textCtrl = TextEditingController(text: block.text);
@@ -351,11 +578,11 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                   // AI Restyler Section
                   ExpansionTile(
                     tilePadding: EdgeInsets.zero,
-                    title: Row(
+                    title: const Row(
                       children: [
-                        const Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6), size: 18),
-                        const SizedBox(width: 8),
-                        const Text(
+                        Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6), size: 18),
+                        SizedBox(width: 8),
+                        Text(
                           'AI Section Restyler / Polish',
                           style: TextStyle(
                             fontSize: 13,
@@ -922,6 +1149,16 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 onPressed: () => setState(() =>
                     _activeTool = _activeTool == 'image' ? null : 'image'),
               ),
+              IconButton(
+                icon: Icon(
+                  Icons.draw_rounded,
+                  color:
+                      _activeTool == 'signature' ? const Color(0xFF2563EB) : null,
+                ),
+                tooltip: 'Add E-Signature',
+                onPressed: () => setState(() =>
+                    _activeTool = _activeTool == 'signature' ? null : 'signature'),
+              ),
             ],
           ),
         ),
@@ -937,7 +1174,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Tap anywhere on Page ${_currentPage + 1} to place ${_activeTool == 'text' ? 'text' : 'an image'}',
+                    'Tap anywhere on Page ${_currentPage + 1} to place ${_activeTool == 'text' ? 'text' : _activeTool == 'signature' ? 'a signature' : 'an image'}',
                     style: TextStyle(
                         color: primary,
                         fontSize: 13,
@@ -1017,6 +1254,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
         child: LayoutBuilder(
           builder: (ctx, constraints) {
             return GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTapUp: _editMode
                   ? (details) {
                       final rx =
@@ -1029,6 +1267,8 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
                         _addText(rx, ry);
                       } else if (_activeTool == 'image') {
                         _addImage(rx, ry);
+                      } else if (_activeTool == 'signature') {
+                        _addSignature(rx, ry);
                       } else {
                         setState(() {
                           _selected = null;
