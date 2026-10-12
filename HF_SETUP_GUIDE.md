@@ -22,12 +22,12 @@ The PDF AI Toolkit has been updated to use **Hugging Face Inference API** instea
 Open `lib/services/ai_service.dart` and replace `YOUR_HF_API_KEY`:
 
 ```dart
-static const String _apiKey = 'hf_YOUR_ACTUAL_TOKEN_HERE';
+static const String _apiKey = 'hf_your_key_here';
 ```
 
 **Example:**
 ```dart
-static const String _apiKey = 'hf_aBcDeFgHiJkLmNoPqRsTuVwXyZ123456';
+static const String _apiKey = 'hf_sample_key_placeholder';
 ```
 
 ## How It Works
