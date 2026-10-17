@@ -1,270 +1,138 @@
-<!-- markdownlint-disable -->
+# 📄 PDF AI Toolkit (AI PDF Maker)
 
-# PDF AI Toolkit
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![AI Engine](https://img.shields.io/badge/Hugging%20Face-Inference%20API-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co)
+[![Storage](https://img.shields.io/badge/Hive-NoSQL%20Storage-F89820)](https://pub.dev/packages/hive)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A feature-rich Flutter mobile application for PDF manipulation and AI-powered text transformation.
+**PDF AI Toolkit** is a modern, cross-platform Flutter mobile application designed for intelligent document transformation and PDF file manipulation. It integrates Hugging Face Inference models with local client-side processing to convert raw unformatted text into styled, professional PDF notes, executive summaries, and cleaned-up transcripts, while providing a suite of offline PDF utility tools.
 
-## Features
+---
 
-### Core Tools
-- **AI to PDF** - Transform text using AI into formatted PDFs (Notes, Summary, Clean modes)
-- **AI Refine** - Polish and enhance text with AI capabilities
-- **Text to PDF** - Convert plain text into beautifully formatted PDFs
-- **Merge PDF** - Combine multiple PDF files into one
-- **Split PDF** - Extract specific page ranges from PDFs
-- **PDF to Text** - Extract text content from PDFs
-- **Compress PDF** - Reduce PDF file sizes
-- **History** - Access and manage all generated PDFs
+## 🌟 Key Features
 
-## Architecture
+### 🤖 AI-Powered Document Creation
+* **AI to PDF**: Intelligently restructures unformatted text into styled, publication-ready PDF documents.
+  * **Structured Notes Mode**: Synthesizes notes with key takeaways, conceptual outlines, and highlighted bullet lists.
+  * **Executive Summary Mode**: Distills verbose essays and articles into crisp, high-level summaries.
+  * **Clean Text Mode**: Fixes grammar, corrects punctuation, removes OCR artifacts, and polishes formatting.
+* **AI Text Refiner**: Real-time AI paraphrasing, tone shifting (Academic, Professional, Concise), and cleanup prior to export.
+* **Graceful Mock Fallback**: Includes simulated AI generation for offline testing or environments without active API tokens.
 
-The project follows a clean **MVC (Model-View-Controller)** architecture:
+### 🛠️ PDF Manipulation Suite
+* **Merge PDFs**: Combine multiple disparate PDF files into a single consolidated document with drag-and-drop reordering.
+* **Split PDFs**: Extract custom page ranges or individual leaves into distinct files.
+* **Text to PDF**: Direct vector rendering of raw text into formatted PDFs with custom typography, margins, and headings.
+* **PDF to Text Extraction**: Extract and preview textual content directly from imported PDF files.
+* **Compress PDF**: Optimize embedded image assets and compress document structures to minimize file size for sharing.
+
+### 💾 Local Document History & Management
+* **Instant Storage**: Backed by **Hive NoSQL**, storing PDF titles, file sizes, creation timestamps, and file system paths.
+* **In-App PDF Viewer & Printing**: Built-in visualizer with native Android/iOS print dialogs and system share sheets.
+* **Zero Cloud Lock-In**: All document processing occurs either directly in memory or through private API tokens.
+
+---
+
+## 🏛️ Architecture & Clean MVC
+
+The codebase adheres strictly to the **Model-View-Controller (MVC)** architectural design pattern:
 
 ```
 lib/
-├── models/                 # Data models
-│   └── history_entry.dart
-├── views/                  # UI screens
-│   ├── home/
-│   │   └── home_screen.dart
-│   ├── ai/
-│   │   └── ai_screen.dart
-│   ├── tools/
-│   │   ├── merge_pdf_screen.dart
-│   │   ├── split_pdf_screen.dart
-│   │   ├── text_to_pdf_screen.dart
-│   │   ├── pdf_to_text_screen.dart
-│   │   ├── compress_pdf_screen.dart
-│   │   └── ai_refine_screen.dart
-│   └── history/
-│       └── history_screen.dart
-├── controllers/            # Business logic
-│   └── ai_controller.dart
-├── services/              # API and database layer
-│   ├── ai_service.dart
-│   ├── pdf_service.dart
-│   ├── file_service.dart
-│   └── storage_service.dart
-└── main.dart             # App entry point
+├── controllers/            # Reactive state management and business logic
+│   └── ai_controller.dart  # Manages prompt dispatch, loading states, and error handling
+├── models/                 # Data entities & Hive type adapters
+│   ├── history_entry.dart  # Model for generated PDF metadata
+│   └── history_entry.g.dart# Generated Hive adapter
+├── services/               # Core domain engines and device I/O
+│   ├── ai_service.dart     # Hugging Face Inference API client & fallback handlers
+│   ├── file_service.dart   # File picker, cross-platform paths, and storage permissions
+│   ├── pdf_service.dart    # PDF document builder (pdf & printing packages)
+│   └── storage_service.dart# Hive box lifecycle, CRUD operations, and caching
+├── views/                  # User Interface screens and dialogs
+│   ├── ai/                 # AI prompt input and generation preview screens
+│   ├── history/            # Saved PDF history list with swipe-to-delete
+│   ├── home/               # Central tool dashboard and navigation
+│   └── tools/              # Merge, split, compress, and conversion screens
+└── main.dart               # App initialization, service locators, and Hive bootstrap
 ```
 
-## Setup & Installation
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Flutter SDK (3.0+)
-- Dart SDK (3.0+)
-- Android Studio / Xcode (for emulator)
+* **Flutter SDK**: Version `3.0.0` or higher ([Install Flutter](https://flutter.dev/docs/get-started/install))
+* **Dart SDK**: Version `3.0.0` or higher
+* **Android Studio** or **VS Code** with Flutter & Dart extensions
+* **Java Development Kit (JDK 17+)** & Android SDK (for Android builds)
 
 ### Installation Steps
 
-1. **Get Flutter dependencies:**
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/VALIXIS/AI_PDF.git
+   cd AI_PDF
+   ```
+
+2. **Install Flutter Dependencies**
    ```bash
    flutter pub get
    ```
 
-2. **Run code generation (for Hive adapters):**
+3. **Configure Environment Variables**
+   Create a `.env` file in the project root based on `.env.example`:
    ```bash
-   flutter pub run build_runner build
+   cp .env.example .env
+   ```
+   Provide your Hugging Face API Token (optional for mock mode, required for live AI):
+   ```env
+   HF_API_KEY=your_hugging_face_token_here
+   HF_MODEL_ID=mistralai/Mistral-7B-Instruct-v0.2
    ```
 
-3. **Run the app:**
+4. **Generate Hive Adapters**
    ```bash
+   flutter pub run build_runner build --delete-conflicting-outputs
+   ```
+
+5. **Run the Application**
+   ```bash
+   # Run on connected Android device or emulator
    flutter run
    ```
 
-## Dependencies
+---
 
-- **pdf** (3.10.0) - PDF generation
-- **printing** (5.11.0) - PDF printing
-- **file_picker** (11.0.2) - File selection
-- **path_provider** (2.1.0) - Device path access
-- **hive** (2.2.3) - Local storage
-- **hive_flutter** (1.1.0) - Flutter Hive integration
-- **http** (1.1.0) - HTTP networking
-- **uuid** (4.0.0) - Unique ID generation
-- **intl** (0.19.0) - Internationalization
+## 📦 Key Dependencies
 
-## Key Components
+| Package | Version | Description |
+| :--- | :--- | :--- |
+| [`pdf`](https://pub.dev/packages/pdf) | `^3.10.0` | Vector PDF document creation and canvas layout |
+| [`printing`](https://pub.dev/packages/printing) | `^5.11.0` | Native platform printing, preview, and rasterization |
+| [`hive_flutter`](https://pub.dev/packages/hive_flutter) | `^1.1.0` | Lightweight, blazingly fast local key-value database |
+| [`file_picker`](https://pub.dev/packages/file_picker) | `^11.0.2` | Native system file selector for PDFs and documents |
+| [`path_provider`](https://pub.dev/packages/path_provider) | `^2.1.0` | Platform directory path resolution (Documents, Cache) |
+| [`http`](https://pub.dev/packages/http) | `^1.1.0` | HTTP requests to Hugging Face Inference REST endpoints |
+| [`intl`](https://pub.dev/packages/intl) | `^0.19.0` | Date formatting and locale-aware string helpers |
 
-### Models (`lib/models/`)
-- **HistoryEntry** - Stores metadata for generated PDFs
+---
 
-### Services (`lib/services/`)
+## 🧪 Testing & Quality
 
-#### AI Service (`ai_service.dart`)
-- Integrates with the Hugging Face Inference API for AI capabilities
-- Three prompt builders:
-  - `buildNotesPrompt()` - Structured notes format
-  - `buildSummaryPrompt()` - Concise summaries
-  - `buildCleanPrompt()` - Text refinement
-- Mock response fallback for testing without API key
-
-#### PDF Service (`pdf_service.dart`)
-- `generatePdfFromText()` - Create PDFs from formatted text
-- `mergePdfs()` - Combine multiple PDFs
-- `splitPdf()` - Extract page ranges
-- `compressPdf()` - Reduce file size
-
-#### File Service (`file_service.dart`)
-- File picker integration
-- File reading and metadata extraction
-- File deletion
-
-#### Storage Service (`storage_service.dart`)
-- Hive-based local storage
-- History CRUD operations
-- Query by date and tool type
-
-### Controllers (`lib/controllers/`)
-
-#### AI Controller (`ai_controller.dart`)
-- `processText()` - Calls AI service with selected mode
-- Mode management (Notes, Summary, Clean)
-- ID generation
-
-## Configuration
-
-### API Key Setup
-To use the AI features with real API responses:
-
-1. Create a `.env` file in the project root.
-2. Add your Hugging Face token:
-   ```env
-   HF_API_KEY=hf_your_token_here
-   ```
-3. Keep `.env` out of git. A tracked `.env.example` can be used as a template.
-
-Without an API key, the app falls back to mock responses so the rest of the app still works.
-
-## Design System
-
-The app uses **Material 3 design** with:
-- Dynamic color theming based on system settings
-- Consistent card-based layouts
-- Accessible error messaging
-- Loading indicators for async operations
-- Clean typography hierarchy
-
-## UI Features
-
-### Home Screen
-- 8-tool grid layout
-- Featured highlight for "AI to PDF" tool
-- Material 3 cards with descriptions
-
-### AI Screens
-- Large text input fields
-- Mode selection (filter chips)
-- Preview functionality
-- Real-time error handling
-- Loading states
-
-### History Screen
-- Chronological list of generated PDFs
-- Tool type badges
-- Quick actions (share, delete)
-- Clear history option
-
-## Error Handling
-
-The app implements comprehensive error handling:
-- Try-catch blocks for all async operations
-- User-friendly error messages
-- Graceful fallbacks
-- Loading indicators
-- Validation for empty inputs
-
-## State Management
-
-The app uses **StatefulWidget** for state management with:
-- Local widget state for UI control
-- Service-based data flow
-- Reactive updates
-
-For larger apps, consider migrating to Provider, Riverpod, or Bloc.
-
-## Running Tests
-
-To run tests (if added):
+To run unit and widget tests:
 ```bash
 flutter test
 ```
 
-## Building for Production
-
-### iOS
+To run static analysis and lint checks:
 ```bash
-flutter build ios
+flutter analyze
 ```
-
-### Android
-```bash
-flutter build apk
-```
-
-For Play Store releases, create `android/key.properties` from `android/key.properties.example` and point `storeFile` at your keystore. Release builds will use that signing config when present.
-
-### Web
-```bash
-flutter build web
-```
-
-## Known Limitations
-
-1. **PDF Text Extraction** - Requires additional libraries for advanced text extraction
-2. **PDF Merge/Split** - Basic implementation; advanced features require `pdf_service` enhancement
-3. **API Rate Limiting** - OpenRouter API has rate limits; implement caching for production
-4. **File Sharing** - Can be enhanced with `share_plus` package
-
-## Future Enhancements
-
-- [ ] Advanced PDF text extraction
-- [ ] Batch processing
-- [ ] File sharing via share_plus
-- [ ] OCR capabilities
-- [ ] Cloud storage integration
-- [ ] Offline mode
-- [ ] Multi-language support
-- [ ] Advanced compression algorithms
-
-## Troubleshooting
-
-### Hive Initialization Errors
-```
-Unregistered TypeId
-```
-Solution: Run `flutter pub run build_runner build`
-
-### File Picker Issues
-- Ensure permissions in AndroidManifest.xml
-- Check iOS Info.plist for document permissions
-
-### API Connection Issues
-- Verify `HF_API_KEY` is set correctly in `.env`
-- Check internet connectivity
-- Review the Hugging Face Inference API documentation
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Support
-
-For issues or questions:
-1. Check the troubleshooting section
-2. Review Flutter documentation
-3. Check OpenRouter API docs for AI-related issues
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Commit changes with clear messages
-4. Submit a pull request
 
 ---
 
-**Happy PDF crafting!** 📄✨
+## 📄 License
 
-<!-- markdownlint-enable -->
+This project is licensed under the [MIT License](LICENSE).
