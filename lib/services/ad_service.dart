@@ -56,7 +56,7 @@ extension UnlockFeatureExtension on UnlockFeature {
   }
 }
 
-/// High-eCPM Rewarded Video Ad & Feature Unlock Engine for AI PDF Maker.
+/// High-eCPM Rewarded Video Ad & Feature Unlock Engine for AI PDF Toolkit.
 class AdService {
   static final AdService _instance = AdService._internal();
   factory AdService() => _instance;

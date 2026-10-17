@@ -25,7 +25,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Privacy Policy for AI PDF Maker',
+              'Privacy Policy for AI PDF Toolkit',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -34,20 +34,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Last updated: October 18, 2026 (v1.1.0+21)',
+              'Last updated: October 18, 2026 (v1.1.0+22)',
               style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
             ),
             const SizedBox(height: 24),
             _buildSection(
               title: '1. Introduction',
               content:
-                  'Welcome to AI PDF Maker. We respect your privacy and are committed to protecting your personal data. This privacy policy informs you of how your data is handled when you use our application.',
+                  'Welcome to AI PDF Toolkit. We respect your privacy and are committed to protecting your personal data. This privacy policy informs you of how your data is handled when you use our application.',
               textCol: textCol,
             ),
             _buildSection(
               title: '2. Local Processing & Document Security',
               content:
-                  'AI PDF Maker is built with a strict local-first architecture. All document operations—including merging, splitting, compressing, editing, visual PDF redaction, password protection & permissions, form filling, and digital signatures—are performed LOCALLY on your device. We do not upload your documents to any external server.',
+                  'AI PDF Toolkit is built with a strict local-first architecture. All document operations—including merging, splitting, compressing, editing, visual PDF redaction, password protection & permissions, form filling, and digital signatures—are performed LOCALLY on your device. We do not upload your documents to any external server.',
               textCol: textCol,
             ),
             _buildSection(
@@ -65,7 +65,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildSection(
               title: '5. Play Store Compliance & Data Retention',
               content:
-                  'AI PDF Maker fully complies with Google Play Developer Policies and Scoped Storage mandates. Zero third-party advertising SDKs or tracking cookies are present. Temporary working files are automatically cleaned up.',
+                  'AI PDF Toolkit fully complies with Google Play Developer Policies and Scoped Storage mandates. Zero third-party advertising SDKs or tracking cookies are present. Temporary working files are automatically cleaned up.',
               textCol: textCol,
             ),
             _buildSection(

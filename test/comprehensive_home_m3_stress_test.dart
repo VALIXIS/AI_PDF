@@ -40,7 +40,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI PDF Maker'), findsOneWidget);
+      expect(find.text('AI PDF Toolkit'), findsOneWidget);
       expect(find.text('All Tools'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -55,7 +55,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI PDF Maker'), findsOneWidget);
+      expect(find.text('AI PDF Toolkit'), findsOneWidget);
       expect(find.text('All Tools'), findsOneWidget);
       expect(find.text('Convert & Organize'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -71,7 +71,7 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
       await tester.pumpAndSettle();
 
-      expect(find.text('AI PDF Maker'), findsOneWidget);
+      expect(find.text('AI PDF Toolkit'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -109,7 +109,7 @@ void main() {
 
       // Verify dark mode appearance
       expect(find.text('All Tools'), findsOneWidget);
-      expect(find.text('AI PDF Maker'), findsOneWidget);
+      expect(find.text('AI PDF Toolkit'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -177,7 +177,7 @@ void main() {
 
       // Card must recover to full size and stay on Home screen
       expect(find.text('AI to PDF'), findsOneWidget);
-      expect(find.text('AI PDF Maker'), findsWidgets);
+      expect(find.text('AI PDF Toolkit'), findsWidgets);
       expect(tester.takeException(), isNull);
     });
 
@@ -209,7 +209,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(MergePdfScreen), findsNothing);
-      expect(find.text('AI PDF Maker'), findsWidgets);
+      expect(find.text('AI PDF Toolkit'), findsWidgets);
     });
 
     testWidgets('Navigate to Camera Scan and return safely',
@@ -239,7 +239,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CameraScanScreen), findsNothing);
-      expect(find.text('AI PDF Maker'), findsWidgets);
+      expect(find.text('AI PDF Toolkit'), findsWidgets);
     });
 
     testWidgets('Navigate to AI Refine and return safely',
@@ -267,7 +267,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AiRefineScreen), findsNothing);
-      expect(find.text('AI PDF Maker'), findsWidgets);
+      expect(find.text('AI PDF Toolkit'), findsWidgets);
     });
   });
 }

@@ -1,7 +1,7 @@
 # QA Regression Audit Report
 
 **Date:** August 28, 2026  
-**Project:** AI PDF Maker (PDF AI Toolkit)  
+**Project:** AI PDF Toolkit (PDF AI Toolkit)  
 **Host Environment:** Windows (Local Run)  
 
 ---

@@ -134,7 +134,7 @@ void main() {
 
       // Verify returned to HomeScreen
       expect(find.byType(PdfEditorScreen), findsNothing);
-      expect(find.text('AI PDF Maker'), findsWidgets);
+      expect(find.text('AI PDF Toolkit'), findsWidgets);
     });
 
     testWidgets('AI Chat FloatingActionButton navigates cleanly',

@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  'AI PDF Maker',
+                  'AI PDF Toolkit',
                   style: TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w800,

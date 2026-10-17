@@ -48,7 +48,7 @@ void main() {
     expect(find.text('DATA & STORAGE'), findsOneWidget);
     expect(find.text('History Records'), findsOneWidget);
     expect(find.text('ABOUT'), findsOneWidget);
-    expect(find.text('AI PDF Maker'), findsOneWidget);
+    expect(find.text('AI PDF Toolkit'), findsOneWidget);
     expect(find.text('Privacy & Security'), findsOneWidget);
   });
 }

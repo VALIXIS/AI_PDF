@@ -1,7 +1,7 @@
 # QA Testing Baseline
 
 **Date:** 2026-08-18
-**Project:** AI PDF Maker
+**Project:** AI PDF Toolkit
 
 ## Fixed Today
 - **Widget Test Compilation/Assertion (`test/widget_test.dart`)**:

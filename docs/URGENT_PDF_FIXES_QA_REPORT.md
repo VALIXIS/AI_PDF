@@ -1,7 +1,7 @@
 # Urgent Production PDF Fixes — Comprehensive QA Report
 
 **Date:** September 2, 2026  
-**Project:** AI PDF Maker (PDF AI Toolkit)  
+**Project:** AI PDF Toolkit (PDF AI Toolkit)  
 **Branch:** `qa/urgent-pdf-fixes-verification`  
 **Target:** `develop`  
 

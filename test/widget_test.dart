@@ -46,7 +46,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 3));
 
     // Home screen is visible with grid categories
-    expect(find.text('AI PDF Maker'), findsWidgets);
+    expect(find.text('AI PDF Toolkit'), findsWidgets);
     expect(find.text('CONVERT'), findsOneWidget);
     expect(find.text('ORGANIZE'), findsOneWidget);
   });

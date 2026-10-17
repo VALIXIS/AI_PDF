@@ -1,6 +1,6 @@
 import 'dart:developer' as developer;
 
-/// Base exception class for all AI PDF Maker domain errors.
+/// Base exception class for all AI PDF Toolkit domain errors.
 abstract class AppException implements Exception {
   final String message;
   final String? code;
