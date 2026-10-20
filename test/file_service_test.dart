@@ -1,8 +1,21 @@
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  const MethodChannel channel =
+      MethodChannel('plugins.flutter.io/path_provider');
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    channel,
+    (MethodCall methodCall) async {
+      return Directory.systemTemp.path;
+    },
+  );
+
   group('FileService Platform-Safe Path Parsing & Missing-File Tests', () {
     final fileService = FileService();
 
@@ -247,6 +260,70 @@ void main() {
       } finally {
         await tempDir.delete(recursive: true);
       }
+    });
+
+    test('getScratchExportDirectory creates and returns accessible directory', () async {
+      final scratchDir = await fileService.getScratchExportDirectory();
+      expect(await scratchDir.exists(), isTrue);
+      expect(scratchDir.path, contains('aipdf_scratch_exports'));
+      expect(fileService.registeredScratchDirectories, contains(fileService.normalizePath(scratchDir.path)));
+    });
+
+    test('createScratchFilePath generates unique paths within scratch export directory', () async {
+      final p1 = await fileService.createScratchFilePath(prefix: 'img', extension: 'png');
+      final p2 = await fileService.createScratchFilePath(prefix: 'img', extension: '.png');
+      expect(p1, isNot(equals(p2)));
+      expect(p1, contains('aipdf_scratch_exports'));
+      expect(p1.endsWith('.png'), isTrue);
+    });
+
+    test('saveToScratchExport safely writes file and registers directory', () async {
+      final savedPath = await fileService.saveToScratchExport(
+        fileName: 'test_export.txt',
+        bytes: [72, 101, 108, 108, 111],
+      );
+      expect(await File(savedPath).exists(), isTrue);
+      expect(await File(savedPath).readAsString(), equals('Hello'));
+    });
+
+    test('registerScratchDirectory and unregisterScratchDirectory track external dirs', () {
+      const customPath = '/custom/temp/scratch_folder';
+      fileService.registerScratchDirectory(customPath);
+      expect(fileService.registeredScratchDirectories, contains(fileService.normalizePath(customPath)));
+
+      fileService.unregisterScratchDirectory(customPath);
+      expect(fileService.registeredScratchDirectories, isNot(contains(fileService.normalizePath(customPath))));
+    });
+
+    test('purgeScratchExportDirectories cleans all scratch export directories and files', () async {
+      // Create multiple scratch files in subdirectories
+      final f1 = await fileService.saveToScratchExport(
+        fileName: 'file1.pdf',
+        bytes: [1, 2, 3],
+        subDir: 'tool_split',
+      );
+      final f2 = await fileService.saveToScratchExport(
+        fileName: 'file2.png',
+        bytes: [4, 5, 6],
+        subDir: 'tool_images',
+      );
+
+      expect(await File(f1).exists(), isTrue);
+      expect(await File(f2).exists(), isTrue);
+
+      // Create an additional scratch directory
+      final customDir = await Directory.systemTemp.createTemp('additional_scratch_');
+      final customFile = File('${customDir.path}/extra.pdf');
+      await customFile.writeAsString('temporary');
+      expect(await customFile.exists(), isTrue);
+
+      final purged = await fileService.onToolOrViewerExit(
+        additionalScratchPaths: [customDir.path],
+      );
+      expect(purged, greaterThanOrEqualTo(3));
+      expect(await File(f1).exists(), isFalse);
+      expect(await File(f2).exists(), isFalse);
+      expect(await customFile.exists(), isFalse);
     });
   });
 }

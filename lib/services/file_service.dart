@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
@@ -654,9 +655,151 @@ class FileService {
     }
   }
 
+  static const String scratchExportDirName = 'aipdf_scratch_exports';
+  static const String altScratchExportDirName = 'scratch_exports';
+
+  final Set<String> _registeredScratchDirs = {};
+
+  /// Read-only view of registered scratch export directory paths
+  Set<String> get registeredScratchDirectories =>
+      Set.unmodifiable(_registeredScratchDirs);
+
+  /// Registers an external directory as a scratch directory to be purged on tool/viewer exit
+  void registerScratchDirectory(String dirPath) {
+    if (dirPath.trim().isNotEmpty) {
+      _registeredScratchDirs.add(normalizePath(dirPath));
+    }
+  }
+
+  /// Unregisters a previously registered scratch directory
+  void unregisterScratchDirectory(String dirPath) {
+    _registeredScratchDirs.remove(normalizePath(dirPath));
+  }
+
+  /// Resolves the dedicated scratch export directory for tools and viewer operations.
+  /// Automatically registers it for lifecycle purging on tool/viewer exit.
+  Future<Directory> getScratchExportDirectory({String? subDir}) async {
+    Directory baseDir;
+    try {
+      baseDir = await getTemporaryDirectory();
+    } catch (_) {
+      baseDir = Directory.systemTemp;
+    }
+
+    final scratchPath = subDir != null && subDir.isNotEmpty
+        ? path.join(baseDir.path, scratchExportDirName, subDir)
+        : path.join(baseDir.path, scratchExportDirName);
+
+    final dir = Directory(scratchPath);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    _registeredScratchDirs.add(normalizePath(dir.path));
+    return dir;
+  }
+
+  static int _scratchCounter = 0;
+
+  /// Generates a unique scratch file path inside the scratch export directory.
+  Future<String> createScratchFilePath({
+    String prefix = 'scratch',
+    required String extension,
+    String? subDir,
+  }) async {
+    final dir = await getScratchExportDirectory(subDir: subDir);
+    final ext = extension.startsWith('.') ? extension : '.$extension';
+    _scratchCounter++;
+    final fileName = '${prefix}_${DateTime.now().microsecondsSinceEpoch}_$_scratchCounter$ext';
+    return path.join(dir.path, fileName);
+  }
+
+  /// Saves bytes safely into the scratch export directory.
+  Future<String> saveToScratchExport({
+    required String fileName,
+    required List<int> bytes,
+    String? subDir,
+  }) async {
+    final dir = await getScratchExportDirectory(subDir: subDir);
+    final targetPath = path.join(dir.path, sanitizeFileName(fileName));
+    return await safeWriteBytes(targetPath, bytes, overwrite: true);
+  }
+
+  /// Purges all scratch export directories and temporary working files.
+  /// Invoked whenever the user exits any tool or viewer screen.
+  Future<int> purgeScratchExportDirectories({
+    List<String>? additionalPaths,
+  }) async {
+    int deletedCount = 0;
+    final Set<String> targetDirPaths = {};
+
+    // 1. Temporary directory scratch exports
+    try {
+      final tempDir = await getTemporaryDirectory();
+      targetDirPaths.add(path.join(tempDir.path, scratchExportDirName));
+      targetDirPaths.add(path.join(tempDir.path, altScratchExportDirName));
+    } catch (_) {}
+
+    // 2. Documents directory scratch exports (if any created by older operations)
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      targetDirPaths.add(path.join(docDir.path, scratchExportDirName));
+      targetDirPaths.add(path.join(docDir.path, altScratchExportDirName));
+    } catch (_) {}
+
+    // 3. System temp directory scratch exports
+    try {
+      targetDirPaths.add(path.join(Directory.systemTemp.path, scratchExportDirName));
+      targetDirPaths.add(path.join(Directory.systemTemp.path, altScratchExportDirName));
+    } catch (_) {}
+
+    // 4. Any registered scratch directories
+    targetDirPaths.addAll(_registeredScratchDirs);
+
+    // 5. Any caller-provided additional paths
+    if (additionalPaths != null) {
+      for (final p in additionalPaths) {
+        if (p.trim().isNotEmpty) targetDirPaths.add(normalizePath(p));
+      }
+    }
+
+    for (final dirPath in targetDirPaths) {
+      try {
+        final dir = Directory(dirPath);
+        if (await dir.exists()) {
+          await for (final entity in dir.list(recursive: true, followLinks: false)) {
+            try {
+              if (entity is File) {
+                await entity.delete();
+                deletedCount++;
+              }
+            } catch (_) {}
+          }
+          // Delete directory itself
+          try {
+            await dir.delete(recursive: true);
+            deletedCount++;
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+
+    _registeredScratchDirs.clear();
+    return deletedCount;
+  }
+
+  /// Lifecycle callback triggered whenever the user exits a tool or viewer.
+  Future<int> onToolOrViewerExit({List<String>? additionalScratchPaths}) async {
+    return await purgeScratchExportDirectories(
+      additionalPaths: additionalScratchPaths,
+    );
+  }
+
   /// Automatically cleans up temporary working files safely across platforms.
   Future<int> cleanupTempResources([List<String>? extraDirectories]) async {
     int deletedCount = 0;
+    // Purge scratch export directories first
+    deletedCount += await purgeScratchExportDirectories();
+
     final now = DateTime.now();
     final dirsToCheck = <Directory>[
       Directory.systemTemp,
@@ -769,6 +912,28 @@ class FileService {
     final sec = now.second.toString().padLeft(2, '0');
     final ext = extension.startsWith('.') ? extension.substring(1) : extension;
     return '${prefix}_$year$month${day}_$hour$min$sec.$ext';
+  }
+}
+
+/// NavigatorObserver that automatically purges scratch export directories
+/// whenever any tool or viewer screen is popped or removed.
+class ToolExitNavigatorObserver extends NavigatorObserver {
+  final FileService _fileService = FileService();
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    _onExit();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    _onExit();
+  }
+
+  void _onExit() {
+    _fileService.purgeScratchExportDirectories();
   }
 }
 
