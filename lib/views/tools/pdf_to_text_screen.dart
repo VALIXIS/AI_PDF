@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 
 class PdfToTextScreen extends StatefulWidget {
   const PdfToTextScreen({Key? key}) : super(key: key);
@@ -28,243 +28,6 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _txtPath;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('PDF to Text'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Extract Text from PDF',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Select a PDF document (.pdf) to extract its text content',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-
-            // Loading Banner
-            if (_isLoading)
-              const ToolLoadingBanner(
-                message: 'Extracting text content from PDF...',
-              ),
-
-            // Error Banner
-            if (_errorMessage != null)
-              ToolErrorBanner(
-                message: _errorMessage!,
-                onRetry: _selectedFile != null ? _extractText : null,
-                onDismiss: () => setState(() => _errorMessage = null),
-              ),
-
-            // Selected file card or Empty State
-            if (_selectedFile != null) ...[
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.picture_as_pdf,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 28,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _fileService.getFileName(_selectedFile!),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 13.5),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Ready for extraction',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (!_isLoading)
-                        IconButton(
-                          icon: const Icon(Icons.swap_horiz_rounded),
-                          tooltip: 'Change PDF',
-                          onPressed: _pickPdf,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ] else if (_extractedText == null) ...[
-              Expanded(
-                child: ToolEmptyState(
-                  icon: Icons.text_snippet_rounded,
-                  title: 'No PDF Selected',
-                  subtitle:
-                      'Select a PDF document (.pdf) from your device to extract text content',
-                  actionLabel: 'Select PDF',
-                  onAction: _isLoading ? null : _pickPdf,
-                ),
-              ),
-            ],
-
-            // Extracted Text Result Card
-            if (_extractedText != null) ...[
-              if (_txtPath != null) ...[
-                ToolSuccessCard(
-                  title: 'Text Extracted Successfully!',
-                  subtitle: 'Extracted text saved to file.',
-                  filePath: _txtPath,
-                  onShare: _shareTxtFile,
-                  onReset: () {
-                    setState(() {
-                      _extractedText = null;
-                      _selectedFile = null;
-                      _txtPath = null;
-                      _errorMessage = null;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
-              Row(
-                children: [
-                  Text(
-                    'Extracted Text Content',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.copy_rounded, size: 18),
-                    tooltip: 'Copy text',
-                    onPressed: _copyToClipboard,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF1F1F2E)
-                          : const Color(0xFFE5E7EB),
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    child: SelectableText(
-                      _extractedText!,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _copyToClipboard,
-                      icon: const Icon(Icons.copy, size: 16),
-                      label: const Text('Copy'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _saveTxtFile,
-                      icon: const Icon(Icons.download_rounded, size: 16),
-                      label: const Text('Save TXT'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _shareTxtFile,
-                      icon: const Icon(Icons.share_rounded, size: 16),
-                      label: const Text('Share'),
-                    ),
-                  ),
-                ],
-              ),
-            ] else if (_selectedFile != null)
-              const Spacer(),
-
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            if (_extractedText == null)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _pickPdf,
-                      icon: const Icon(Icons.folder_open),
-                      label: Text(
-                          _selectedFile == null ? 'Select PDF' : 'Change PDF'),
-                    ),
-                  ),
-                  if (_selectedFile != null) ...[
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _extractText,
-                        icon: _isLoading
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.text_fields),
-                        label: const Text('Extract Text'),
-                      ),
-                    ),
-                  ],
-                ],
-              )
-            else
-              OutlinedButton.icon(
-                onPressed: () => setState(() {
-                  _extractedText = null;
-                  _selectedFile = null;
-                  _errorMessage = null;
-                  _txtPath = null;
-                }),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Start New Extraction'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Future<void> _pickPdf() async {
     if (_isLoading) return;
@@ -322,8 +85,7 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
     });
 
     try {
-      if (_selectedFile == null ||
-          !await _fileService.isFileAccessible(_selectedFile!)) {
+      if (!await _fileService.isFileAccessible(_selectedFile!)) {
         setState(() {
           _errorMessage = 'Selected file no longer exists or is inaccessible.';
           _isLoading = false;
@@ -418,7 +180,128 @@ class _PdfToTextScreenState extends State<PdfToTextScreen> {
 
   void _shareTxtFile() async {
     if (_txtPath != null && mounted) {
-      ShareService.shareFile(context, filePath: _txtPath!, text: 'Here is the extracted text file.');
+      ShareService.shareFile(context,
+          filePath: _txtPath!, text: 'Here is the extracted text file.');
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ToolScreenShell(
+      title: 'PDF to Text',
+      explanation:
+          'Select a PDF document (.pdf) to extract its text content',
+      onPickFiles: _pickPdf,
+      selectedFiles: _selectedFile != null ? [_selectedFile!] : [],
+      onRemoveFile: (_) {
+        setState(() {
+          _selectedFile = null;
+          _extractedText = null;
+          _txtPath = null;
+          _errorMessage = null;
+        });
+      },
+      onExecute: _selectedFile != null ? _extractText : null,
+      executeButtonLabel: 'Extract Text',
+      executeButtonIcon: Icons.text_fields,
+      pickButtonLabel: 'Select PDF',
+      isLoading: _isLoading,
+      loadingMessage: 'Extracting text content from PDF...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      onRetry: _selectedFile != null ? _extractText : null,
+      successPath: _txtPath,
+      successTitle: 'Text Extracted Successfully!',
+      successSubtitle: 'Extracted text saved to file.',
+      onSave: _saveTxtFile,
+      onShare: _shareTxtFile,
+      defaultSavePrefix: 'ExtractedText',
+      onReset: () {
+        setState(() {
+          _extractedText = null;
+          _selectedFile = null;
+          _txtPath = null;
+          _errorMessage = null;
+        });
+      },
+      emptyStateIcon: Icons.text_snippet_rounded,
+      emptyStateTitle: 'No PDF Selected',
+      emptyStateSubtitle:
+          'Select a PDF document (.pdf) from your device to extract text content',
+      emptyStateActionLabel: 'Select PDF',
+      successContent: _extractedText == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Extracted Text Content',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      tooltip: 'Copy text',
+                      onPressed: _copyToClipboard,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF1F1F2E)
+                            : const Color(0xFFE5E7EB),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        _extractedText!,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _copyToClipboard,
+                        icon: const Icon(Icons.copy, size: 16),
+                        label: const Text('Copy'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _saveTxtFile,
+                        icon: const Icon(Icons.download_rounded, size: 16),
+                        label: const Text('Save TXT'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _shareTxtFile,
+                        icon: const Icon(Icons.share_rounded, size: 16),
+                        label: const Text('Share'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    );
   }
 }

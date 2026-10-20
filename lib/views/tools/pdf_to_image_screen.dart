@@ -7,7 +7,7 @@ import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 
 enum PdfToImageMode {
   all,
@@ -56,6 +56,7 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
     _singlePageController.dispose();
     _startController.dispose();
     _endController.dispose();
+    FileService().cleanupTempResources();
     super.dispose();
   }
 
@@ -324,300 +325,61 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('PDF to Image'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Convert PDF Pages to Images & ZIP',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Select a PDF to extract pages as individual PNG images or bundle them into a single ZIP archive.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-
-            // Loading State Banner
-            if (_isLoading)
-              const ToolLoadingBanner(
-                message: 'Rendering PDF pages to PNG images in background...',
-              ),
-
-            // Error Banner
-            if (_errorMessage != null)
-              ToolErrorBanner(
-                message: _errorMessage!,
-                onRetry: _selectedFile != null ? _convertToImages : null,
-                onDismiss: () => setState(() => _errorMessage = null),
-              ),
-
-            // Success View with Images Grid & Zip Options
-            if (_successImagePaths != null) ...[
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.check_circle_rounded,
-                              color: Colors.green, size: 28),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Extraction Successful!',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13.5),
-                                ),
-                                Text(
-                                  'Generated ${_successImagePaths!.length} PNG image file(s).',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: _saveAllImages,
-                              icon:
-                                  const Icon(Icons.save_alt_rounded, size: 16),
-                              label: const Text('Save Images'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _shareAllImages,
-                              icon: const Icon(Icons.share_rounded, size: 16),
-                              label: const Text('Share All'),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: _isExportingZip
-                                  ? null
-                                  : (_zipPath != null
-                                      ? _saveZipToDownloads
-                                      : _exportZipArchive),
-                              icon: _isExportingZip
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2))
-                                  : const Icon(Icons.folder_zip_rounded,
-                                      size: 16),
-                              label: Text(_zipPath != null
-                                  ? 'Save ZIP File'
-                                  : 'Export as ZIP'),
-                            ),
-                          ),
-                          if (_zipPath != null) ...[
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.share_rounded, size: 18),
-                              tooltip: 'Share ZIP',
-                              onPressed: _shareZipArchive,
-                            ),
-                          ],
-                          const SizedBox(width: 8),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _successImagePaths = null;
-                                _selectedFile = null;
-                                _zipPath = null;
-                                _errorMessage = null;
-                              });
-                            },
-                            child: const Text('Reset'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 0.72,
-                  ),
-                  itemCount: _successImagePaths!.length,
-                  itemBuilder: (context, index) {
-                    final filePath = _successImagePaths![index];
-                    final file = File(filePath);
-                    final fileName = path.basename(filePath);
-                    final pageIndex = _mode == PdfToImageMode.single
-                        ? _singlePage
-                        : index + _startPage;
-
-                    return Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => _previewImage(filePath),
-                              child: Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Image.file(file, fit: BoxFit.contain),
-                                  Positioned(
-                                    top: 6,
-                                    left: 6,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color:
-                                            Colors.black.withValues(alpha: 0.65),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 2, horizontal: 6),
-                                      child: Text(
-                                        'Page $pageIndex',
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 6,
-                                    right: 6,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.5),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      padding: const EdgeInsets.all(4),
-                                      child: const Icon(
-                                        Icons.fullscreen_rounded,
-                                        color: Colors.white,
-                                        size: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 4),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    fileName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.download_rounded, size: 16),
-                                  tooltip: 'Save Page $pageIndex',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _saveSingle(filePath),
-                                ),
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: const Icon(Icons.share_rounded, size: 16),
-                                  tooltip: 'Share Page $pageIndex',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _shareSingle(filePath),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ] else ...[
-              // File selection and Mode / Range controls
-              if (_selectedFile != null) ...[
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.picture_as_pdf_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 28,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _fileService.getFileName(_selectedFile!),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13.5),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Total Pages: ${_totalPages ?? 1}',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (!_isLoading)
-                          IconButton(
-                            icon: const Icon(Icons.swap_horiz_rounded),
-                            tooltip: 'Change File',
-                            onPressed: _pickPdf,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Export Mode Selection
+    return ToolScreenShell(
+      title: 'PDF to Image',
+      explanation:
+          'Convert PDF Pages to Images & ZIP\nSelect a PDF to extract pages as individual PNG images or bundle them into a single ZIP archive.',
+      onPickFiles: _pickPdf,
+      selectedFiles: _selectedFile != null ? [_selectedFile!] : [],
+      onRemoveFile: (_) {
+        setState(() {
+          _selectedFile = null;
+          _successImagePaths = null;
+          _zipPath = null;
+          _errorMessage = null;
+        });
+      },
+      onExecute: _selectedFile != null ? _convertToImages : null,
+      executeButtonLabel: _mode == PdfToImageMode.all
+          ? 'Extract All Pages (${_totalPages ?? 1} PNGs)'
+          : _mode == PdfToImageMode.single
+              ? 'Export Page $_singlePage as PNG'
+              : 'Export Pages $_startPage–$_endPage as PNGs',
+      executeButtonIcon: Icons.image_rounded,
+      pickButtonLabel: 'Select PDF',
+      showPickButton: _selectedFile != null,
+      isLoading: _isLoading,
+      loadingMessage:
+          'Rendering PDF pages to PNG images in background...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      onRetry: _selectedFile != null ? _convertToImages : null,
+      successPath: _zipPath ??
+          (_successImagePaths != null && _successImagePaths!.isNotEmpty
+              ? _successImagePaths!.first
+              : null),
+      successTitle: 'Extraction Successful!',
+      successSubtitle: _successImagePaths != null
+          ? 'Generated ${_successImagePaths!.length} PNG image file(s).'
+          : null,
+      onReset: () {
+        setState(() {
+          _successImagePaths = null;
+          _selectedFile = null;
+          _zipPath = null;
+          _errorMessage = null;
+        });
+      },
+      emptyStateIcon: Icons.picture_as_pdf_rounded,
+      emptyStateTitle: 'No PDF Selected',
+      emptyStateSubtitle:
+          'Select a PDF to extract pages as individual PNG images or bundle them into a single ZIP archive.',
+      emptyStateActionLabel: 'Select PDF',
+      extraConfig: _selectedFile == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
                   'Export Option',
                   style: Theme.of(context)
@@ -626,7 +388,6 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
-
                 SegmentedButton<PdfToImageMode>(
                   segments: const [
                     ButtonSegment(
@@ -656,7 +417,6 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                         },
                 ),
                 const SizedBox(height: 16),
-
                 if (_mode == PdfToImageMode.single) ...[
                   Text(
                     'Select Page to Export',
@@ -765,43 +525,179 @@ class _PdfToImageScreenState extends State<PdfToImageScreen> {
                     ),
                   ),
                 ],
-
-                const Spacer(),
-
-                // Action Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _convertToImages,
-                    icon: const Icon(Icons.image_rounded),
-                    label: Text(
-                      _mode == PdfToImageMode.all
-                          ? 'Extract All Pages (${_totalPages ?? 1} PNGs)'
-                          : _mode == PdfToImageMode.single
-                              ? 'Export Page $_singlePage as PNG'
-                              : 'Export Pages $_startPage–$_endPage as PNGs',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+              ],
+            ),
+      successContent: _successImagePaths == null
+          ? null
+          : Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _saveAllImages,
+                        icon: const Icon(Icons.save_alt_rounded, size: 16),
+                        label: const Text('Save Images'),
+                      ),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _shareAllImages,
+                        icon: const Icon(Icons.share_rounded, size: 16),
+                        label: const Text('Share All'),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ] else
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _isExportingZip
+                            ? null
+                            : (_zipPath != null
+                                ? _saveZipToDownloads
+                                : _exportZipArchive),
+                        icon: _isExportingZip
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.folder_zip_rounded, size: 16),
+                        label: Text(_zipPath != null
+                            ? 'Save ZIP File'
+                            : 'Export as ZIP'),
+                      ),
+                    ),
+                    if (_zipPath != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.share_rounded, size: 18),
+                        tooltip: 'Share ZIP',
+                        onPressed: _shareZipArchive,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Expanded(
-                  child: ToolEmptyState(
-                    icon: Icons.picture_as_pdf_rounded,
-                    title: 'No PDF Selected',
-                    subtitle:
-                        'Choose a PDF document to render its pages as image files or export as a ZIP',
-                    actionLabel: 'Select PDF',
-                    onAction: _isLoading ? null : _pickPdf,
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                      childAspectRatio: 0.72,
+                    ),
+                    itemCount: _successImagePaths!.length,
+                    itemBuilder: (context, index) {
+                      final filePath = _successImagePaths![index];
+                      final file = File(filePath);
+                      final fileName = path.basename(filePath);
+                      final pageIndex = _mode == PdfToImageMode.single
+                          ? _singlePage
+                          : index + _startPage;
+
+                      return Card(
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => _previewImage(filePath),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.file(file, fit: BoxFit.contain),
+                                    Positioned(
+                                      top: 6,
+                                      left: 6,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.65),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 2, horizontal: 6),
+                                        child: Text(
+                                          'Page $pageIndex',
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 6,
+                                      right: 6,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.5),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        padding: const EdgeInsets.all(4),
+                                        child: const Icon(
+                                          Icons.fullscreen_rounded,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 4),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      fileName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.download_rounded,
+                                        size: 16),
+                                    tooltip: 'Save Page $pageIndex',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () => _saveSingle(filePath),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  IconButton(
+                                    icon: const Icon(Icons.share_rounded,
+                                        size: 16),
+                                    tooltip: 'Share Page $pageIndex',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () => _shareSingle(filePath),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ),
-            ],
-          ],
-        ),
-      ),
+              ],
+            ),
     );
   }
 }
