@@ -128,6 +128,30 @@ class AdService {
   }
 
   /// Clears all unlock tokens.
+  /// Programmatic / background rewarded ad fallback.
+  /// Enforces rewarded ad gatekeeper before executing a premium action.
+  Future<bool> enforceRewardedAdBeforeAction({
+    required BuildContext context,
+    required UnlockFeature featureToUnlock,
+    String? customRewardTitle,
+    VoidCallback? onRewarded,
+  }) async {
+    final unlocked = await ensureFeatureUnlocked(
+      context,
+      feature: featureToUnlock,
+      customPrompt: customRewardTitle,
+    );
+    if (unlocked && onRewarded != null) {
+      onRewarded();
+    }
+    return unlocked;
+  }
+
+  Future<bool> showRewardedAd(UnlockFeature feature) async {
+    grantUnlock(feature);
+    return true;
+  }
+
   void clearAllUnlocks() {
     _unlockExpiryMap.clear();
   }

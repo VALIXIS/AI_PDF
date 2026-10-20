@@ -10,7 +10,7 @@ import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/ad_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 
 class AiSummarizerScreen extends StatefulWidget {
   const AiSummarizerScreen({Key? key}) : super(key: key);
@@ -38,126 +38,65 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
   String? _summaryMarkdown;
   String? _exportedPdfPath;
 
+  bool get _isBusy =>
+      _isAnalyzingText || _isGeneratingSummary || _isExportingPdf;
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = isDark ? kPrimaryDark : kPrimary;
     final textCol = isDark ? Colors.white : const Color(0xFF0F172A);
     final cardBg = isDark ? const Color(0xFF13131F) : Colors.white;
-    final borderCol = isDark ? const Color(0xFF1F1F35) : const Color(0xFFE2E8F0);
+    final borderCol =
+        isDark ? const Color(0xFF1F1F35) : const Color(0xFFE2E8F0);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'AI Document Summarizer',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        centerTitle: false,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Explanation banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: primary.withValues(alpha: 0.12)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.auto_awesome_rounded, color: primary, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Extract text from multi-page PDFs to generate Executive Summaries, Key Action Items, and Critical Dates via Gemini AI.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: textCol.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Loading Banner
-              if (_isAnalyzingText)
-                const ToolLoadingBanner(
-                  message: 'Analyzing PDF pages & calculating telemetry...',
-                ),
-              if (_isGeneratingSummary)
-                const ToolLoadingBanner(
-                  message: 'Querying Gemini AI for Executive Brief & Action Items...',
-                ),
-              if (_isExportingPdf)
-                const ToolLoadingBanner(
-                  message: 'Exporting Executive Summary to PDF document...',
-                ),
-
-              // Error Banner
-              if (_errorMessage != null)
-                ToolErrorBanner(
-                  message: _errorMessage!,
-                  onRetry: _selectedFile != null && _summaryMarkdown == null
-                      ? _generateSummary
-                      : null,
-                  onDismiss: () => setState(() => _errorMessage = null),
-                ),
-
-              // Document Upload Dropzone & Telemetry Card (When no summary generated yet)
-              if (_summaryMarkdown == null) ...[
-                if (_selectedFile == null)
-                  Expanded(
-                    child: ToolEmptyState(
-                      icon: Icons.upload_file_rounded,
-                      title: 'Upload Multi-Page PDF',
-                      subtitle:
-                          'Select a PDF document to calculate telemetry and extract AI executive brief',
-                      actionLabel: 'Select PDF Document',
-                      onAction: _isBusy ? null : _pickPdf,
-                    ),
-                  )
-                else ...[
-                  // Document Telemetry Card
-                  _buildTelemetryCard(isDark, cardBg, borderCol, primary),
-                  const SizedBox(height: 16),
-                  const Spacer(),
-                ],
-              ],
-
-              // Generated Summary Result Container (When summary exists)
-              if (_summaryMarkdown != null) ...[
-                if (_exportedPdfPath != null) ...[
-                  ToolSuccessCard(
-                    title: 'Executive Brief Exported to PDF!',
-                    subtitle: 'Summary PDF file successfully compiled.',
-                    filePath: _exportedPdfPath,
-                    onSave: _saveExportedPdf,
-                    onShare: _shareExportedPdf,
-                    onReset: () {
-                      setState(() {
-                        _exportedPdfPath = null;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                // Telemetry Header Info Bar
-                _buildSummaryTelemetryHeader(isDark, cardBg, borderCol, primary),
+    return ToolScreenShell(
+      title: 'AI Document Summarizer',
+      explanation:
+          'Extract text from multi-page PDFs to generate Executive Summaries, Key Action Items, and Critical Dates via Gemini AI.',
+      explanationIcon: Icons.auto_awesome_rounded,
+      onPickFiles: _pickPdf,
+      selectedFiles: _selectedFile != null ? [_selectedFile!] : [],
+      onRemoveFile: (_) => _resetScreen(),
+      onExecute: (_selectedFile != null && _summaryMarkdown == null)
+          ? _generateSummary
+          : null,
+      executeButtonLabel: 'Generate Brief',
+      executeButtonIcon: Icons.auto_awesome_rounded,
+      pickButtonLabel: 'Change PDF',
+      isLoading: _isBusy,
+      loadingMessage: _isAnalyzingText
+          ? 'Analyzing PDF pages & calculating telemetry...'
+          : (_isGeneratingSummary
+              ? 'Querying Gemini AI for Executive Brief & Action Items...'
+              : 'Exporting Executive Summary to PDF document...'),
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      onRetry: (_selectedFile != null && _summaryMarkdown == null)
+          ? _generateSummary
+          : null,
+      successPath: _exportedPdfPath,
+      successTitle: 'Executive Brief Exported to PDF!',
+      successSubtitle: 'Summary PDF file successfully compiled.',
+      onSave: _saveExportedPdf,
+      onShare: _shareExportedPdf,
+      defaultSavePrefix: 'ExecutiveSummary',
+      onReset: _resetScreen,
+      emptyStateIcon: Icons.upload_file_rounded,
+      emptyStateTitle: 'Upload Multi-Page PDF',
+      emptyStateSubtitle:
+          'Select a PDF document to calculate telemetry and extract AI executive brief',
+      emptyStateActionLabel: 'Select PDF Document',
+      extraConfig: (_selectedFile != null && _summaryMarkdown == null)
+          ? _buildTelemetryCard(isDark, cardBg, borderCol, primary)
+          : null,
+      successContent: _summaryMarkdown != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSummaryTelemetryHeader(
+                    isDark, cardBg, borderCol, primary),
                 const SizedBox(height: 10),
-
-                // Markdown Renderer Container
                 Expanded(
                   child: Container(
                     padding: const EdgeInsets.all(14),
@@ -169,7 +108,9 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                     child: Markdown(
                       data: _summaryMarkdown!,
                       selectable: true,
-                      styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                      styleSheet:
+                          MarkdownStyleSheet.fromTheme(Theme.of(context))
+                              .copyWith(
                         h1: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -178,7 +119,9 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                         h2: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.lightBlueAccent : const Color(0xFF0284C7),
+                          color: isDark
+                              ? Colors.lightBlueAccent
+                              : const Color(0xFF0284C7),
                         ),
                         p: TextStyle(
                           fontSize: 13,
@@ -190,8 +133,6 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // Summary Action Buttons
                 Row(
                   children: [
                     Expanded(
@@ -217,9 +158,12 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                            : const Icon(Icons.picture_as_pdf_rounded,
+                                size: 16),
                         label: Text(
-                          _isExportingPdf ? 'Exporting...' : 'Export Summary to PDF',
+                          _isExportingPdf
+                              ? 'Exporting...'
+                              : 'Export Summary to PDF',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -236,50 +180,10 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                   ),
                 ),
               ],
-
-              // Bottom Action Row when file selected but no summary generated yet
-              if (_selectedFile != null && _summaryMarkdown == null) ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isBusy ? null : _pickPdf,
-                        icon: const Icon(Icons.folder_open_rounded),
-                        label: const Text('Change PDF'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isBusy ? null : _generateSummary,
-                        icon: _isGeneratingSummary
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.auto_awesome_rounded),
-                        label: const Text(
-                          'Generate Brief',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+            )
+          : null,
     );
   }
-
-  bool get _isBusy =>
-      _isAnalyzingText || _isGeneratingSummary || _isExportingPdf;
 
   Widget _buildTelemetryCard(
       bool isDark, Color cardBg, Color borderCol, Color primary) {
@@ -397,7 +301,8 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.stars_rounded, color: Color(0xFF8B5CF6), size: 20),
+                  const Icon(Icons.stars_rounded,
+                      color: Color(0xFF8B5CF6), size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -411,7 +316,8 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                           ),
                         ),
                         Text(
-                          AdService().isFeatureUnlocked(UnlockFeature.aiSummaries)
+                          AdService().isFeatureUnlocked(
+                                  UnlockFeature.aiSummaries)
                               ? '✨ Unlocked (${AdService().getRemainingMinutes(UnlockFeature.aiSummaries)}m remaining)'
                               : 'Watch a quick video ad for free 1-hour access.',
                           style: TextStyle(
@@ -448,7 +354,9 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
       decoration: BoxDecoration(
         color: color.withValues(alpha: isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        border: Border.all(
+          color: color.withValues(alpha: isDark ? 0.3 : 0.2),
+        ),
       ),
       child: Row(
         children: [
@@ -462,7 +370,7 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                   title,
                   style: TextStyle(
                     fontSize: 10.5,
-                    color: isDark ? Colors.white70 : Colors.black54,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -471,9 +379,8 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
+                    color: color,
                   ),
-                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -486,11 +393,12 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
 
   Widget _buildSummaryTelemetryHeader(
       bool isDark, Color cardBg, Color borderCol, Color primary) {
-    final fileName =
-        _selectedFile != null ? _fileService.getFileName(_selectedFile!) : 'Document';
+    final fileName = _selectedFile != null
+        ? _fileService.getFileName(_selectedFile!)
+        : 'Document';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(12),
@@ -498,23 +406,28 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.description_rounded, size: 18, color: primary),
+          Icon(Icons.auto_awesome_rounded, color: primary, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              fileName,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+              '$fileName · $_pageCount Pages · $_wordCount Words',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white70 : Colors.black87,
+              ),
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+              color: primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              '$_pageCount pgs • $_wordCount words',
+              'Gemini AI',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
@@ -529,74 +442,73 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
 
   Future<void> _pickPdf() async {
     if (_isBusy) return;
-    try {
-      final file = await _fileService.pickPdfFile();
-      if (!mounted) return;
 
-      if (file != null) {
-        if (!await _fileService.isPdfFile(file)) {
+    setState(() {
+      _errorMessage = null;
+      _summaryMarkdown = null;
+      _exportedPdfPath = null;
+    });
+
+    try {
+      final selectedPath = await _fileService.pickPdfFile();
+      if (!mounted) return;
+      if (selectedPath != null) {
+        final ext = _fileService.getExtension(selectedPath).toLowerCase();
+        if (ext == '.doc' || ext == '.docx') {
           setState(() {
             _selectedFile = null;
             _errorMessage =
-                'Selected file is not a valid PDF document. Please select a valid .pdf file.';
+                'Word documents ($ext) cannot be summarized directly. Please choose a PDF file or convert it to PDF first.';
+          });
+          return;
+        }
+
+        if (!await _fileService.isPdfFile(selectedPath)) {
+          setState(() {
+            _selectedFile = null;
+            _errorMessage =
+                'Selected file is not a valid PDF document. Please choose a valid .pdf file.';
           });
           return;
         }
 
         setState(() {
-          _selectedFile = file;
-          _summaryMarkdown = null;
-          _exportedPdfPath = null;
-          _errorMessage = null;
+          _selectedFile = selectedPath;
           _isAnalyzingText = true;
+          _errorMessage = null;
         });
 
-        // Compute Telemetry: Page Count and Word Count
-        try {
-          final pageCount = await _pdfService.getPdfPageCount(file);
-          final text = await _pdfService.extractPdfText(file);
-          final words = text.trim().isEmpty
-              ? 0
-              : text
-                  .trim()
-                  .split(RegExp(r'\s+'))
-                  .where((w) => w.isNotEmpty)
-                  .length;
+        // Calculate pages & words telemetry
+        final pages = await _pdfService.getPdfPageCount(selectedPath);
+        final rawText = await _pdfService.extractPdfText(selectedPath);
+        final words = rawText
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((w) => w.isNotEmpty)
+            .length;
 
-          if (!mounted) return;
-          setState(() {
-            _pageCount = pageCount;
-            _wordCount = words;
-            _extractedText = text;
-            _isAnalyzingText = false;
-          });
-        } catch (e) {
-          if (!mounted) return;
-          setState(() {
-            _isAnalyzingText = false;
-            _errorMessage = 'Failed to analyze PDF telemetry: $e';
-          });
-        }
+        if (!mounted) return;
+        setState(() {
+          _pageCount = pages;
+          _wordCount = words;
+          _extractedText = rawText;
+          _isAnalyzingText = false;
+        });
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isAnalyzingText = false;
-        _errorMessage = 'Failed to select PDF: $e';
+        _errorMessage = 'Failed to analyze PDF: $e';
       });
     }
   }
 
   Future<void> _generateSummary() async {
-    if (_selectedFile == null) {
-      setState(() {
-        _errorMessage = 'Please select a PDF document first.';
-      });
-      return;
-    }
+    if (_selectedFile == null) return;
 
-    // Always play ad before generating AI summary to conserve tokens and monetize
-    final adWatched = await AdService().showRewardedVideoAd(
+    // Gatekeeper ad enforcement: multi-page PDFs (>1 page) require reward unlock
+    final adWatched = await AdService().enforceRewardedAdBeforeAction(
       context: context,
       featureToUnlock: UnlockFeature.aiSummaries,
       customRewardTitle: 'AI Executive Brief Generated',
@@ -655,8 +567,9 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
   Future<void> _exportSummaryToPdf() async {
     if (_summaryMarkdown == null || _summaryMarkdown!.trim().isEmpty) return;
 
-    final isUnlocked = AdService().isFeatureUnlocked(UnlockFeature.aiSummaries) ||
-        AdService().isFeatureUnlocked(UnlockFeature.vectorExport);
+    final isUnlocked =
+        AdService().isFeatureUnlocked(UnlockFeature.aiSummaries) ||
+            AdService().isFeatureUnlocked(UnlockFeature.vectorExport);
 
     if (!isUnlocked) {
       final unlocked = await AdService().ensureFeatureUnlocked(
@@ -675,7 +588,9 @@ class _AiSummarizerScreenState extends State<AiSummarizerScreen> {
 
     try {
       final docName = _selectedFile != null
-          ? _fileService.getFileName(_selectedFile!).replaceAll(RegExp(r'\.[^.]+$'), '')
+          ? _fileService
+              .getFileName(_selectedFile!)
+              .replaceAll(RegExp(r'\.[^.]+$'), '')
           : 'Document';
 
       final title = 'Executive Brief - $docName';
