@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
@@ -8,7 +7,7 @@ import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 
 class ProtectPdfScreen extends StatefulWidget {
   const ProtectPdfScreen({Key? key}) : super(key: key);
@@ -104,7 +103,8 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
           if (!mounted) return;
           inputPass = await _promptPasswordDialog(context);
           if (inputPass == null || inputPass.isEmpty) {
-            throw Exception('Current password required to re-encrypt a protected PDF.');
+            throw Exception(
+                'Current password required to re-encrypt a protected PDF.');
           }
           savedPath = await PdfService().protectPdf(
             pdfPath: _pdfFile!.path,
@@ -170,7 +170,8 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
             Text(
               'This document is already password-protected. Enter its current password to re-encrypt:',
               style: TextStyle(
-                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+                color:
+                    isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
                 fontSize: 13,
               ),
             ),
@@ -186,13 +187,18 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
               decoration: InputDecoration(
                 hintText: 'Enter current password',
                 hintStyle: TextStyle(
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8)),
                 filled: true,
-                fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                fillColor:
+                    isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFCBD5E1)),
                 ),
               ),
             ),
@@ -208,7 +214,8 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2563EB),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Unlock & Re-encrypt'),
           ),
@@ -223,244 +230,180 @@ class _ProtectPdfScreenState extends State<ProtectPdfScreen> {
     final primary = isDark ? kPrimaryDark : kPrimary;
     final sub = isDark ? const Color(0xFF6B7280) : const Color(0xFF9CA3AF);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Protect PDF')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Loading Banner
-          if (_isLoading)
-            const ToolLoadingBanner(
-              message: 'Encrypting and protecting PDF document...',
-            ),
-
-          // Error Banner
-          if (_errorMessage != null)
-            ToolErrorBanner(
-              message: _errorMessage!,
-              onRetry: (_pdfFile != null && _passCtrl.text.isNotEmpty)
-                  ? _protect
-                  : null,
-              onDismiss: () => setState(() => _errorMessage = null),
-            ),
-
-          // Success Card
-          if (_successPath != null)
-            ToolSuccessCard(
-              title: 'PDF Protected Successfully!',
-              subtitle: 'Password protection applied.',
-              filePath: _successPath,
-              onSave: () {
-                if (_successPath != null && mounted) {
-                  ShareService.promptAndSaveFileDirectToDownloads(
-                    context,
-                    sourcePath: _successPath!,
-                    defaultPrefix: 'ProtectedPDF',
-                  );
-                }
-              },
-              onShare: () {
-                if (_successPath != null && mounted) {
-                  ShareService.shareFile(context, filePath: _successPath!);
-                }
-              },
-              onReset: () {
-                setState(() {
-                  _successPath = null;
-                  _pdfFile = null;
-                  _errorMessage = null;
-                });
-              },
-            ),
-
-          // File Picker or Empty State
-          if (_pdfFile == null && _successPath == null)
-            ToolEmptyState(
-              icon: Icons.lock_rounded,
-              title: 'No PDF Selected',
-              subtitle:
-                  'Select a PDF document to secure with password protection',
-              actionLabel: 'Select PDF',
-              onAction: _isLoading ? null : _pick,
-            )
-          else if (_pdfFile != null) ...[
-            GestureDetector(
-              onTap: _isLoading ? null : _pick,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: primary.withValues(alpha: 0.3)),
+    return ToolScreenShell(
+      title: 'Protect PDF',
+      explanation:
+          'Secure your PDF with user and owner passwords and configure document permissions.',
+      onPickFiles: _pick,
+      selectedFiles: _pdfFile != null ? [_pdfFile!.path] : [],
+      onRemoveFile: (_) {
+        setState(() {
+          _pdfFile = null;
+          _errorMessage = null;
+        });
+      },
+      onExecute: _pdfFile != null ? _protect : null,
+      executeButtonLabel: 'Protect PDF',
+      executeButtonIcon: Icons.lock_rounded,
+      pickButtonLabel: 'Select PDF',
+      isLoading: _isLoading,
+      loadingMessage: 'Encrypting and protecting PDF document...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      onRetry: _pdfFile != null ? _protect : null,
+      successPath: _successPath,
+      successTitle: 'PDF Protected Successfully!',
+      successSubtitle: 'Password protection applied.',
+      defaultSavePrefix: 'ProtectedPDF',
+      onReset: () {
+        setState(() {
+          _successPath = null;
+          _pdfFile = null;
+          _errorMessage = null;
+          _passCtrl.clear();
+          _confirmCtrl.clear();
+          _ownerPassCtrl.clear();
+        });
+      },
+      emptyStateIcon: Icons.lock_rounded,
+      emptyStateTitle: 'No PDF Selected',
+      emptyStateSubtitle:
+          'Select a PDF document to secure with password protection',
+      emptyStateActionLabel: 'Select PDF',
+      extraConfig: _pdfFile == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Set Password',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                child: Row(children: [
-                  Icon(Icons.picture_as_pdf_rounded, color: primary, size: 32),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          FileService().getFileName(_pdfFile!.path),
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700, color: primary),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        const Text('Tap to change file',
-                            style: TextStyle(fontSize: 12)),
-                      ],
+                const SizedBox(height: 10),
+                TextField(
+                  enabled: !_isLoading,
+                  controller: _passCtrl,
+                  obscureText: !_showPass,
+                  decoration: InputDecoration(
+                    hintText: 'Enter password',
+                    isDense: true,
+                    suffixIcon: IconButton(
+                      icon: Icon(_showPass
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded),
+                      onPressed: () => setState(() => _showPass = !_showPass),
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded, color: sub),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Password fields
-            Text('Set Password',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            TextField(
-              enabled: !_isLoading,
-              controller: _passCtrl,
-              obscureText: !_showPass,
-              decoration: InputDecoration(
-                hintText: 'Enter password',
-                isDense: true,
-                suffixIcon: IconButton(
-                  icon: Icon(_showPass
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded),
-                  onPressed: () => setState(() => _showPass = !_showPass),
+                  onChanged: (_) {
+                    if (_errorMessage != null) {
+                      setState(() => _errorMessage = null);
+                    }
+                  },
                 ),
-              ),
-              onChanged: (_) {
-                if (_errorMessage != null) setState(() => _errorMessage = null);
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              enabled: !_isLoading,
-              controller: _confirmCtrl,
-              obscureText: !_showPass,
-              decoration: const InputDecoration(
-                hintText: 'Confirm password',
-                isDense: true,
-              ),
-              onChanged: (_) {
-                if (_errorMessage != null) setState(() => _errorMessage = null);
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              enabled: !_isLoading,
-              controller: _ownerPassCtrl,
-              obscureText: !_showPass,
-              decoration: const InputDecoration(
-                labelText: 'Owner / Admin Password (Optional)',
-                hintText: 'Required to modify permissions or edit PDF',
-                isDense: true,
-              ),
-              onChanged: (_) {
-                if (_errorMessage != null) setState(() => _errorMessage = null);
-              },
-            ),
-            const SizedBox(height: 10),
-            Row(children: [
-              const Icon(Icons.info_outline_rounded,
-                  size: 14, color: Color(0xFF9CA3AF)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'User password unlocks the document. Owner password permits modifying security settings.',
-                  style: TextStyle(color: sub, fontSize: 12),
+                const SizedBox(height: 12),
+                TextField(
+                  enabled: !_isLoading,
+                  controller: _confirmCtrl,
+                  obscureText: !_showPass,
+                  decoration: const InputDecoration(
+                    hintText: 'Confirm password',
+                    isDense: true,
+                  ),
+                  onChanged: (_) {
+                    if (_errorMessage != null) {
+                      setState(() => _errorMessage = null);
+                    }
+                  },
                 ),
-              ),
-            ]),
-            const SizedBox(height: 20),
-
-            // Document Permissions Section
-            Text('Document Permissions',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF1E293B)
-                    : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
+                const SizedBox(height: 12),
+                TextField(
+                  enabled: !_isLoading,
+                  controller: _ownerPassCtrl,
+                  obscureText: !_showPass,
+                  decoration: const InputDecoration(
+                    labelText: 'Owner / Admin Password (Optional)',
+                    hintText: 'Required to modify permissions or edit PDF',
+                    isDense: true,
+                  ),
+                  onChanged: (_) {
+                    if (_errorMessage != null) {
+                      setState(() => _errorMessage = null);
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded,
+                        size: 14, color: Color(0xFF9CA3AF)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'User password unlocks the document. Owner password permits modifying security settings.',
+                        style: TextStyle(color: sub, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Document Permissions',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
                     color: isDark
-                        ? const Color(0xFF334155)
-                        : const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                children: [
-                  SwitchListTile(
-                    dense: true,
-                    title: const Text('Allow Printing',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Permit printing high resolution copies',
-                        style: TextStyle(fontSize: 12)),
-                    value: _allowPrinting,
-                    activeThumbColor: primary,
-                    onChanged: _isLoading
-                        ? null
-                        : (val) => setState(() => _allowPrinting = val),
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
+                    ),
                   ),
-                  const Divider(height: 1),
-                  SwitchListTile(
-                    dense: true,
-                    title: const Text('Allow Copying Content',
-                        style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Permit text selection and copying',
-                        style: TextStyle(fontSize: 12)),
-                    value: _allowCopying,
-                    activeThumbColor: primary,
-                    onChanged: _isLoading
-                        ? null
-                        : (val) => setState(() => _allowCopying = val),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        dense: true,
+                        title: const Text('Allow Printing',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle: const Text(
+                            'Permit printing high resolution copies',
+                            style: TextStyle(fontSize: 12)),
+                        value: _allowPrinting,
+                        activeThumbColor: primary,
+                        onChanged: _isLoading
+                            ? null
+                            : (val) => setState(() => _allowPrinting = val),
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        dense: true,
+                        title: const Text('Allow Copying Content',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600)),
+                        subtitle: const Text('Permit text selection and copying',
+                            style: TextStyle(fontSize: 12)),
+                        value: _allowCopying,
+                        activeThumbColor: primary,
+                        onChanged: _isLoading
+                            ? null
+                            : (val) => setState(() => _allowCopying = val),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-
-          const SizedBox(height: 28),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: (_pdfFile == null || _isLoading) ? null : _protect,
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.lock_rounded),
-              label: const Text('Protect PDF',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ]),
-      ),
     );
   }
 }
