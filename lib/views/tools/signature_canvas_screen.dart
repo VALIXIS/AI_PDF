@@ -588,11 +588,68 @@ class _SignatureCanvasScreenState extends State<SignatureCanvasScreen> {
   }
 }
 
-/// Custom painter rendering smooth Bézier curve strokes
+/// Custom painter rendering smooth cubic Bézier curve strokes
 class SignaturePainter extends CustomPainter {
   final List<SignatureStroke> strokes;
 
   SignaturePainter({required this.strokes});
+
+  /// Computes a smooth cubic Bézier Path through the provided touch points.
+  /// Uses Catmull-Rom spline formulation converted to cubic Bézier control points
+  /// (C1 continuity) to smoothly interpolate across all touch points.
+  static Path computeCubicBezierPath(List<Offset> points) {
+    final path = Path();
+    if (points.isEmpty) return path;
+
+    if (points.length == 1) {
+      path.moveTo(points.first.dx, points.first.dy);
+      path.lineTo(points.first.dx, points.first.dy);
+      return path;
+    }
+
+    path.moveTo(points.first.dx, points.first.dy);
+
+    if (points.length == 2) {
+      final p0 = points[0];
+      final p1 = points[1];
+      final cp1 = Offset(
+        p0.dx + (p1.dx - p0.dx) / 3.0,
+        p0.dy + (p1.dy - p0.dy) / 3.0,
+      );
+      final cp2 = Offset(
+        p1.dx - (p1.dx - p0.dx) / 3.0,
+        p1.dy - (p1.dy - p0.dy) / 3.0,
+      );
+      path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p1.dx, p1.dy);
+      return path;
+    }
+
+    final int n = points.length;
+    for (int i = 0; i < n - 1; i++) {
+      final p0 = points[i];
+      final p1 = points[i + 1];
+
+      final pPrev = i > 0
+          ? points[i - 1]
+          : Offset(2 * p0.dx - p1.dx, 2 * p0.dy - p1.dy);
+      final pNext = (i + 2 < n)
+          ? points[i + 2]
+          : Offset(2 * p1.dx - p0.dx, 2 * p1.dy - p0.dy);
+
+      final cp1 = Offset(
+        p0.dx + (p1.dx - pPrev.dx) / 6.0,
+        p0.dy + (p1.dy - pPrev.dy) / 6.0,
+      );
+      final cp2 = Offset(
+        p1.dx - (pNext.dx - p0.dx) / 6.0,
+        p1.dy - (pNext.dy - p0.dy) / 6.0,
+      );
+
+      path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p1.dx, p1.dy);
+    }
+
+    return path;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -620,19 +677,7 @@ class SignaturePainter extends CustomPainter {
         continue;
       }
 
-      final path = Path();
-      path.moveTo(stroke.points.first.dx, stroke.points.first.dy);
-
-      for (int i = 0; i < stroke.points.length - 1; i++) {
-        final p0 = stroke.points[i];
-        final p1 = stroke.points[i + 1];
-        // Quadratic Bézier mid-point smoothing
-        final midX = (p0.dx + p1.dx) / 2;
-        final midY = (p0.dy + p1.dy) / 2;
-        path.quadraticBezierTo(p0.dx, p0.dy, midX, midY);
-      }
-      path.lineTo(stroke.points.last.dx, stroke.points.last.dy);
-
+      final path = computeCubicBezierPath(stroke.points);
       canvas.drawPath(path, paint);
     }
   }

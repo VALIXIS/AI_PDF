@@ -712,297 +712,28 @@ class _PdfSignatureOverlayScreenState extends State<PdfSignatureOverlayScreen> {
     Color primary,
   ) {
     final isSelected = overlay.id == _selectedOverlayId;
-    final double itemW = (overlay.width * canvasW).clamp(40.0, canvasW);
-    final double itemH = (overlay.height * canvasH).clamp(24.0, canvasH);
-    final double left = (overlay.x * canvasW).clamp(0.0, canvasW - itemW);
-    final double top = (overlay.y * canvasH).clamp(0.0, canvasH - itemH);
-
-    return Positioned(
-      left: left,
-      top: top,
-      width: itemW,
-      height: itemH,
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedOverlayId = overlay.id;
-          });
-        },
-        // Single-finger drag & multi-touch gestures (smooth baseline tracking)
-        onScaleStart: (details) {
-          setState(() {
-            _selectedOverlayId = overlay.id;
-            _gestureStartRot = overlay.rotation;
-            _gestureStartW = overlay.width;
-            _gestureStartH = overlay.height;
-            _gestureStartX = overlay.x;
-            _gestureStartY = overlay.y;
-            _gestureStartFocalPoint = details.focalPoint;
-          });
-        },
-        onScaleUpdate: (details) {
-          setState(() {
-            if (details.pointerCount == 1) {
-              // Single finger drag translation
-              final delta = details.focalPoint - _gestureStartFocalPoint;
-              final newX = (_gestureStartX + (delta.dx / canvasW))
-                  .clamp(0.0, 1.0 - overlay.width);
-              final newY = (_gestureStartY + (delta.dy / canvasH))
-                  .clamp(0.0, 1.0 - overlay.height);
-              overlay.x = newX;
-              overlay.y = newY;
-            } else if (details.pointerCount > 1) {
-              // Two-finger pinch to scale
-              if (details.scale > 0.0) {
-                final double newW =
-                    (_gestureStartW * details.scale).clamp(0.06, 0.95);
-                final double newH =
-                    (_gestureStartH * details.scale).clamp(0.03, 0.95);
-                overlay.width = newW;
-                overlay.height = newH;
-              }
-
-              // Two-finger smooth, controlled rotation
-              if (details.rotation != 0.0) {
-                double targetRot = _gestureStartRot + details.rotation;
-                while (targetRot > math.pi) {
-                  targetRot -= 2 * math.pi;
-                }
-                while (targetRot < -math.pi) {
-                  targetRot += 2 * math.pi;
-                }
-                // Magnetic horizontal snap
-                if (targetRot.abs() < 0.04) {
-                  targetRot = 0.0;
-                }
-                overlay.rotation = targetRot;
-              }
-            }
-          });
-        },
-        child: Transform.rotate(
-          angle: overlay.rotation,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Image / Stamp Layer with Opacity
-              Opacity(
-                opacity: overlay.opacity.clamp(0.1, 1.0),
-                child: Container(
-                  decoration: isSelected
-                      ? BoxDecoration(
-                          border: Border.all(
-                            color: primary,
-                            width: 1.8,
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                        )
-                      : null,
-                  padding:
-                      isSelected ? const EdgeInsets.all(2) : EdgeInsets.zero,
-                  child: Image.memory(
-                    overlay.imageBytes,
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                ),
-              ),
-
-              // Active Selection Controls & Handles
-              if (isSelected) ...[
-                // Top-Center: Direct Rotation Drag Handle with Stem
-                Positioned(
-                  top: -34,
-                  left: (itemW / 2) - 13,
-                  child: GestureDetector(
-                    onPanUpdate: (panDetails) {
-                      final renderBox = _canvasKey.currentContext
-                          ?.findRenderObject() as RenderBox?;
-                      if (renderBox == null) return;
-                      final localTouch =
-                          renderBox.globalToLocal(panDetails.globalPosition);
-                      final itemCenterX =
-                          (overlay.x + overlay.width / 2.0) * canvasW;
-                      final itemCenterY =
-                          (overlay.y + overlay.height / 2.0) * canvasH;
-                      final dx = localTouch.dx - itemCenterX;
-                      final dy = localTouch.dy - itemCenterY;
-                      double rawAngle = math.atan2(dy, dx) + (math.pi / 2);
-
-                      // Magnetic snap to cardinal angles (-180, -90, -45, 0, 45, 90, 180)
-                      const snapDistance = 0.07; // ~4 degrees
-                      for (final snap in [
-                        -math.pi,
-                        -3 * math.pi / 4,
-                        -math.pi / 2,
-                        -math.pi / 4,
-                        0.0,
-                        math.pi / 4,
-                        math.pi / 2,
-                        3 * math.pi / 4,
-                        math.pi,
-                      ]) {
-                        if ((rawAngle - snap).abs() < snapDistance) {
-                          rawAngle = snap;
-                          break;
-                        }
-                      }
-
-                      while (rawAngle > math.pi) {
-                        rawAngle -= 2 * math.pi;
-                      }
-                      while (rawAngle < -math.pi) {
-                        rawAngle += 2 * math.pi;
-                      }
-
-                      setState(() {
-                        overlay.rotation = rawAngle;
-                      });
-                    },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4F46E5),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Colors.black38,
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.rotate_right_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                        Container(
-                          width: 2,
-                          height: 8,
-                          color: const Color(0xFF4F46E5),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Top-Left: Delete Handle
-                Positioned(
-                  top: -12,
-                  left: -12,
-                  child: GestureDetector(
-                    onTap: _deleteSelectedOverlay,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.close,
-                          color: Colors.white, size: 14),
-                    ),
-                  ),
-                ),
-
-                // Top-Right: Duplicate Handle
-                Positioned(
-                  top: -12,
-                  right: -12,
-                  child: GestureDetector(
-                    onTap: _duplicateSelectedOverlay,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: primary,
-                        shape: BoxShape.circle,
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.copy_rounded,
-                          color: Colors.white, size: 14),
-                    ),
-                  ),
-                ),
-
-                // Bottom-Left: Quick 90 deg Rotation Handle
-                Positioned(
-                  bottom: -12,
-                  left: -12,
-                  child: GestureDetector(
-                    onTap: () => _rotateSelectedOverlay(math.pi / 2),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.indigo,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.rotate_right_rounded,
-                          color: Colors.white, size: 14),
-                    ),
-                  ),
-                ),
-
-                // Bottom-Right: Corner Resize Handle
-                Positioned(
-                  bottom: -12,
-                  right: -12,
-                  child: GestureDetector(
-                    onPanUpdate: (panDetails) {
-                      setState(() {
-                        double deltaW = panDetails.delta.dx / canvasW;
-                        double deltaH = panDetails.delta.dy / canvasH;
-                        overlay.width =
-                            (overlay.width + deltaW).clamp(0.08, 0.95);
-                        overlay.height =
-                            (overlay.height + deltaH).clamp(0.04, 0.95);
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.aspect_ratio_rounded,
-                          color: Colors.white, size: 14),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return InteractiveOverlayItem(
+      overlay: overlay,
+      canvasW: canvasW,
+      canvasH: canvasH,
+      isSelected: isSelected,
+      primary: primary,
+      canvasKey: _canvasKey,
+      onTap: () {
+        setState(() {
+          _selectedOverlayId = overlay.id;
+        });
+      },
+      onDelete: _deleteSelectedOverlay,
+      onDuplicate: _duplicateSelectedOverlay,
+      onRotate: _rotateSelectedOverlay,
+      onSetRotation: _setOverlayRotation,
+      onRepositionDelta: (dx, dy) {
+        setState(() {});
+      },
+      onScaleDelta: (dw, dh) {
+        setState(() {});
+      },
     );
   }
 
@@ -1159,6 +890,36 @@ class _PdfSignatureOverlayScreenState extends State<PdfSignatureOverlayScreen> {
             ),
             const SizedBox(height: 2),
 
+            // Scale Slider
+            Row(
+              children: [
+                const Icon(Icons.aspect_ratio_rounded,
+                    size: 15, color: Color(0xFF10B981)),
+                const SizedBox(width: 6),
+                const Text('Scale',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                Expanded(
+                  child: Slider(
+                    value: sel.width.clamp(0.08, 0.95),
+                    min: 0.08,
+                    max: 0.95,
+                    divisions: 17,
+                    activeColor: const Color(0xFF10B981),
+                    onChanged: (v) {
+                      setState(() {
+                        final ratio = sel.height / sel.width;
+                        sel.width = v;
+                        sel.height = (v * ratio).clamp(0.03, 0.95);
+                      });
+                    },
+                  ),
+                ),
+                Text('${(sel.width * 100).toInt()}%',
+                    style: const TextStyle(fontSize: 11)),
+              ],
+            ),
+            const SizedBox(height: 2),
+
             // Opacity Slider
             Row(
               children: [
@@ -1287,6 +1048,521 @@ class _PdfSignatureOverlayScreenState extends State<PdfSignatureOverlayScreen> {
   }
 }
 
+/// Represents an interactive signature or stamp overlay placed on a PDF page,
+/// featuring dedicated gesture handles to scale, reposition, rotate, duplicate, and delete.
+class InteractiveOverlayItem extends StatefulWidget {
+  final PdfOverlayPlacement overlay;
+  final double canvasW;
+  final double canvasH;
+  final bool isSelected;
+  final Color primary;
+  final VoidCallback onTap;
+  final VoidCallback? onDelete;
+  final VoidCallback? onDuplicate;
+  final ValueChanged<double>? onRotate;
+  final ValueChanged<double>? onSetRotation;
+  final Function(double dx, double dy)? onRepositionDelta;
+  final Function(double dw, double dh)? onScaleDelta;
+  final GlobalKey? canvasKey;
+
+  const InteractiveOverlayItem({
+    Key? key,
+    required this.overlay,
+    required this.canvasW,
+    required this.canvasH,
+    required this.isSelected,
+    required this.primary,
+    required this.onTap,
+    this.onDelete,
+    this.onDuplicate,
+    this.onRotate,
+    this.onSetRotation,
+    this.onRepositionDelta,
+    this.onScaleDelta,
+    this.canvasKey,
+  }) : super(key: key);
+
+  @override
+  State<InteractiveOverlayItem> createState() => _InteractiveOverlayItemState();
+}
+
+class _InteractiveOverlayItemState extends State<InteractiveOverlayItem> {
+  double _gestureStartRot = 0.0;
+  double _gestureStartW = 0.0;
+  double _gestureStartH = 0.0;
+  double _gestureStartX = 0.0;
+  double _gestureStartY = 0.0;
+  Offset _gestureStartFocalPoint = Offset.zero;
+
+  Offset? _repositionStartLocal;
+  double _repositionStartX = 0.0;
+  double _repositionStartY = 0.0;
+
+  void _onRepositionStart(DragStartDetails details) {
+    if (widget.canvasKey?.currentContext != null) {
+      final box =
+          widget.canvasKey!.currentContext!.findRenderObject() as RenderBox?;
+      if (box != null) {
+        _repositionStartLocal = box.globalToLocal(details.globalPosition);
+        _repositionStartX = widget.overlay.x;
+        _repositionStartY = widget.overlay.y;
+        return;
+      }
+    }
+    _repositionStartLocal = null;
+    _repositionStartX = widget.overlay.x;
+    _repositionStartY = widget.overlay.y;
+  }
+
+  void _onRepositionUpdate(DragUpdateDetails details) {
+    if (widget.canvasKey?.currentContext != null &&
+        _repositionStartLocal != null) {
+      final box =
+          widget.canvasKey!.currentContext!.findRenderObject() as RenderBox?;
+      if (box != null) {
+        final currentTouch = box.globalToLocal(details.globalPosition);
+        final deltaX =
+            (currentTouch.dx - _repositionStartLocal!.dx) / widget.canvasW;
+        final deltaY =
+            (currentTouch.dy - _repositionStartLocal!.dy) / widget.canvasH;
+        final newX = (_repositionStartX + deltaX)
+            .clamp(0.0, math.max(0.0, 1.0 - widget.overlay.width)).toDouble();
+        final newY = (_repositionStartY + deltaY)
+            .clamp(0.0, math.max(0.0, 1.0 - widget.overlay.height)).toDouble();
+        final diffX = newX - widget.overlay.x;
+        final diffY = newY - widget.overlay.y;
+        widget.overlay.x = newX;
+        widget.overlay.y = newY;
+        widget.onRepositionDelta?.call(diffX, diffY);
+        setState(() {});
+        return;
+      }
+    }
+    final deltaX = details.delta.dx / widget.canvasW;
+    final deltaY = details.delta.dy / widget.canvasH;
+    final newX = (widget.overlay.x + deltaX)
+        .clamp(0.0, math.max(0.0, 1.0 - widget.overlay.width)).toDouble();
+    final newY = (widget.overlay.y + deltaY)
+        .clamp(0.0, math.max(0.0, 1.0 - widget.overlay.height)).toDouble();
+    final diffX = newX - widget.overlay.x;
+    final diffY = newY - widget.overlay.y;
+    widget.overlay.x = newX;
+    widget.overlay.y = newY;
+    widget.onRepositionDelta?.call(diffX, diffY);
+    setState(() {});
+  }
+
+  void _onScaleUpdate(DragUpdateDetails details,
+      {bool scaleX = true, bool scaleY = true}) {
+    final deltaW = scaleX ? (details.delta.dx / widget.canvasW) : 0.0;
+    final deltaH = scaleY ? (details.delta.dy / widget.canvasH) : 0.0;
+    final newW = (widget.overlay.width + deltaW).clamp(0.06, 0.95);
+    final newH = (widget.overlay.height + deltaH).clamp(0.03, 0.95);
+    final diffW = newW - widget.overlay.width;
+    final diffH = newH - widget.overlay.height;
+    widget.overlay.width = newW;
+    widget.overlay.height = newH;
+    widget.onScaleDelta?.call(diffW, diffH);
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final overlay = widget.overlay;
+    final canvasW = widget.canvasW;
+    final canvasH = widget.canvasH;
+    final primary = widget.primary;
+    final isSelected = widget.isSelected;
+
+    final double itemW = (overlay.width * canvasW).clamp(40.0, canvasW);
+    final double itemH = (overlay.height * canvasH).clamp(24.0, canvasH);
+    final double left = (overlay.x * canvasW).clamp(0.0, canvasW - itemW);
+    final double top = (overlay.y * canvasH).clamp(0.0, canvasH - itemH);
+
+    const double handleMargin = 36.0;
+    final double posLeft = left - handleMargin;
+    final double posTop = top - handleMargin;
+    final double posW = itemW + (handleMargin * 2);
+    final double posH = itemH + (handleMargin * 2);
+
+    return Positioned(
+      left: posLeft,
+      top: posTop,
+      width: posW,
+      height: posH,
+      child: Transform.rotate(
+        angle: overlay.rotation,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Signature / Stamp Image (Inside its own body GestureDetector)
+            Positioned(
+              left: handleMargin,
+              top: handleMargin,
+              width: itemW,
+              height: itemH,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onTap,
+                onScaleStart: (details) {
+                  widget.onTap();
+                  setState(() {
+                    _gestureStartRot = overlay.rotation;
+                    _gestureStartW = overlay.width;
+                    _gestureStartH = overlay.height;
+                    _gestureStartX = overlay.x;
+                    _gestureStartY = overlay.y;
+                    _gestureStartFocalPoint = details.focalPoint;
+                  });
+                },
+                onScaleUpdate: (details) {
+                  setState(() {
+                    if (details.pointerCount == 1) {
+                      final delta = details.focalPoint - _gestureStartFocalPoint;
+                      final newX = (_gestureStartX + (delta.dx / canvasW))
+                          .clamp(0.0, math.max(0.0, 1.0 - overlay.width))
+                          .toDouble();
+                      final newY = (_gestureStartY + (delta.dy / canvasH))
+                          .clamp(0.0, math.max(0.0, 1.0 - overlay.height))
+                          .toDouble();
+                      final diffX = newX - overlay.x;
+                      final diffY = newY - overlay.y;
+                      overlay.x = newX;
+                      overlay.y = newY;
+                      widget.onRepositionDelta?.call(diffX, diffY);
+                    } else if (details.pointerCount > 1) {
+                      if (details.scale > 0.0) {
+                        final double newW =
+                            (_gestureStartW * details.scale).clamp(0.06, 0.95);
+                        final double newH =
+                            (_gestureStartH * details.scale).clamp(0.03, 0.95);
+                        final diffW = newW - overlay.width;
+                        final diffH = newH - overlay.height;
+                        overlay.width = newW;
+                        overlay.height = newH;
+                        widget.onScaleDelta?.call(diffW, diffH);
+                      }
+
+                      if (details.rotation != 0.0) {
+                        double targetRot = _gestureStartRot + details.rotation;
+                        while (targetRot > math.pi) targetRot -= 2 * math.pi;
+                        while (targetRot < -math.pi) targetRot += 2 * math.pi;
+                        if (targetRot.abs() < 0.04) targetRot = 0.0;
+                        overlay.rotation = targetRot;
+                        widget.onSetRotation?.call(targetRot);
+                      }
+                    }
+                  });
+                },
+                child: Opacity(
+                  opacity: overlay.opacity.clamp(0.1, 1.0),
+                  child: Container(
+                    decoration: isSelected
+                        ? BoxDecoration(
+                            border: Border.all(
+                              color: primary,
+                              width: 1.8,
+                            ),
+                            borderRadius: BorderRadius.circular(4),
+                          )
+                        : null,
+                    padding:
+                        isSelected ? const EdgeInsets.all(2) : EdgeInsets.zero,
+                    child: Image.memory(
+                      overlay.imageBytes,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                      height: double.infinity,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Active Selection Handles (SIBLINGS to the body GestureDetector)
+            if (isSelected) ...[
+              // Top-Center: Direct Rotation Drag Handle with Stem
+              Positioned(
+                top: handleMargin - 34,
+                left: handleMargin + (itemW / 2) - 13,
+                child: GestureDetector(
+                  onPanUpdate: (panDetails) {
+                    final renderBox = widget.canvasKey?.currentContext
+                        ?.findRenderObject() as RenderBox?;
+                    if (renderBox == null) return;
+                    final localTouch =
+                        renderBox.globalToLocal(panDetails.globalPosition);
+                    final itemCenterX =
+                        (overlay.x + overlay.width / 2.0) * canvasW;
+                    final itemCenterY =
+                        (overlay.y + overlay.height / 2.0) * canvasH;
+                    final dx = localTouch.dx - itemCenterX;
+                    final dy = localTouch.dy - itemCenterY;
+                    double rawAngle = math.atan2(dy, dx) + (math.pi / 2);
+
+                    const snapDistance = 0.07;
+                    for (final snap in [
+                      -math.pi,
+                      -3 * math.pi / 4,
+                      -math.pi / 2,
+                      -math.pi / 4,
+                      0.0,
+                      math.pi / 4,
+                      math.pi / 2,
+                      3 * math.pi / 4,
+                      math.pi,
+                    ]) {
+                      if ((rawAngle - snap).abs() < snapDistance) {
+                        rawAngle = snap;
+                        break;
+                      }
+                    }
+
+                    while (rawAngle > math.pi) rawAngle -= 2 * math.pi;
+                    while (rawAngle < -math.pi) rawAngle += 2 * math.pi;
+
+                    setState(() {
+                      overlay.rotation = rawAngle;
+                    });
+                    widget.onSetRotation?.call(rawAngle);
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4F46E5),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black38,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.rotate_right_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                      Container(
+                        width: 2,
+                        height: 8,
+                        color: const Color(0xFF4F46E5),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Top-Left: Delete Handle
+              Positioned(
+                top: handleMargin - 12,
+                left: handleMargin - 12,
+                child: GestureDetector(
+                  onTap: widget.onDelete,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.close,
+                        color: Colors.white, size: 14),
+                  ),
+                ),
+              ),
+
+              // Top-Right: Duplicate Handle
+              Positioned(
+                top: handleMargin - 12,
+                left: handleMargin + itemW - 12,
+                child: GestureDetector(
+                  onTap: widget.onDuplicate,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: primary,
+                      shape: BoxShape.circle,
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.copy_rounded,
+                        color: Colors.white, size: 14),
+                  ),
+                ),
+              ),
+
+              // Bottom-Left: Quick 90 deg Rotation Handle
+              Positioned(
+                top: handleMargin + itemH - 12,
+                left: handleMargin - 12,
+                child: GestureDetector(
+                  onTap: () => widget.onRotate?.call(math.pi / 2),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.indigo,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.rotate_right_rounded,
+                        color: Colors.white, size: 14),
+                  ),
+                ),
+              ),
+
+              // Center: Dedicated Reposition Gesture Handle
+              Positioned(
+                left: handleMargin + (itemW / 2) - 16,
+                top: handleMargin + (itemH / 2) - 16,
+                child: GestureDetector(
+                  key: const Key('reposition_handle'),
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: _onRepositionStart,
+                  onPanUpdate: _onRepositionUpdate,
+                  child: Tooltip(
+                    message: 'Reposition Signature',
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2563EB),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black38,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.open_with_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bottom-Right: Corner Scale Gesture Handle
+              Positioned(
+                left: handleMargin + itemW - 14,
+                top: handleMargin + itemH - 14,
+                child: GestureDetector(
+                  key: const Key('scale_handle'),
+                  behavior: HitTestBehavior.opaque,
+                  onPanUpdate: (panDetails) => _onScaleUpdate(panDetails),
+                  child: Tooltip(
+                    message: 'Scale Signature',
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(Icons.aspect_ratio_rounded,
+                          color: Colors.white, size: 15),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Right-Center: Width Scale Gesture Handle
+              Positioned(
+                left: handleMargin + itemW - 12,
+                top: handleMargin + (itemH / 2) - 12,
+                child: GestureDetector(
+                  key: const Key('scale_handle_width'),
+                  behavior: HitTestBehavior.opaque,
+                  onPanUpdate: (panDetails) =>
+                      _onScaleUpdate(panDetails, scaleX: true, scaleY: false),
+                  child: Tooltip(
+                    message: 'Scale Width',
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D9488),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 3),
+                        ],
+                      ),
+                      child: const Icon(Icons.code_rounded,
+                          color: Colors.white, size: 14),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bottom-Center: Height Scale Gesture Handle
+              Positioned(
+                left: handleMargin + (itemW / 2) - 12,
+                top: handleMargin + itemH - 12,
+                child: GestureDetector(
+                  key: const Key('scale_handle_height'),
+                  behavior: HitTestBehavior.opaque,
+                  onPanUpdate: (panDetails) =>
+                      _onScaleUpdate(panDetails, scaleX: false, scaleY: true),
+                  child: Tooltip(
+                    message: 'Scale Height',
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D9488),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black26, blurRadius: 3),
+                        ],
+                      ),
+                      child: const Icon(Icons.unfold_more_rounded,
+                          color: Colors.white, size: 14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // --- Smooth Drawing Signature Pad Dialog ---
 
 class _SignaturePadDialog extends StatefulWidget {
@@ -1341,20 +1617,18 @@ class _SignaturePadDialogState extends State<_SignaturePadDialog> {
       ..style = PaintingStyle.stroke;
 
     for (final stroke in _strokes) {
-      if (stroke.length < 2) continue;
-      final path = Path();
-      path.moveTo(stroke[0].dx, stroke[0].dy);
-      for (int i = 1; i < stroke.length; i++) {
-        final p0 = stroke[i - 1];
-        final p1 = stroke[i];
-        path.quadraticBezierTo(
-          p0.dx,
-          p0.dy,
-          (p0.dx + p1.dx) / 2,
-          (p0.dy + p1.dy) / 2,
+      if (stroke.isEmpty) continue;
+      if (stroke.length == 1) {
+        canvas.drawCircle(
+          stroke.first,
+          (_strokeWidth * 1.5) / 2,
+          Paint()
+            ..color = _selectedColor
+            ..style = PaintingStyle.fill,
         );
+        continue;
       }
-      path.lineTo(stroke.last.dx, stroke.last.dy);
+      final path = SignatureCubicSmoother.computeCubicBezierPath(stroke);
       canvas.drawPath(path, paint);
     }
 
@@ -1525,6 +1799,66 @@ class _SignaturePadDialogState extends State<_SignaturePadDialog> {
   }
 }
 
+/// Utility class providing cubic Bézier smoothing for touch point strokes on signatures.
+class SignatureCubicSmoother {
+  /// Computes a smooth cubic Bézier Path connecting the given touch points.
+  /// Uses Catmull-Rom spline formulation converted to cubic Bézier control points
+  /// (C1 continuity) to smoothly interpolate across all touch points.
+  static Path computeCubicBezierPath(List<Offset> points) {
+    final path = Path();
+    if (points.isEmpty) return path;
+
+    if (points.length == 1) {
+      path.moveTo(points.first.dx, points.first.dy);
+      path.lineTo(points.first.dx, points.first.dy);
+      return path;
+    }
+
+    path.moveTo(points.first.dx, points.first.dy);
+
+    if (points.length == 2) {
+      final p0 = points[0];
+      final p1 = points[1];
+      final cp1 = Offset(
+        p0.dx + (p1.dx - p0.dx) / 3.0,
+        p0.dy + (p1.dy - p0.dy) / 3.0,
+      );
+      final cp2 = Offset(
+        p1.dx - (p1.dx - p0.dx) / 3.0,
+        p1.dy - (p1.dy - p0.dy) / 3.0,
+      );
+      path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p1.dx, p1.dy);
+      return path;
+    }
+
+    final int n = points.length;
+    for (int i = 0; i < n - 1; i++) {
+      final p0 = points[i];
+      final p1 = points[i + 1];
+
+      final pPrev = i > 0
+          ? points[i - 1]
+          : Offset(2 * p0.dx - p1.dx, 2 * p0.dy - p1.dy);
+      final pNext = (i + 2 < n)
+          ? points[i + 2]
+          : Offset(2 * p1.dx - p0.dx, 2 * p1.dy - p0.dy);
+
+      final cp1 = Offset(
+        p0.dx + (p1.dx - pPrev.dx) / 6.0,
+        p0.dy + (p1.dy - pPrev.dy) / 6.0,
+      );
+      final cp2 = Offset(
+        p1.dx - (pNext.dx - p0.dx) / 6.0,
+        p1.dy - (pNext.dy - p0.dy) / 6.0,
+      );
+
+      path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p1.dx, p1.dy);
+    }
+
+    return path;
+  }
+}
+
 class _SignaturePainter extends CustomPainter {
   final List<List<Offset>> strokes;
   final Color color;
@@ -1546,20 +1880,18 @@ class _SignaturePainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (final stroke in strokes) {
-      if (stroke.length < 2) continue;
-      final path = Path();
-      path.moveTo(stroke[0].dx, stroke[0].dy);
-      for (int i = 1; i < stroke.length; i++) {
-        final p0 = stroke[i - 1];
-        final p1 = stroke[i];
-        path.quadraticBezierTo(
-          p0.dx,
-          p0.dy,
-          (p0.dx + p1.dx) / 2,
-          (p0.dy + p1.dy) / 2,
+      if (stroke.isEmpty) continue;
+      if (stroke.length == 1) {
+        canvas.drawCircle(
+          stroke.first,
+          strokeWidth / 2,
+          Paint()
+            ..color = color
+            ..style = PaintingStyle.fill,
         );
+        continue;
       }
-      path.lineTo(stroke.last.dx, stroke.last.dy);
+      final path = SignatureCubicSmoother.computeCubicBezierPath(stroke);
       canvas.drawPath(path, paint);
     }
   }
