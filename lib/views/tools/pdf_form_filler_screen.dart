@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
@@ -17,6 +18,29 @@ class PdfFormFillerScreen extends StatefulWidget {
   final String? initialFilePath;
 
   const PdfFormFillerScreen({Key? key, this.initialFilePath}) : super(key: key);
+
+  /// Calculates the standard PDF text field height in PDF points for a given font size.
+  /// Standard single-line PDF form text fields conform to ~1.45x font size (typically 20-24pt for 12-14pt fonts).
+  static double standardPdfFieldHeight(double fontSize) {
+    return (fontSize * 1.45).clamp(18.0, 72.0);
+  }
+
+  /// Calculates the calibrated font baseline offset from the top of a standard PDF text field.
+  /// In standard PDF text fields (AcroForm single-line fields), text is vertically centered
+  /// with the font baseline positioned at:
+  ///   baseline = (fieldHeight - (ascent + descent)) / 2 + ascent
+  /// Using Helvetica metrics per ISO 32000-1 (ascent ~ 0.772, descent ~ 0.228).
+  static double standardPdfFontBaseline({
+    required double fontSize,
+    required double fieldHeight,
+  }) {
+    const ascentRatio = 0.772;
+    const descentRatio = 0.228;
+    final fontAscent = fontSize * ascentRatio;
+    final fontDescent = fontSize * descentRatio;
+    final verticalMargin = (fieldHeight - (fontAscent + fontDescent)) / 2.0;
+    return verticalMargin + fontAscent;
+  }
 
   @override
   State<PdfFormFillerScreen> createState() => _PdfFormFillerScreenState();
@@ -171,6 +195,18 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
     }
   }
 
+  static double standardPdfFieldHeight(double fontSize) =>
+      PdfFormFillerScreen.standardPdfFieldHeight(fontSize);
+
+  static double standardPdfFontBaseline({
+    required double fontSize,
+    required double fieldHeight,
+  }) =>
+      PdfFormFillerScreen.standardPdfFontBaseline(
+        fontSize: fontSize,
+        fieldHeight: fieldHeight,
+      );
+
   List<Annotation> get _currentPageAnnotations =>
       _annotations.putIfAbsent(_currentPage, () => []);
 
@@ -181,42 +217,77 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
 
     switch (_activeTool) {
       case FormToolMode.text:
+        const fontSize = 14.0;
+        final fieldH = standardPdfFieldHeight(fontSize);
+        final baselineOffset = standardPdfFontBaseline(
+          fontSize: fontSize,
+          fieldHeight: fieldH,
+        );
+        final normH = fieldH / _pdfPageHeight;
+        final normBaselineOffset = baselineOffset / _pdfPageHeight;
+        // User tapped on the form line: calibrate baseline to land directly on the tapped position
+        final startY = (ry - normBaselineOffset).clamp(0.0, 1.0 - normH);
+
         ann = Annotation.text(
           id: id,
-          x: rx.clamp(0.0, 0.8),
-          y: ry.clamp(0.0, 0.9),
+          x: rx.clamp(0.0, 0.75),
+          y: startY,
           text: 'Tap to edit text',
-          fontSize: 16,
+          fontSize: fontSize,
           color: Colors.black,
+          width: 0.28,
+          height: normH,
         );
         break;
       case FormToolMode.checkmark:
+        const checkFontSize = 22.0;
+        final checkSize = checkFontSize * 1.1;
+        final normW = checkSize / _pdfPageWidth;
+        final normH = checkSize / _pdfPageHeight;
+        // Center checkmark directly on tapped position (e.g. inside checkbox)
+        final startX = (rx - normW / 2).clamp(0.0, 1.0 - normW);
+        final startY = (ry - normH / 2).clamp(0.0, 1.0 - normH);
+
         ann = Annotation.checkmark(
           id: id,
-          x: rx.clamp(0.0, 0.9),
-          y: ry.clamp(0.0, 0.9),
+          x: startX,
+          y: startY,
           color: const Color(0xFF10B981),
-          fontSize: 22,
+          fontSize: checkFontSize,
+          width: normW,
+          height: normH,
         );
         break;
       case FormToolMode.dateStamp:
         final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        const fontSize = 12.0;
+        final fieldH = standardPdfFieldHeight(fontSize);
+        final baselineOffset = standardPdfFontBaseline(
+          fontSize: fontSize,
+          fieldHeight: fieldH,
+        );
+        final normH = fieldH / _pdfPageHeight;
+        final normBaselineOffset = baselineOffset / _pdfPageHeight;
+        final startY = (ry - normBaselineOffset).clamp(0.0, 1.0 - normH);
+
         ann = Annotation.dateStamp(
           id: id,
           x: rx.clamp(0.0, 0.7),
-          y: ry.clamp(0.0, 0.9),
+          y: startY,
           text: dateStr,
-          fontSize: 14,
+          fontSize: fontSize,
           color: const Color(0xFF1E293B),
+          width: 0.25,
+          height: normH,
         );
         break;
       case FormToolMode.highlight:
         ann = Annotation.highlight(
           id: id,
           x: rx.clamp(0.0, 0.6),
-          y: ry.clamp(0.0, 0.9),
+          y: (ry - 0.018).clamp(0.0, 0.96),
           width: 0.35,
-          height: 0.04,
+          height: 0.035,
           color: const Color(0xFFFFEB3B),
           opacity: 0.4,
         );
@@ -450,6 +521,9 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
               style: TextButton.styleFrom(
                 foregroundColor: primary,
                 textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                minimumSize: const Size(48, 48),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                tapTargetSize: MaterialTapTargetSize.padded,
               ),
             ),
             const SizedBox(width: 8),
@@ -598,7 +672,7 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
 
   Widget _buildToolBar(Color primary, bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
         boxShadow: [
@@ -667,36 +741,41 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
   }) {
     final isSelected = _activeTool == mode;
 
-    return FilterChip(
-      selected: isSelected,
-      showCheckmark: false,
-      avatar: Icon(
-        icon,
-        size: 16,
-        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-      ),
-      label: Text(label),
-      labelStyle: TextStyle(
-        fontSize: 12.5,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
-      ),
-      selectedColor: primary,
-      backgroundColor: isDark ? const Color(0xFF2A2A3C) : const Color(0xFFF1F5F9),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(
-          color: isSelected
-              ? primary
-              : (isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48.0),
+      child: FilterChip(
+        selected: isSelected,
+        showCheckmark: false,
+        materialTapTargetSize: MaterialTapTargetSize.padded,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        avatar: Icon(
+          icon,
+          size: 16,
+          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
         ),
+        label: Text(label),
+        labelStyle: TextStyle(
+          fontSize: 12.5,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+        ),
+        selectedColor: primary,
+        backgroundColor: isDark ? const Color(0xFF2A2A3C) : const Color(0xFFF1F5F9),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(
+            color: isSelected
+                ? primary
+                : (isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08)),
+          ),
+        ),
+        onSelected: (_) {
+          setState(() {
+            _activeTool = mode;
+            _selectedAnnotation = null;
+          });
+        },
       ),
-      onSelected: (_) {
-        setState(() {
-          _activeTool = mode;
-          _selectedAnnotation = null;
-        });
-      },
     );
   }
 
@@ -780,20 +859,27 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
     final top = ann.y * canvasHeight;
     final scale = _pdfPageHeight > 0 ? (canvasHeight / _pdfPageHeight) : 0.5;
 
-    double width;
-    double height;
+    double visualWidth;
+    double visualHeight;
     if (ann.kind == AnnotationKind.checkmark) {
-      width = (ann.fontSize * 1.1 * scale).clamp(12.0, canvasWidth);
-      height = (ann.fontSize * 1.1 * scale).clamp(12.0, canvasHeight);
+      visualWidth = (ann.fontSize * 1.1 * scale).clamp(12.0, canvasWidth);
+      visualHeight = (ann.fontSize * 1.1 * scale).clamp(12.0, canvasHeight);
     } else {
-      width = (ann.width * canvasWidth).clamp(20.0, canvasWidth);
-      height = (ann.height * canvasHeight).clamp(14.0, canvasHeight);
+      visualWidth = (ann.width * canvasWidth).clamp(20.0, canvasWidth);
+      visualHeight = (ann.height * canvasHeight).clamp(14.0, canvasHeight);
     }
+
+    // Ensure tap targets have at least 48x48dp padding to prevent accidental misses on small screens
+    const double minTapTargetSize = 48.0;
+    final double touchWidth = math.max(minTapTargetSize, visualWidth);
+    final double touchHeight = math.max(minTapTargetSize, visualHeight);
+    final double padX = (touchWidth - visualWidth) / 2.0;
+    final double padY = (touchHeight - visualHeight) / 2.0;
 
     return Positioned(
       key: ValueKey(ann.id),
-      left: left,
-      top: top,
+      left: left - padX,
+      top: top - padY,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => _selectAnnotation(ann),
@@ -808,59 +894,96 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
                 });
               },
         child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: ann.kind == AnnotationKind.highlight
-                ? ann.color.withValues(alpha: ann.opacity)
-                : (ann.backgroundColor ?? Colors.transparent),
-            border: Border.all(
-              color: ann.isLocked
-                  ? Colors.amber.withValues(alpha: 0.6)
-                  : (isSelected
-                      ? kPrimary
-                      : (ann.kind == AnnotationKind.highlight
-                          ? Colors.transparent
-                          : Colors.blue.withValues(alpha: 0.3))),
-              width: isSelected ? 2.0 : 1.0,
+          width: touchWidth,
+          height: touchHeight,
+          color: Colors.transparent, // Ensures entire 48x48dp hit area is responsive
+          alignment: Alignment.center,
+          child: Container(
+            width: visualWidth,
+            height: visualHeight,
+            decoration: BoxDecoration(
+              color: ann.kind == AnnotationKind.highlight
+                  ? ann.color.withValues(alpha: ann.opacity)
+                  : (ann.backgroundColor ?? Colors.transparent),
+              border: Border.all(
+                color: ann.isLocked
+                    ? Colors.amber.withValues(alpha: 0.6)
+                    : (isSelected
+                        ? kPrimary
+                        : (ann.kind == AnnotationKind.highlight
+                            ? Colors.transparent
+                            : Colors.blue.withValues(alpha: 0.3))),
+                width: isSelected ? 2.0 : 1.0,
+              ),
+              borderRadius: BorderRadius.circular(4),
             ),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          padding: EdgeInsets.zero,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              _renderAnnotationContent(ann, scale),
-              if (ann.isLocked)
-                const Positioned(
-                  right: -4,
-                  top: -4,
-                  child: Icon(
-                    Icons.lock_rounded,
-                    size: 10,
-                    color: Colors.amber,
-                  ),
+            padding: EdgeInsets.zero,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                _renderAnnotationContent(
+                  ann,
+                  scale,
+                  visualWidth,
+                  visualHeight,
                 ),
-            ],
+                if (ann.isLocked)
+                  const Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Icon(
+                      Icons.lock_rounded,
+                      size: 10,
+                      color: Colors.amber,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _renderAnnotationContent(Annotation ann, double scale) {
+  Widget _renderAnnotationContent(
+    Annotation ann,
+    double scale,
+    double visualWidth,
+    double visualHeight,
+  ) {
     switch (ann.kind) {
       case AnnotationKind.text:
       case AnnotationKind.dateStamp:
-        return Text(
-          ann.text,
-          style: TextStyle(
-            fontSize: ann.fontSize * scale,
-            color: ann.color,
-            fontWeight: ann.bold ? FontWeight.bold : FontWeight.normal,
-            height: 1.0,
+        final scaledFontSize = ann.fontSize * scale;
+        // Calibrate font baseline offset relative to standard PDF text fields
+        final baselineOffset = standardPdfFontBaseline(
+          fontSize: scaledFontSize,
+          fieldHeight: visualHeight,
+        );
+        return SizedBox(
+          width: visualWidth,
+          height: visualHeight,
+          child: Align(
+            alignment: Alignment.topLeft,
+            child: Baseline(
+              baseline: baselineOffset,
+              baselineType: TextBaseline.alphabetic,
+              child: Text(
+                ann.text,
+                style: TextStyle(
+                  fontSize: scaledFontSize,
+                  color: ann.color,
+                  fontWeight: ann.bold ? FontWeight.bold : FontWeight.normal,
+                  fontFamily: 'Helvetica',
+                  height: 1.0,
+                  leadingDistribution: TextLeadingDistribution.even,
+                ),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+              ),
+            ),
           ),
-          overflow: TextOverflow.visible,
         );
 
       case AnnotationKind.checkmark:
@@ -894,6 +1017,8 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.chevron_left_rounded),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                padding: const EdgeInsets.all(12),
                 onPressed: _currentPage > 0
                     ? () => _pdfController?.previousPage(
                           duration: const Duration(milliseconds: 250),
@@ -907,6 +1032,8 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right_rounded),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                padding: const EdgeInsets.all(12),
                 onPressed: _currentPage < _pageCount - 1
                     ? () => _pdfController?.nextPage(
                           duration: const Duration(milliseconds: 250),
@@ -933,19 +1060,19 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
                     _currentPageAnnotations.every((a) => a.isLocked)
                         ? Icons.lock_rounded
                         : Icons.lock_open_rounded,
-                    size: 14,
+                    size: 16,
                     color: Colors.amber[700],
                   ),
                   label: Text(
                     _currentPageAnnotations.every((a) => a.isLocked)
                         ? 'Locked'
                         : 'Lock All',
-                    style: TextStyle(fontSize: 12, color: Colors.amber[800]),
+                    style: TextStyle(fontSize: 12.5, color: Colors.amber[800]),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    minimumSize: const Size(48, 48),
+                    tapTargetSize: MaterialTapTargetSize.padded,
                   ),
                 ),
               const SizedBox(width: 8),
@@ -1012,6 +1139,8 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
                   icon: const Icon(Icons.edit_calendar_rounded, size: 20),
                   onPressed: _pickDateForSelected,
                   tooltip: 'Select Date',
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  padding: const EdgeInsets.all(12),
                 ),
               IconButton(
                 icon: Icon(
@@ -1025,12 +1154,16 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
                   });
                 },
                 tooltip: ann.isLocked ? 'Unlock Position' : 'Lock Field in Place',
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                padding: const EdgeInsets.all(12),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline_rounded,
                     color: Colors.redAccent, size: 20),
                 onPressed: _deleteSelectedAnnotation,
                 tooltip: 'Delete Field',
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                padding: const EdgeInsets.all(12),
               ),
             ],
           ),
@@ -1071,7 +1204,29 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
                     label: '${ann.fontSize.round()} pt',
                     onChanged: (val) {
                       setState(() {
-                        ann.fontSize = val;
+                        if (ann.kind == AnnotationKind.text ||
+                            ann.kind == AnnotationKind.dateStamp) {
+                          final oldBaselinePoints = standardPdfFontBaseline(
+                            fontSize: ann.fontSize,
+                            fieldHeight: standardPdfFieldHeight(ann.fontSize),
+                          );
+                          final oldBaselineY =
+                              ann.y + (oldBaselinePoints / _pdfPageHeight);
+
+                          ann.fontSize = val;
+                          final newFieldH = standardPdfFieldHeight(val);
+                          ann.height = newFieldH / _pdfPageHeight;
+
+                          final newBaselinePoints = standardPdfFontBaseline(
+                            fontSize: val,
+                            fieldHeight: newFieldH,
+                          );
+                          // Pin baseline in place relative to form line when adjusting font size
+                          ann.y = (oldBaselineY - (newBaselinePoints / _pdfPageHeight))
+                              .clamp(0.0, 1.0 - ann.height);
+                        } else {
+                          ann.fontSize = val;
+                        }
                       });
                     },
                   ),
@@ -1096,9 +1251,9 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
             ],
           ),
 
-          // Color Palette Swatches
+          // Color Palette Swatches (at least 48x48dp tap target)
           SizedBox(
-            height: 32,
+            height: 48,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: (ann.kind == AnnotationKind.highlight
@@ -1106,35 +1261,51 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
                       : _colorPalette)
                   .map((color) {
                 final isSelected = ann.color.toARGB32() == color.toARGB32();
-                return GestureDetector(
+                return InkWell(
                   onTap: () {
                     setState(() {
                       ann.color = color;
                     });
                   },
+                  borderRadius: BorderRadius.circular(24),
                   child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isSelected
-                            ? primary
-                            : (color == Colors.white ? Colors.black26 : Colors.transparent),
-                        width: isSelected ? 2.5 : 1.0,
+                    width: 48,
+                    height: 48,
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? primary
+                              : (color == Colors.white
+                                  ? Colors.black26
+                                  : Colors.transparent),
+                          width: isSelected ? 2.5 : 1.0,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: primary.withValues(alpha: 0.35),
+                                  blurRadius: 4,
+                                  spreadRadius: 1,
+                                )
+                              ]
+                            : null,
                       ),
+                      child: isSelected
+                          ? Icon(
+                              Icons.check,
+                              size: 16,
+                              color: color.computeLuminance() > 0.5
+                                  ? Colors.black
+                                  : Colors.white,
+                            )
+                          : null,
                     ),
-                    child: isSelected
-                        ? Icon(
-                            Icons.check,
-                            size: 14,
-                            color: color.computeLuminance() > 0.5
-                                ? Colors.black
-                                : Colors.white,
-                          )
-                        : null,
                   ),
                 );
               }).toList(),
