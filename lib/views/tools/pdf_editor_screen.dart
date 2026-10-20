@@ -66,6 +66,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen> {
     _pdfController?.dispose();
     _document?.close();
     _textEditCtrl.dispose();
+    FileService().purgeScratchExportDirectories();
     super.dispose();
   }
 

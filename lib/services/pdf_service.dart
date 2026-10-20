@@ -1554,6 +1554,23 @@ class PdfService {
     );
   }
 
+  /// Positional-argument wrapper for converting JPG/images to PDF.
+  Future<String> convertJpgToPdf(
+    List<String> imagePaths, {
+    PdfPageFormat? format,
+    bool fitPage = true,
+    String quality = 'high',
+    String? customOutputPath,
+  }) async {
+    return convertImagesToPdf(
+      imagePaths: imagePaths,
+      pageFormat: format ?? PdfPageFormat.a4,
+      fitPage: fitPage,
+      quality: quality,
+      customOutputPath: customOutputPath,
+    );
+  }
+
   /// Bundles multiple extracted images into a compressed ZIP file
   Future<String> createZipFromImages({
     required List<String> imagePaths,

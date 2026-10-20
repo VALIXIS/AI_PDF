@@ -227,6 +227,7 @@ class _PdfAiToolkitAppState extends State<PdfAiToolkitApp> {
       themeMode: themeNotifier.mode,
       theme: lightTheme,
       darkTheme: darkTheme,
+      navigatorObservers: [ToolExitNavigatorObserver()],
       home: const SplashScreen(),
       routes: {
         '/history': (_) => const HistoryScreen(),

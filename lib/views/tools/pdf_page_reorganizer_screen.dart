@@ -87,6 +87,7 @@ class PdfPageReorganizerScreenState extends State<PdfPageReorganizerScreen>
   @override
   void dispose() {
     _scrollController.dispose();
+    FileService().purgeScratchExportDirectories();
     super.dispose();
   }
 

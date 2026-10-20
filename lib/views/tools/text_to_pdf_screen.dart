@@ -1,12 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 import 'package:uuid/uuid.dart';
 
 class TextToPdfScreen extends StatefulWidget {
@@ -193,229 +192,156 @@ class _TextToPdfScreenState extends State<TextToPdfScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Text to PDF'),
-        actions: [
-          if (!_isLoading)
-            TextButton.icon(
-              onPressed: _pickTextFile,
-              icon: const Icon(Icons.file_upload_outlined, size: 18),
-              label: const Text('Import File'),
+    return ToolScreenShell(
+      title: 'Text to PDF',
+      explanation: 'Create PDF from Text',
+      actions: [
+        if (!_isLoading)
+          TextButton.icon(
+            onPressed: _pickTextFile,
+            icon: const Icon(Icons.file_upload_outlined, size: 18),
+            label: const Text('Import File'),
+          ),
+      ],
+      onPickFiles: _pickTextFile,
+      selectedFiles: const [],
+      onExecute: _generatePdf,
+      executeButtonLabel: 'Generate PDF',
+      executeButtonIcon: Icons.picture_as_pdf_rounded,
+      alwaysShowExecuteButton: true,
+      showPickButton: false,
+      isLoading: _isLoading,
+      loadingMessage: 'Generating PDF document from text...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      onRetry: (_titleController.text.isNotEmpty &&
+              _textController.text.isNotEmpty)
+          ? _generatePdf
+          : null,
+      successPath: _successPath,
+      successTitle: 'PDF Generated Successfully!',
+      successSubtitle: 'Formatted PDF document created.',
+      defaultSavePrefix: 'TextToPDF',
+      onReset: () {
+        setState(() {
+          _successPath = null;
+          _importedFileName = null;
+          _titleController.clear();
+          _textController.clear();
+          _errorMessage = null;
+        });
+      },
+      scrollable: true,
+      customContent: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Imported File Indicator
+          if (_importedFileName != null) ...[
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: primary.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.insert_drive_file_rounded,
+                      size: 18, color: primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Imported: $_importedFileName',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (!_isLoading)
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 16),
+                      tooltip: 'Clear imported file',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        setState(() {
+                          _importedFileName = null;
+                        });
+                      },
+                    ),
+                ],
+              ),
             ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 16),
+          ],
+
+          // Title Field
+          Text(
+            'PDF Title',
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            enabled: !_isLoading,
+            controller: _titleController,
+            decoration: const InputDecoration(
+              hintText: 'Enter PDF document title...',
+              isDense: true,
+            ),
+            onChanged: (_) {
+              if (_errorMessage != null) {
+                setState(() => _errorMessage = null);
+              }
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // Content Field
+          Row(
             children: [
               Text(
-                'Create PDF from Text',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Enter text or import a plain text file (.txt, .md) to generate a formatted PDF',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 16),
-
-              // Loading Banner
-              if (_isLoading)
-                const ToolLoadingBanner(
-                  message: 'Generating PDF document from text...',
-                ),
-
-              // Error Banner
-              if (_errorMessage != null)
-                ToolErrorBanner(
-                  message: _errorMessage!,
-                  onRetry: (_titleController.text.isNotEmpty &&
-                          _textController.text.isNotEmpty)
-                      ? _generatePdf
-                      : null,
-                  onDismiss: () => setState(() => _errorMessage = null),
-                ),
-
-              // Success Card
-              if (_successPath != null)
-                ToolSuccessCard(
-                  title: 'PDF Generated Successfully!',
-                  subtitle: 'Formatted PDF document created.',
-                  filePath: _successPath,
-                  onSave: () {
-                    if (_successPath != null && mounted) {
-                      ShareService.promptAndSaveFileDirectToDownloads(
-                        context,
-                        sourcePath: _successPath!,
-                        defaultPrefix: 'TextToPDF',
-                      );
-                    }
-                  },
-                  onShare: () {
-                    if (_successPath != null && mounted) {
-                      ShareService.shareFile(context, filePath: _successPath!);
-                    }
-                  },
-                  onReset: () {
-                    setState(() {
-                      _successPath = null;
-                      _importedFileName = null;
-                      _titleController.clear();
-                      _textController.clear();
-                      _errorMessage = null;
-                    });
-                  },
-                ),
-
-              // Imported File Indicator
-              if (_importedFileName != null) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: primary.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.insert_drive_file_rounded,
-                          size: 18, color: primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Imported: $_importedFileName',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (!_isLoading)
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 16),
-                          tooltip: 'Clear imported file',
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            setState(() {
-                              _importedFileName = null;
-                            });
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Title Field
-              Text(
-                'PDF Title',
+                'Content',
                 style: Theme.of(context)
                     .textTheme
                     .titleSmall
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                enabled: !_isLoading,
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter PDF document title...',
-                  isDense: true,
+              const Spacer(),
+              if (!_isLoading)
+                TextButton.icon(
+                  onPressed: _pickTextFile,
+                  icon: const Icon(Icons.upload_file_rounded, size: 16),
+                  label: const Text('Load from .txt/.md',
+                      style: TextStyle(fontSize: 12)),
                 ),
-                onChanged: (_) {
-                  if (_errorMessage != null) {
-                    setState(() => _errorMessage = null);
-                  }
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Content Field
-              Row(
-                children: [
-                  Text(
-                    'Content',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const Spacer(),
-                  if (!_isLoading)
-                    TextButton.icon(
-                      onPressed: _pickTextFile,
-                      icon: const Icon(Icons.upload_file_rounded, size: 16),
-                      label: const Text('Load from .txt/.md',
-                          style: TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                enabled: !_isLoading,
-                controller: _textController,
-                maxLines: 10,
-                minLines: 6,
-                decoration: const InputDecoration(
-                  hintText:
-                      'Enter text to convert to PDF or import a text file...',
-                ),
-                onChanged: (_) {
-                  if (_errorMessage != null) {
-                    setState(() => _errorMessage = null);
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-
-              Text(
-                'Tip: Use # for headers, • for bullet points',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontStyle: FontStyle.italic,
-                    ),
-              ),
-              const SizedBox(height: 24),
-
-              // Action Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _generatePdf,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.picture_as_pdf),
-                  label: const Text('Generate PDF'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          TextField(
+            enabled: !_isLoading,
+            controller: _textController,
+            maxLines: 12,
+            minLines: 6,
+            keyboardType: TextInputType.multiline,
+            decoration: const InputDecoration(
+              hintText: 'Type, paste, or import content here...',
+              alignLabelWithHint: true,
+            ),
+            onChanged: (_) {
+              if (_errorMessage != null) {
+                setState(() => _errorMessage = null);
+              }
+            },
+          ),
+        ],
       ),
     );
   }

@@ -6,10 +6,11 @@ import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
+
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 
 class RedactionScreen extends StatefulWidget {
   const RedactionScreen({Key? key}) : super(key: key);
@@ -45,6 +46,7 @@ class _RedactionScreenState extends State<RedactionScreen> {
   @override
   void dispose() {
     _pdfDocument?.close();
+    FileService().purgeScratchExportDirectories();
     super.dispose();
   }
 
@@ -361,356 +363,307 @@ class _RedactionScreenState extends State<RedactionScreen> {
     final primary = isDark ? kPrimaryDark : kPrimary;
     final sub = isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Redact PDF'),
-        actions: [
-          if (_pdfFile != null && _totalRedactionCount > 0 && !_isProcessing)
-            IconButton(
-              icon: const Icon(Icons.delete_sweep_rounded),
-              tooltip: 'Clear All Redactions',
-              onPressed: _clearAllRedactions,
+    return ToolScreenShell(
+      title: 'Redact PDF',
+      explanation:
+          'Drag across sensitive areas to draw blackout rectangles and permanently redact text or graphics.',
+      explanationIcon: Icons.touch_app_rounded,
+      actions: [
+        if (_pdfFile != null && _totalRedactionCount > 0 && !_isProcessing)
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_rounded),
+            tooltip: 'Clear All Redactions',
+            onPressed: _clearAllRedactions,
+          ),
+      ],
+      isLoading: _isProcessing,
+      loadingMessage:
+          'Rasterizing and permanently blacking out redacted areas...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      onRetry: (_pdfFile != null && _totalRedactionCount > 0)
+          ? _applyRedaction
+          : null,
+      successPath: _successPath,
+      successTitle: 'PDF Redacted Successfully!',
+      successSubtitle:
+          '$_totalRedactionCount sensitive region(s) blacked out permanently.',
+      defaultSavePrefix: 'RedactedPDF',
+      onReset: () {
+        setState(() {
+          _successPath = null;
+          _pdfFile = null;
+          _pdfDocument?.close();
+          _pdfDocument = null;
+          _redactionsByPage.clear();
+        });
+      },
+      selectedFiles: _pdfFile != null ? [_pdfFile!.path] : [],
+      emptyStateTitle: 'No PDF Selected',
+      emptyStateSubtitle:
+          'Select a PDF document to blackout sensitive text or areas',
+      emptyStateIcon: Icons.find_replace_rounded,
+      emptyStateActionLabel: 'Select PDF',
+      onPickFiles: (_isLoadingPdf || _isProcessing) ? null : _pickPdf,
+      showPickButton: false,
+      scrollable: true,
+      onExecute:
+          (_totalRedactionCount == 0 || _isProcessing) ? null : _applyRedaction,
+      executeButtonLabel: 'Redact & Export PDF ($_totalRedactionCount)',
+      executeButtonIcon: Icons.find_replace_rounded,
+      customContent: _pdfFile == null
+          ? null
+          : _buildRedactionContent(context, primary, sub, isDark),
+    );
+  }
+
+  Widget _buildRedactionContent(
+      BuildContext context, Color primary, Color sub, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // File Info Card & Pick Button
+        GestureDetector(
+          onTap: (_isLoadingPdf || _isProcessing) ? null : _pickPdf,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: primary.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: primary.withValues(alpha: 0.3)),
             ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Processing Banner
-            if (_isProcessing)
-              const ToolLoadingBanner(
-                message: 'Rasterizing and permanently blacking out redacted areas...',
-              ),
-
-            // Error Banner
-            if (_errorMessage != null)
-              ToolErrorBanner(
-                message: _errorMessage!,
-                onRetry: (_pdfFile != null && _totalRedactionCount > 0)
-                    ? _applyRedaction
-                    : null,
-                onDismiss: () => setState(() => _errorMessage = null),
-              ),
-
-            // Success Card
-            if (_successPath != null)
-              ToolSuccessCard(
-                title: 'PDF Redacted Successfully!',
-                subtitle: '$_totalRedactionCount sensitive region(s) blacked out permanently.',
-                filePath: _successPath,
-                onSave: () {
-                  if (_successPath != null && mounted) {
-                    ShareService.promptAndSaveFileDirectToDownloads(
-                      context,
-                      sourcePath: _successPath!,
-                      defaultPrefix: 'RedactedPDF',
-                    );
-                  }
-                },
-                onShare: () {
-                  if (_successPath != null && mounted) {
-                    ShareService.shareFile(context, filePath: _successPath!);
-                  }
-                },
-                onReset: () {
-                  setState(() {
-                    _successPath = null;
-                    _pdfFile = null;
-                    _pdfDocument?.close();
-                    _pdfDocument = null;
-                    _redactionsByPage.clear();
-                  });
-                },
-              ),
-
-            // Empty State
-            if (_pdfFile == null && _successPath == null)
-              ToolEmptyState(
-                icon: Icons.find_replace_rounded,
-                title: 'No PDF Selected',
-                subtitle: 'Select a PDF document to blackout sensitive text or areas',
-                actionLabel: 'Select PDF',
-                onAction: (_isLoadingPdf || _isProcessing) ? null : _pickPdf,
-              )
-            else if (_pdfFile != null && _successPath == null) ...[
-              // File Info Card & Pick Button
-              GestureDetector(
-                onTap: (_isLoadingPdf || _isProcessing) ? null : _pickPdf,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: primary.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
+            child: Row(
+              children: [
+                Icon(Icons.picture_as_pdf_rounded, color: primary, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.picture_as_pdf_rounded, color: primary, size: 28),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              FileService().getFileName(_pdfFile!.path),
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700, color: primary),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              '$_pageCount pages · $_totalRedactionCount total redaction(s)',
-                              style: TextStyle(fontSize: 12, color: sub),
-                            ),
-                          ],
-                        ),
+                      Text(
+                        FileService().getFileName(_pdfFile!.path),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700, color: primary),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      Icon(Icons.swap_horiz_rounded, color: sub),
+                      Text(
+                        '$_pageCount pages · $_totalRedactionCount total redaction(s)',
+                        style: TextStyle(fontSize: 12, color: sub),
+                      ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                Icon(Icons.swap_horiz_rounded, color: sub),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
 
-              // Instruction Banner
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.touch_app_rounded, size: 18, color: primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Drag your finger/mouse across sensitive areas to draw blackout rectangles.',
-                        style: TextStyle(fontSize: 12, color: sub, fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
+        // Page Canvas with Drag-to-Draw Blackout Overlay
+        if (_isLoadingPdf || _currentRenderedPage == null)
+          Container(
+            height: 350,
+            width: double.infinity,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0)),
+            ),
+            child: const CircularProgressIndicator(),
+          )
+        else
+          Center(
+            child: AspectRatio(
+              aspectRatio: _pageAspectRatio,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final boxW = constraints.maxWidth;
+                  final boxH = constraints.maxHeight;
 
-              // Page Canvas with Drag-to-Draw Blackout Overlay
-              if (_isLoadingPdf || _currentRenderedPage == null)
-                Container(
-                  height: 350,
-                  width: double.infinity,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
-                  ),
-                  child: const CircularProgressIndicator(),
-                )
-              else
-                Center(
-                  child: AspectRatio(
-                    aspectRatio: _pageAspectRatio,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final boxW = constraints.maxWidth;
-                        final boxH = constraints.maxHeight;
+                  final pageRedactions =
+                      _redactionsByPage[_currentPageIndex] ?? [];
 
-                        final pageRedactions = _redactionsByPage[_currentPageIndex] ?? [];
+                  return GestureDetector(
+                    onPanStart: (details) {
+                      if (_isProcessing) return;
+                      final dx = details.localPosition.dx.clamp(0.0, boxW);
+                      final dy = details.localPosition.dy.clamp(0.0, boxH);
+                      setState(() {
+                        _dragStartNormalized = Offset(dx / boxW, dy / boxH);
+                        _dragCurrentNormalized = _dragStartNormalized;
+                      });
+                    },
+                    onPanUpdate: (details) {
+                      if (_dragStartNormalized == null || _isProcessing) return;
+                      final dx = details.localPosition.dx.clamp(0.0, boxW);
+                      final dy = details.localPosition.dy.clamp(0.0, boxH);
+                      setState(() {
+                        _dragCurrentNormalized = Offset(dx / boxW, dy / boxH);
+                      });
+                    },
+                    onPanEnd: (details) {
+                      if (_dragStartNormalized != null &&
+                          _dragCurrentNormalized != null) {
+                        final start = _dragStartNormalized!;
+                        final current = _dragCurrentNormalized!;
+                        final rect = Rect.fromLTRB(
+                          start.dx < current.dx ? start.dx : current.dx,
+                          start.dy < current.dy ? start.dy : current.dy,
+                          start.dx > current.dx ? start.dx : current.dx,
+                          start.dy > current.dy ? start.dy : current.dy,
+                        );
+                        _addRedaction(rect);
+                      }
+                      setState(() {
+                        _dragStartNormalized = null;
+                        _dragCurrentNormalized = null;
+                      });
+                    },
+                    child: Stack(
+                      children: [
+                        // Background rendered PDF page
+                        Positioned.fill(
+                          child: Image.memory(
+                            _currentRenderedPage!.bytes,
+                            fit: BoxFit.fill,
+                          ),
+                        ),
 
-                        return GestureDetector(
-                          onPanStart: (details) {
-                            if (_isProcessing) return;
-                            final dx = details.localPosition.dx.clamp(0.0, boxW);
-                            final dy = details.localPosition.dy.clamp(0.0, boxH);
-                            setState(() {
-                              _dragStartNormalized = Offset(dx / boxW, dy / boxH);
-                              _dragCurrentNormalized = _dragStartNormalized;
-                            });
-                          },
-                          onPanUpdate: (details) {
-                            if (_dragStartNormalized == null || _isProcessing) return;
-                            final dx = details.localPosition.dx.clamp(0.0, boxW);
-                            final dy = details.localPosition.dy.clamp(0.0, boxH);
-                            setState(() {
-                              _dragCurrentNormalized = Offset(dx / boxW, dy / boxH);
-                            });
-                          },
-                          onPanEnd: (details) {
-                            if (_dragStartNormalized != null && _dragCurrentNormalized != null) {
-                              final start = _dragStartNormalized!;
-                              final current = _dragCurrentNormalized!;
-                              final rect = Rect.fromLTRB(
-                                start.dx < current.dx ? start.dx : current.dx,
-                                start.dy < current.dy ? start.dy : current.dy,
-                                start.dx > current.dx ? start.dx : current.dx,
-                                start.dy > current.dy ? start.dy : current.dy,
-                              );
-                              _addRedaction(rect);
-                            }
-                            setState(() {
-                              _dragStartNormalized = null;
-                              _dragCurrentNormalized = null;
-                            });
-                          },
-                          child: Stack(
-                            children: [
-                              // Background rendered PDF page
-                              Positioned.fill(
-                                child: Image.memory(
-                                  _currentRenderedPage!.bytes,
-                                  fit: BoxFit.fill,
-                                ),
+                        // Existing Blackout Redaction Rectangles on Current Page
+                        for (int i = 0; i < pageRedactions.length; i++) ...[
+                          Positioned(
+                            left: pageRedactions[i].left * boxW,
+                            top: pageRedactions[i].top * boxH,
+                            width: pageRedactions[i].width * boxW,
+                            height: pageRedactions[i].height * boxH,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.6),
+                                    width: 1),
                               ),
-
-                              // Existing Blackout Redaction Rectangles on Current Page
-                              for (int i = 0; i < pageRedactions.length; i++) ...[
-                                Positioned(
-                                  left: pageRedactions[i].left * boxW,
-                                  top: pageRedactions[i].top * boxH,
-                                  width: pageRedactions[i].width * boxW,
-                                  height: pageRedactions[i].height * boxH,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 1),
-                                    ),
-                                    child: Center(
-                                      child: Container(
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Text(
-                                          '${i + 1}',
-                                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ),
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${i + 1}',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
-                              ],
-
-                              // Active Dragging Preview Rectangle
-                              if (_dragStartNormalized != null && _dragCurrentNormalized != null) ...[
-                                Builder(
-                                  builder: (context) {
-                                    final start = _dragStartNormalized!;
-                                    final current = _dragCurrentNormalized!;
-                                    final l = (start.dx < current.dx ? start.dx : current.dx) * boxW;
-                                    final t = (start.dy < current.dy ? start.dy : current.dy) * boxH;
-                                    final w = (start.dx - current.dx).abs() * boxW;
-                                    final h = (start.dy - current.dy).abs() * boxH;
-                                    return Positioned(
-                                      left: l,
-                                      top: t,
-                                      width: w,
-                                      height: h,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withValues(alpha: 0.75),
-                                          border: Border.all(color: Colors.redAccent, width: 2),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ],
+                              ),
+                            ),
                           ),
-                        );
-                      },
+                        ],
+
+                        // Active Dragging Preview Rectangle
+                        if (_dragStartNormalized != null &&
+                            _dragCurrentNormalized != null) ...[
+                          Builder(
+                            builder: (context) {
+                              final start = _dragStartNormalized!;
+                              final current = _dragCurrentNormalized!;
+                              final l = (start.dx < current.dx
+                                      ? start.dx
+                                      : current.dx) *
+                                  boxW;
+                              final t = (start.dy < current.dy
+                                      ? start.dy
+                                      : current.dy) *
+                                  boxH;
+                              final w = (start.dx - current.dx).abs() * boxW;
+                              final h = (start.dy - current.dy).abs() * boxH;
+                              return Positioned(
+                                left: l,
+                                top: t,
+                                width: w,
+                                height: h,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.75),
+                                    border: Border.all(
+                                        color: Colors.redAccent, width: 2),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                ),
-
-              const SizedBox(height: 16),
-
-              // Page Controls Bar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: (_currentPageIndex > 0 && !_isLoadingPdf)
-                        ? () => _changePage(_currentPageIndex - 1)
-                        : null,
-                    icon: const Icon(Icons.chevron_left_rounded),
-                    label: const Text('Prev'),
-                  ),
-                  Text(
-                    'Page ${_currentPageIndex + 1} of $_pageCount',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: (_currentPageIndex < _pageCount - 1 && !_isLoadingPdf)
-                        ? () => _changePage(_currentPageIndex + 1)
-                        : null,
-                    icon: const Icon(Icons.chevron_right_rounded),
-                    label: const Text('Next'),
-                  ),
-                ],
+                  );
+                },
               ),
-              const SizedBox(height: 12),
+            ),
+          ),
 
-              // Page Action Tools (Undo / Clear Page)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: (_redactionsByPage[_currentPageIndex]?.isNotEmpty ?? false)
-                          ? _undoPageRedaction
-                          : null,
-                      icon: const Icon(Icons.undo_rounded, size: 18),
-                      label: const Text('Undo Last'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: (_redactionsByPage[_currentPageIndex]?.isNotEmpty ?? false)
-                          ? _clearPageRedactions
-                          : null,
-                      icon: const Icon(Icons.clear_rounded, size: 18),
-                      label: const Text('Clear Page'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+        const SizedBox(height: 16),
 
-              // Main Export Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: (_totalRedactionCount == 0 || _isProcessing)
-                      ? null
-                      : _applyRedaction,
-                  icon: _isProcessing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.find_replace_rounded),
-                  label: Text(
-                    'Redact & Export PDF ($_totalRedactionCount)',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-              ),
-            ],
+        // Page Controls Bar
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            OutlinedButton.icon(
+              onPressed: (_currentPageIndex > 0 && !_isLoadingPdf)
+                  ? () => _changePage(_currentPageIndex - 1)
+                  : null,
+              icon: const Icon(Icons.chevron_left_rounded),
+              label: const Text('Prev'),
+            ),
+            Text(
+              'Page ${_currentPageIndex + 1} of $_pageCount',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            OutlinedButton.icon(
+              onPressed: (_currentPageIndex < _pageCount - 1 && !_isLoadingPdf)
+                  ? () => _changePage(_currentPageIndex + 1)
+                  : null,
+              icon: const Icon(Icons.chevron_right_rounded),
+              label: const Text('Next'),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+
+        // Page Action Tools (Undo / Clear Page)
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed:
+                    (_redactionsByPage[_currentPageIndex]?.isNotEmpty ?? false)
+                        ? _undoPageRedaction
+                        : null,
+                icon: const Icon(Icons.undo_rounded, size: 18),
+                label: const Text('Undo Last'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed:
+                    (_redactionsByPage[_currentPageIndex]?.isNotEmpty ?? false)
+                        ? _clearPageRedactions
+                        : null,
+                icon: const Icon(Icons.clear_rounded, size: 18),
+                label: const Text('Clear Page'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

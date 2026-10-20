@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/views/tools/text_to_pdf_screen.dart';
-import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 
 class AiRefineScreen extends StatefulWidget {
   const AiRefineScreen({Key? key}) : super(key: key);
@@ -40,225 +40,6 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
       'desc': 'Format into structured study headers',
     },
   ];
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? const Color(0xFF14141E) : Colors.white;
-    final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI Refine'),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Polish Your Text with AI',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Clean typos, generate summaries, or restructure text with AI',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 16),
-
-              // Loading Banner
-              if (_isLoading)
-                ToolLoadingBanner(
-                  message: 'Refining text with AI ($_selectedMode mode)...',
-                ),
-
-              // Error Banner
-              if (_errorMessage != null)
-                ToolErrorBanner(
-                  message: _errorMessage!,
-                  onRetry:
-                      _inputController.text.isNotEmpty ? _refineText : null,
-                  onDismiss: () => setState(() => _errorMessage = null),
-                ),
-
-              // Input Label
-              Text(
-                'Original Text',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-
-              // Input TextField
-              TextField(
-                enabled: !_isLoading,
-                controller: _inputController,
-                maxLines: 6,
-                minLines: 4,
-                decoration: const InputDecoration(
-                  hintText: 'Enter or paste document text to refine...',
-                ),
-                onChanged: (_) {
-                  if (_errorMessage != null) {
-                    setState(() => _errorMessage = null);
-                  }
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Mode Selection Label
-              Text(
-                'Refining Mode',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-
-              // Mode Chips
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _modes.map((m) {
-                  final isSel = _selectedMode == m['mode'];
-                  return ChoiceChip(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(m['icon'], size: 16, color: isSel ? Colors.white : null),
-                        const SizedBox(width: 6),
-                        Text(m['label']),
-                      ],
-                    ),
-                    selected: isSel,
-                    onSelected: _isLoading
-                        ? null
-                        : (sel) {
-                            if (sel) {
-                              setState(() {
-                                _selectedMode = m['mode'];
-                                _refinedText = null;
-                                _errorMessage = null;
-                              });
-                            }
-                          },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-
-              // Refine Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _refineText,
-                  icon: _isLoading
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.auto_awesome_rounded),
-                  label: Text(_isLoading
-                      ? 'Refining with AI...'
-                      : 'Refine Text with AI'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-              ),
-
-              // Result Section
-              if (_refinedText != null) ...[
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Text(
-                      'AI Refined Output',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.copy_rounded, size: 18),
-                      tooltip: 'Copy output',
-                      onPressed: _copyOutput,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: border),
-                  ),
-                  constraints: const BoxConstraints(maxHeight: 240),
-                  child: SingleChildScrollView(
-                    child: SelectableText(
-                      _refinedText!,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _isLoading
-                            ? null
-                            : () {
-                                _inputController.text = _refinedText!;
-                                setState(() {
-                                  _refinedText = null;
-                                  _errorMessage = null;
-                                });
-                              },
-                        icon: const Icon(Icons.swap_vert_rounded),
-                        label: const Text('Use In Input'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => TextToPdfScreen(
-                                initialContent: _refinedText,
-                              ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.picture_as_pdf_rounded),
-                        label: const Text('Export to PDF'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Future<void> _refineText() async {
     if (_isLoading) return;
@@ -311,5 +92,186 @@ class _AiRefineScreenState extends State<AiRefineScreen> {
     _inputController.dispose();
     super.dispose();
   }
-}
 
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF14141E) : Colors.white;
+    final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
+
+    return ToolScreenShell(
+      title: 'AI Refine',
+      explanation: 'Polish Your Text with AI',
+      selectedFiles: const [],
+      onExecute: _refineText,
+      executeButtonLabel: 'Refine Text with AI',
+      executeButtonIcon: Icons.auto_awesome_rounded,
+      alwaysShowExecuteButton: true,
+      showPickButton: false,
+      isLoading: _isLoading,
+      loadingMessage: 'Refining text with AI ($_selectedMode mode)...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      onRetry: _inputController.text.isNotEmpty ? _refineText : null,
+      successPath: null,
+      successSubtitle: null,
+      onReset: () {
+        setState(() {
+          _refinedText = null;
+          _inputController.clear();
+          _errorMessage = null;
+        });
+      },
+      scrollable: true,
+      customContent: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Input Label
+          Text(
+            'Original Text',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+
+          // Input TextField
+          TextField(
+            enabled: !_isLoading,
+            controller: _inputController,
+            maxLines: 6,
+            minLines: 4,
+            decoration: const InputDecoration(
+              hintText: 'Enter or paste document text to refine...',
+            ),
+            onChanged: (_) {
+              if (_errorMessage != null) {
+                setState(() => _errorMessage = null);
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Mode Selection Label
+          Text(
+            'Refining Mode',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+
+          // Mode Chips
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _modes.map((m) {
+              final isSel = _selectedMode == m['mode'];
+              return ChoiceChip(
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(m['icon'],
+                        size: 16, color: isSel ? Colors.white : null),
+                    const SizedBox(width: 6),
+                    Text(m['label']),
+                  ],
+                ),
+                selected: isSel,
+                onSelected: _isLoading
+                    ? null
+                    : (sel) {
+                        if (sel) {
+                          setState(() {
+                            _selectedMode = m['mode'];
+                            _refinedText = null;
+                            _errorMessage = null;
+                          });
+                        }
+                      },
+              );
+            }).toList(),
+          ),
+
+          // Result Section
+          if (_refinedText != null) ...[
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Text(
+                  'AI Refined Output',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  tooltip: 'Copy output',
+                  onPressed: _copyOutput,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: border),
+              ),
+              constraints: const BoxConstraints(maxHeight: 240),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  _refinedText!,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            _inputController.text = _refinedText!;
+                            setState(() {
+                              _refinedText = null;
+                              _errorMessage = null;
+                            });
+                          },
+                    icon: const Icon(Icons.swap_vert_rounded),
+                    label: const Text('Use In Input'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => TextToPdfScreen(
+                            initialContent: _refinedText,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.picture_as_pdf_rounded),
+                    label: const Text('Export to PDF'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

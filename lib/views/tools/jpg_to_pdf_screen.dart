@@ -7,11 +7,10 @@ import 'package:pdf_ai_toolkit/models/history_entry.dart';
 import 'package:pdf_ai_toolkit/services/storage_service.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
-import 'package:pdf_ai_toolkit/services/share_service.dart';
 import 'package:pdf_ai_toolkit/services/ad_service.dart';
 import 'package:pdf_ai_toolkit/controllers/ai_controller.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
-import 'package:pdf_ai_toolkit/views/viewer/pdf_document_viewer_screen.dart';
+import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 
 class JpgToPdfScreen extends StatefulWidget {
   const JpgToPdfScreen({Key? key}) : super(key: key);
@@ -104,16 +103,19 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Failed to select images: $e';
+        _errorMessage = 'Failed to select photos: $e';
       });
     }
   }
 
   void _reorderImages(int oldIndex, int newIndex) {
+    if (oldIndex < 0 ||
+        oldIndex >= _images.length ||
+        newIndex < 0 ||
+        newIndex >= _images.length) {
+      return;
+    }
     setState(() {
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
       final item = _images.removeAt(oldIndex);
       _images.insert(newIndex, item);
     });
@@ -122,20 +124,60 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
   Future<void> _convert() async {
     if (_images.isEmpty) {
       setState(() {
-        _errorMessage = 'Please select at least one image.';
+        _errorMessage = 'Please select at least one photo to convert.';
       });
       return;
     }
 
-    // Gate High 300 DPI Vector Export
-    if (_qualitySliderValue == 2 && !AdService().isFeatureUnlocked(UnlockFeature.vectorExport)) {
-      final unlocked = await AdService().ensureFeatureUnlocked(
-        context,
-        feature: UnlockFeature.vectorExport,
-        customPrompt:
-            'Watch a short video ad to unlock 300 DPI High-Resolution Vector Export for 1 hour.',
-      );
-      if (!unlocked) return;
+    // Gatekeeper: Ultra Vector / High Resolution 300 DPI mode
+    if (_qualityName == 'high') {
+      final isUnlocked =
+          AdService().isFeatureUnlocked(UnlockFeature.vectorExport);
+      if (!isUnlocked) {
+        final shouldWatch = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.lock_rounded, color: Color(0xFF0EA5E9), size: 24),
+                SizedBox(width: 8),
+                Text('High DPI Mode'),
+              ],
+            ),
+            content: const Text(
+              '300 DPI High-Resolution mode creates pristine print-ready vector documents. Watch a short sponsored ad to unlock unlimited High-Res exports for 30 minutes!',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Use Standard (150 DPI)'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(ctx, true),
+                icon: const Icon(Icons.play_circle_outline, size: 18),
+                label: const Text('Watch Video & Unlock'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldWatch == true) {
+          final rewarded =
+              await AdService().showRewardedAd(UnlockFeature.vectorExport);
+          if (!mounted) return;
+          if (!rewarded) {
+            setState(() {
+              _errorMessage =
+                  'Ad could not be loaded. Defaulting to 150 DPI Balanced quality.';
+              _qualitySliderValue = 1.0;
+            });
+          }
+        } else {
+          setState(() {
+            _qualitySliderValue = 1.0; // fallback to medium
+          });
+        }
+      }
     }
 
     setState(() {
@@ -148,19 +190,18 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
 
     try {
       final imagePaths = _images.map((f) => f.path).toList();
-      final path = await PdfService().computeBatchImageToPdf(
-        imagePaths: imagePaths,
-        quality: _qualityName,
-        pageFormat: _pageFormat,
+      final path = await PdfService().convertJpgToPdf(
+        imagePaths,
+        format: _pageFormat,
         fitPage: _fitPage,
+        quality: _qualityName,
       );
 
       stopwatch.stop();
-      final elapsed = stopwatch.elapsedMilliseconds / 1000.0;
 
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
-        title: 'Batch Images to PDF (${_images.length})',
+        title: '${_images.length} Photos → PDF',
         date: DateTime.now(),
         filePath: path,
         toolType: 'jpg_to_pdf',
@@ -170,7 +211,7 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
       setState(() {
         _isLoading = false;
         _successPath = path;
-        _conversionSeconds = elapsed;
+        _conversionSeconds = stopwatch.elapsedMilliseconds / 1000.0;
       });
     } catch (e) {
       if (!mounted) return;
@@ -192,80 +233,63 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
     final bg = isDark ? const Color(0xFF14141E) : Colors.white;
     final border = isDark ? const Color(0xFF1F1F2E) : const Color(0xFFE5E7EB);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Images to PDF'),
-        actions: [
-          if (_images.isNotEmpty && !_isLoading)
-            IconButton(
-              icon: const Icon(Icons.add_photo_alternate_rounded),
-              tooltip: 'Add More Photos',
-              onPressed: _images.length < maxBatchPhotos ? _pickImages : null,
-            ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Loading Banner
-          if (_isLoading)
-            ToolLoadingBanner(
-              message:
-                  'Compressing & bundling ${_images.length} photos in background isolate...',
-            ),
-
-          // Error Banner
-          if (_errorMessage != null)
-            ToolErrorBanner(
-              message: _errorMessage!,
-              onRetry: _images.isNotEmpty ? _convert : null,
-              onDismiss: () => setState(() => _errorMessage = null),
-            ),
-
-          // Success Card
-          if (_successPath != null)
-            ToolSuccessCard(
-              title: 'PDF Created Successfully!',
-              subtitle:
-                  'Bundled ${_images.length} photos in ${_conversionSeconds.toStringAsFixed(2)}s using background isolate compression.',
-              filePath: _successPath,
-              onSave: () {
-                if (_successPath != null && mounted) {
-                  ShareService.promptAndSaveFileDirectToDownloads(
-                    context,
-                    sourcePath: _successPath!,
-                    defaultPrefix: 'BatchImages',
-                    onOpen: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              PdfDocumentViewerScreen(filePath: _successPath!),
-                        ),
-                      );
-                    },
-                  );
-                }
-              },
-              onShare: () {
-                if (_successPath != null && mounted) {
-                  ShareService.shareFile(context, filePath: _successPath!);
-                }
-              },
-              onReset: () {
-                setState(() {
-                  _successPath = null;
-                  _images.clear();
-                  _errorMessage = null;
-                });
-              },
-            ),
-
+    return ToolScreenShell(
+      title: 'Images to PDF',
+      explanation:
+          'Convert multiple photos or gallery images into a single professional PDF document.',
+      actions: [
+        if (_images.isNotEmpty && !_isLoading)
+          IconButton(
+            icon: const Icon(Icons.add_photo_alternate_rounded),
+            tooltip: 'Add More Photos',
+            onPressed: _images.length < maxBatchPhotos ? _pickImages : null,
+          ),
+      ],
+      onPickFiles: _pickImages,
+      selectedFiles: _images.map((f) => f.path).toList(),
+      onRemoveFile: (idx) {
+        setState(() {
+          _images.removeAt(idx);
+          _errorMessage = null;
+        });
+      },
+      onExecute: _images.isNotEmpty ? _convert : null,
+      executeButtonLabel: _images.isEmpty
+          ? 'Select images first'
+          : 'Convert ${_images.length} Photo${_images.length > 1 ? 's' : ''} to PDF',
+      executeButtonIcon: Icons.picture_as_pdf_rounded,
+      alwaysShowExecuteButton: true,
+      showPickButton: false,
+      isLoading: _isLoading,
+      loadingMessage:
+          'Compressing & bundling ${_images.length} photos in background isolate...',
+      errorMessage: _errorMessage,
+      onDismissError: () => setState(() => _errorMessage = null),
+      onRetry: _images.isNotEmpty ? _convert : null,
+      successPath: _successPath,
+      successTitle: 'PDF Created Successfully!',
+      successSubtitle:
+          'Bundled ${_images.length} photos in ${_conversionSeconds.toStringAsFixed(2)}s using background isolate compression.',
+      defaultSavePrefix: 'BatchImages',
+      onReset: () {
+        setState(() {
+          _successPath = null;
+          _images.clear();
+          _errorMessage = null;
+        });
+      },
+      scrollable: true,
+      customContent: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           // Compression & Layout Options Card
-          Text('Compression & Output Settings',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'Compression & Output Settings',
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 10),
           Material(
             color: bg,
@@ -322,12 +346,15 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                   if (_qualitySliderValue == 2) ...[
                     const SizedBox(height: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                        color:
+                            const Color(0xFF0EA5E9).withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: const Color(0xFF0EA5E9).withValues(alpha: 0.25),
+                          color: const Color(0xFF0EA5E9)
+                              .withValues(alpha: 0.25),
                         ),
                       ),
                       child: Row(
@@ -337,7 +364,8 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              AdService().isFeatureUnlocked(UnlockFeature.vectorExport)
+                              AdService().isFeatureUnlocked(
+                                      UnlockFeature.vectorExport)
                                   ? '✨ High-Res Vector Export Unlocked (${AdService().getRemainingMinutes(UnlockFeature.vectorExport)}m left)'
                                   : '300 DPI Ultra Vector Mode (High-eCPM Feature)',
                               style: const TextStyle(
@@ -367,8 +395,7 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                       underline: const SizedBox(),
                       items: const [
                         DropdownMenuItem<PdfPageFormat?>(
-                            value: null,
-                            child: Text('Auto (Fit to Photo)')),
+                            value: null, child: Text('Auto (Fit to Photo)')),
                         DropdownMenuItem<PdfPageFormat?>(
                             value: PdfPageFormat.a4,
                             child: Text('A4 Document')),
@@ -392,12 +419,14 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                   SwitchListTile.adaptive(
                     title: const Text('Fit to page',
                         style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Scale images edge-to-edge with zero white bars'),
+                    subtitle: const Text(
+                        'Scale images edge-to-edge with zero white bars'),
                     value: _fitPage,
                     activeThumbColor: primary,
                     contentPadding: EdgeInsets.zero,
-                    onChanged:
-                        _isLoading ? null : (v) => setState(() => _fitPage = v),
+                    onChanged: _isLoading
+                        ? null
+                        : (v) => setState(() => _fitPage = v),
                   ),
                 ],
               ),
@@ -417,7 +446,8 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
               if (_images.isNotEmpty)
                 Tooltip(
                   message: 'Long-press and drag thumbnails to reorder pages',
-                  child: Icon(Icons.info_outline_rounded, size: 16, color: sub),
+                  child:
+                      Icon(Icons.info_outline_rounded, size: 16, color: sub),
                 ),
               const Spacer(),
               if (_images.isNotEmpty && !_isLoading)
@@ -434,7 +464,7 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
           const SizedBox(height: 10),
 
           // Empty state or Reorderable Grid of Selected Images
-          if (_images.isEmpty && _successPath == null)
+          if (_images.isEmpty)
             ToolEmptyState(
               icon: Icons.add_photo_alternate_rounded,
               title: 'No Images Selected',
@@ -443,40 +473,9 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
               actionLabel: 'Select Images',
               onAction: _isLoading ? null : _pickImages,
             )
-          else if (_images.isNotEmpty)
+          else
             _buildDraggableThumbnailGrid(bg, border, sub, primary),
-
-          const SizedBox(height: 24),
-
-          // Convert Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: (_images.isEmpty || _isLoading) ? null : _convert,
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.picture_as_pdf_rounded),
-              label: Text(
-                _images.isEmpty
-                    ? 'Select images first'
-                    : 'Convert ${_images.length} Photo${_images.length > 1 ? 's' : ''} to PDF',
-                style:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ]),
+        ],
       ),
     );
   }
@@ -553,12 +552,12 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                 ),
               ),
               childWhenDragging: Opacity(
-                opacity: 0.35,
-                child: _buildThumbnailCard(
-                    file, index, bg, border, isTargeted, primary),
+                opacity: 0.3,
+                child: _buildGridItem(
+                    file, index, bg, border, sub, primary, false),
               ),
-              child: _buildThumbnailCard(
-                  file, index, bg, border, isTargeted, primary),
+              child: _buildGridItem(
+                  file, index, bg, border, sub, primary, isTargeted),
             );
           },
         );
@@ -566,15 +565,15 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
     );
   }
 
-  Widget _buildThumbnailCard(File file, int index, Color bg, Color border,
-      bool isTargeted, Color primary) {
+  Widget _buildGridItem(File file, int index, Color bg, Color border, Color sub,
+      Color primary, bool isTargeted) {
     return Container(
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isTargeted ? primary : border,
-          width: isTargeted ? 2.5 : 1,
+          width: isTargeted ? 2 : 1,
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -582,41 +581,25 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
         fit: StackFit.expand,
         children: [
           Image.file(file, fit: BoxFit.cover),
-          // Page number pill
           Positioned(
-            top: 5,
-            left: 5,
+            top: 4,
+            left: 4,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(5),
+                color: Colors.black.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                '#${index + 1}',
+                '${index + 1}',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 10.5,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-          // Reorder drag hint indicator
-          Positioned(
-            bottom: 5,
-            right: 5,
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.drag_indicator_rounded,
-                  color: Colors.white, size: 13),
-            ),
-          ),
-          // Delete badge
           Positioned(
             top: 4,
             right: 4,
@@ -626,18 +609,16 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
                   : () {
                       setState(() {
                         _images.removeAt(index);
-                        _errorMessage = null;
                       });
                     },
               child: Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDC2626),
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.close_rounded,
-                    color: Colors.white, size: 13),
+                    color: Colors.white, size: 14),
               ),
             ),
           ),
