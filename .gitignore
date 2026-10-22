@@ -91,3 +91,8 @@ coverage/
 *.apk
 apk/
 download_apk/
+
+# Coverage
+coverage/
+lcov.info
+

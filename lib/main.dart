@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -187,7 +188,12 @@ void main() async {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
       AnalyticsService().logNonFatalException(details.exception, details.stack);
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      AnalyticsService().logNonFatalException(error, stack);
+      return true;
     };
 
     try {

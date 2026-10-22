@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfx/pdfx.dart' as pdfx;
@@ -689,7 +688,7 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
             borderRadius: BorderRadius.circular(6),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.4 : 0.12),
+                color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -727,7 +726,7 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
               height: 28,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                color: primary.withOpacity(0.8),
+                color: primary.withValues(alpha: 0.8),
               ),
             ),
             const SizedBox(height: 12),

@@ -241,7 +241,7 @@ class _PdfFormFillerScreenState extends State<PdfFormFillerScreen> {
         break;
       case FormToolMode.checkmark:
         const checkFontSize = 22.0;
-        final checkSize = checkFontSize * 1.1;
+        const checkSize = checkFontSize * 1.1;
         final normW = checkSize / _pdfPageWidth;
         final normH = checkSize / _pdfPageHeight;
         // Center checkmark directly on tapped position (e.g. inside checkbox)

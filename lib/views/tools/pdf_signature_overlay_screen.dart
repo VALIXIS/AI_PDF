@@ -55,14 +55,6 @@ class _PdfSignatureOverlayScreenState extends State<PdfSignatureOverlayScreen> {
   // Canvas GlobalKey for exact local touch conversions
   final GlobalKey _canvasKey = GlobalKey();
 
-  // Gesture baseline tracking for smooth manipulation
-  double _gestureStartRot = 0.0;
-  double _gestureStartW = 0.0;
-  double _gestureStartH = 0.0;
-  double _gestureStartX = 0.0;
-  double _gestureStartY = 0.0;
-  Offset _gestureStartFocalPoint = Offset.zero;
-
   @override
   void initState() {
     super.initState();
@@ -1245,8 +1237,8 @@ class _InteractiveOverlayItemState extends State<InteractiveOverlayItem> {
 
                       if (details.rotation != 0.0) {
                         double targetRot = _gestureStartRot + details.rotation;
-                        while (targetRot > math.pi) targetRot -= 2 * math.pi;
-                        while (targetRot < -math.pi) targetRot += 2 * math.pi;
+                        while (targetRot > math.pi) { targetRot -= 2 * math.pi; }
+                        while (targetRot < -math.pi) { targetRot += 2 * math.pi; }
                         if (targetRot.abs() < 0.04) targetRot = 0.0;
                         overlay.rotation = targetRot;
                         widget.onSetRotation?.call(targetRot);
@@ -1318,8 +1310,8 @@ class _InteractiveOverlayItemState extends State<InteractiveOverlayItem> {
                       }
                     }
 
-                    while (rawAngle > math.pi) rawAngle -= 2 * math.pi;
-                    while (rawAngle < -math.pi) rawAngle += 2 * math.pi;
+                    while (rawAngle > math.pi) { rawAngle -= 2 * math.pi; }
+                    while (rawAngle < -math.pi) { rawAngle += 2 * math.pi; }
 
                     setState(() {
                       overlay.rotation = rawAngle;
