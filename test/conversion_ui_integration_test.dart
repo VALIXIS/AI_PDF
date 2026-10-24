@@ -88,6 +88,45 @@ void main() {
       expect(find.text('Fit to page'), findsOneWidget);
       expect(find.text('Select images first'), findsOneWidget);
       expect(find.byType(ToolEmptyState), findsOneWidget);
+      expect(find.text('Take Photo'), findsOneWidget);
+      expect(find.text('From Gallery'), findsOneWidget);
+      expect(find.byIcon(Icons.camera_alt_rounded), findsWidgets);
+    });
+
+    testWidgets(
+        'JpgToPdfReorderScreen renders full screen reorder cards and page review controls',
+        (WidgetTester tester) async {
+      final dummyFile1 = File('${tempDir.path}/test_img_1.jpg')
+        ..writeAsBytesSync([1, 2, 3]);
+      final dummyFile2 = File('${tempDir.path}/test_img_2.jpg')
+        ..writeAsBytesSync([4, 5, 6]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: JpgToPdfReorderScreen(
+            images: [dummyFile1, dummyFile2],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review & Reorder Pages'), findsOneWidget);
+      expect(find.text('2 pages in PDF'), findsOneWidget);
+      expect(find.text('Page 1'), findsOneWidget);
+      expect(find.text('Page 2'), findsOneWidget);
+      expect(find.text('Up'), findsNWidgets(2));
+      expect(find.text('Down'), findsNWidgets(2));
+      expect(find.text('Camera'), findsOneWidget);
+      expect(find.text('Gallery'), findsOneWidget);
+      expect(find.text('Apply Order (2)'), findsOneWidget);
+
+      // Verify switching to carousel view
+      await tester.tap(find.byTooltip('Switch to Full Page View'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Page 1 of 2'), findsOneWidget);
+      expect(find.text('Move Left'), findsOneWidget);
+      expect(find.text('Move Right'), findsOneWidget);
     });
 
     testWidgets('PdfToImageScreen renders empty state and controls',
