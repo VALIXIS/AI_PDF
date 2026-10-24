@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
@@ -250,6 +251,179 @@ void main() {
       );
 
       await File(badImgPath).delete();
+    });
+  });
+
+  group('EXIF Orientation and 2048px Image Resizing Isolate Tests', () {
+    test('Correctly maps EXIF orientation tags to degrees (0, 90, 180, 270 deg)', () {
+      expect(FileService.exifOrientationToDegrees(1), 0);
+      expect(FileService.exifOrientationToDegrees(6), 90);
+      expect(FileService.exifOrientationToDegrees(3), 180);
+      expect(FileService.exifOrientationToDegrees(8), 270);
+      expect(FileService.exifOrientationToDegrees(null), 0);
+      expect(FileService.exifOrientationToDegrees(0), 0);
+
+      expect(FileService.degreesToExifOrientation(0), 1);
+      expect(FileService.degreesToExifOrientation(90), 6);
+      expect(FileService.degreesToExifOrientation(180), 3);
+      expect(FileService.degreesToExifOrientation(270), 8);
+    });
+
+    test('EXIF Orientation 0 deg (tag 1) maintains original dimensions', () async {
+      final imgObj = img.Image(width: 400, height: 800);
+      imgObj.exif.imageIfd.orientation = 1;
+      final rawBytes = Uint8List.fromList(img.encodeJpg(imgObj));
+
+      final processedBytes = await fileService.orientAndResizeImageBytes(rawBytes);
+      final decoded = img.decodeImage(processedBytes)!;
+      expect(decoded.width, 400);
+      expect(decoded.height, 800);
+    });
+
+    test('EXIF Orientation 90 deg (tag 6) rotates image 90 degrees in isolate', () async {
+      final imgObj = img.Image(width: 400, height: 800);
+      imgObj.exif.imageIfd.orientation = 6;
+      final rawBytes = Uint8List.fromList(img.encodeJpg(imgObj));
+
+      final processedBytes = await fileService.orientAndResizeImageBytes(rawBytes);
+      final decoded = img.decodeImage(processedBytes)!;
+      expect(decoded.width, 800);
+      expect(decoded.height, 400);
+    });
+
+    test('EXIF Orientation 180 deg (tag 3) rotates image 180 degrees in isolate', () async {
+      final imgObj = img.Image(width: 400, height: 800);
+      imgObj.exif.imageIfd.orientation = 3;
+      final rawBytes = Uint8List.fromList(img.encodeJpg(imgObj));
+
+      final processedBytes = await fileService.orientAndResizeImageBytes(rawBytes);
+      final decoded = img.decodeImage(processedBytes)!;
+      expect(decoded.width, 400);
+      expect(decoded.height, 800);
+    });
+
+    test('EXIF Orientation 270 deg (tag 8) rotates image 270 degrees in isolate', () async {
+      final imgObj = img.Image(width: 400, height: 800);
+      imgObj.exif.imageIfd.orientation = 8;
+      final rawBytes = Uint8List.fromList(img.encodeJpg(imgObj));
+
+      final processedBytes = await fileService.orientAndResizeImageBytes(rawBytes);
+      final decoded = img.decodeImage(processedBytes)!;
+      expect(decoded.width, 800);
+      expect(decoded.height, 400);
+    });
+
+    test('Downscales images exceeding 2048px width in spawned isolate preserving aspect ratio', () async {
+      final imgObj = img.Image(width: 3000, height: 1500);
+      final rawBytes = Uint8List.fromList(img.encodeJpg(imgObj));
+
+      final processedBytes = await fileService.orientAndResizeImageBytes(rawBytes, maxDimension: 2048);
+      final decoded = img.decodeImage(processedBytes)!;
+      expect(decoded.width, 2048);
+      expect(decoded.height, 1024);
+    });
+
+    test('Downscales images exceeding 2048px height in spawned isolate preserving aspect ratio', () async {
+      final imgObj = img.Image(width: 1200, height: 2400);
+      final rawBytes = Uint8List.fromList(img.encodeJpg(imgObj));
+
+      final processedBytes = await fileService.orientAndResizeImageBytes(rawBytes, maxDimension: 2048);
+      final decoded = img.decodeImage(processedBytes)!;
+      expect(decoded.width, 1024);
+      expect(decoded.height, 2048);
+    });
+
+    test('Images within 2048px bounds are not resized', () async {
+      final imgObj = img.Image(width: 1600, height: 1200);
+      final rawBytes = Uint8List.fromList(img.encodeJpg(imgObj));
+
+      final processedBytes = await fileService.orientAndResizeImageBytes(rawBytes, maxDimension: 2048);
+      final decoded = img.decodeImage(processedBytes)!;
+      expect(decoded.width, 1600);
+      expect(decoded.height, 1200);
+    });
+
+    test('Simultaneous EXIF orientation and downscale (>2048px) correctly bakes rotation and resizes', () async {
+      final imgObj = img.Image(width: 3000, height: 1000);
+      imgObj.exif.imageIfd.orientation = 6;
+      final rawBytes = Uint8List.fromList(img.encodeJpg(imgObj));
+
+      final processedBytes = await fileService.orientAndResizeImageBytes(rawBytes, maxDimension: 2048);
+      final decoded = img.decodeImage(processedBytes)!;
+      expect(decoded.height, 2048);
+      expect(decoded.width, lessThanOrEqualTo(2048));
+      expect(decoded.width, closeTo(682, 2));
+    });
+
+    test('prepareImageForPdf and prepareImagesForPdf process and write oriented files to disk', () async {
+      final imgObj = img.Image(width: 3000, height: 1500);
+      imgObj.exif.imageIfd.orientation = 6;
+      final testPath = '$tempDirPath/test_large_exif.jpg';
+      await File(testPath).writeAsBytes(img.encodeJpg(imgObj));
+
+      final preparedPath = await fileService.prepareImageForPdf(testPath);
+      expect(File(preparedPath).existsSync(), isTrue);
+
+      final decoded = img.decodeImage(await File(preparedPath).readAsBytes())!;
+      expect(decoded.height, 2048);
+      expect(decoded.width, 1024);
+
+      final batchPrepared = await fileService.prepareImagesForPdf([testPath]);
+      expect(batchPrepared.length, 1);
+      expect(File(batchPrepared.first).existsSync(), isTrue);
+
+      await File(testPath).delete();
+      await File(preparedPath).delete();
+      await File(batchPrepared.first).delete();
+    });
+
+    test('convertJpgToPdf embeds oriented and downscaled images into a valid PDF document', () async {
+      final img0 = img.Image(width: 400, height: 600);
+      img0.exif.imageIfd.orientation = 1;
+      final path0 = '$tempDirPath/img_0deg.jpg';
+      await File(path0).writeAsBytes(img.encodeJpg(img0));
+
+      final img90 = img.Image(width: 400, height: 600);
+      img90.exif.imageIfd.orientation = 6;
+      final path90 = '$tempDirPath/img_90deg.jpg';
+      await File(path90).writeAsBytes(img.encodeJpg(img90));
+
+      final img180 = img.Image(width: 400, height: 600);
+      img180.exif.imageIfd.orientation = 3;
+      final path180 = '$tempDirPath/img_180deg.jpg';
+      await File(path180).writeAsBytes(img.encodeJpg(img180));
+
+      final img270 = img.Image(width: 400, height: 600);
+      img270.exif.imageIfd.orientation = 8;
+      final path270 = '$tempDirPath/img_270deg.jpg';
+      await File(path270).writeAsBytes(img.encodeJpg(img270));
+
+      final imgLarge = img.Image(width: 2500, height: 1500);
+      final pathLarge = '$tempDirPath/img_large.jpg';
+      await File(pathLarge).writeAsBytes(img.encodeJpg(imgLarge));
+
+      final pdfPath = await pdfService.convertJpgToPdf([
+        path0,
+        path90,
+        path180,
+        path270,
+        pathLarge,
+      ]);
+
+      expect(File(pdfPath).existsSync(), isTrue);
+      expect(File(pdfPath).lengthSync(), greaterThan(0));
+
+      final sf.PdfDocument document =
+          sf.PdfDocument(inputBytes: await File(pdfPath).readAsBytes());
+      expect(document.pages.count, 5);
+      document.dispose();
+
+      await File(path0).delete();
+      await File(path90).delete();
+      await File(path180).delete();
+      await File(path270).delete();
+      await File(pathLarge).delete();
+      await File(pdfPath).delete();
     });
   });
 

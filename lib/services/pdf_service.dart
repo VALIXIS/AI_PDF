@@ -2913,11 +2913,24 @@ Future<Uint8List> _isolateBatchImageToPdfWorker(
       final decoded = img.decodeImage(rawBytes);
       if (decoded != null) {
         img.Image processed = decoded;
-        if (decoded.width > maxDimension || decoded.height > maxDimension) {
-          if (decoded.width >= decoded.height) {
-            processed = img.copyResize(decoded, width: maxDimension);
+
+        // Auto-detect EXIF rotation flags and ensure correct orientation (0, 90, 180, 270 deg)
+        if (processed.exif.imageIfd.hasOrientation &&
+            processed.exif.imageIfd.orientation != 1) {
+          processed = img.bakeOrientation(processed);
+        }
+
+        // Clamp maximum allowed dimension to 2048px to prevent memory spikes on 4K+ images
+        const int maxAllowedDimension = 2048;
+        final int targetMax = maxDimension < maxAllowedDimension
+            ? maxDimension
+            : maxAllowedDimension;
+
+        if (processed.width > targetMax || processed.height > targetMax) {
+          if (processed.width >= processed.height) {
+            processed = img.copyResize(processed, width: targetMax);
           } else {
-            processed = img.copyResize(decoded, height: maxDimension);
+            processed = img.copyResize(processed, height: targetMax);
           }
         }
         imgWidth = processed.width;

@@ -188,10 +188,16 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
 
     final stopwatch = Stopwatch()..start();
 
+    List<String> preparedPaths = [];
     try {
       final imagePaths = _images.map((f) => f.path).toList();
+
+      // Ensure images are oriented correctly using EXIF metadata (0, 90, 180, 270 deg)
+      // and downscaled if exceeding 2048px width/height via background isolate.
+      preparedPaths = await FileService().prepareImagesForPdf(imagePaths);
+
       final path = await PdfService().convertJpgToPdf(
-        imagePaths,
+        preparedPaths,
         format: _pageFormat,
         fitPage: _fitPage,
         quality: _qualityName,
@@ -222,6 +228,16 @@ class _JpgToPdfScreenState extends State<JpgToPdfScreen> {
             .replaceAll('PdfServiceException: ', '');
         _isLoading = false;
       });
+    } finally {
+      // Clean up temporary prepared files if different from source images
+      for (final p in preparedPaths) {
+        if (!_images.any((f) => f.path == p)) {
+          try {
+            final tempF = File(p);
+            if (tempF.existsSync()) tempF.deleteSync();
+          } catch (_) {}
+        }
+      }
     }
   }
 
