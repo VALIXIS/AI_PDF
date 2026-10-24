@@ -2359,19 +2359,91 @@ class PdfService {
 }
 
 class MarkdownPdfRenderer {
-  static String _sanitize(String text) {
+  static String wrapLongCodeLines(String code, {int maxLineLength = 76}) {
+    final lines = code.split('\n');
+    final wrappedLines = <String>[];
+    for (final line in lines) {
+      if (line.length <= maxLineLength) {
+        wrappedLines.add(line);
+      } else {
+        int start = 0;
+        while (start < line.length) {
+          final end = (start + maxLineLength < line.length)
+              ? start + maxLineLength
+              : line.length;
+          wrappedLines.add(line.substring(start, end));
+          start = end;
+        }
+      }
+    }
+    return wrappedLines.join('\n');
+  }
+
+  static String sanitize(String text) {
     return text
+        // Smart quotes & typography
         .replaceAll('“', '"')
         .replaceAll('”', '"')
         .replaceAll('‘', "'")
         .replaceAll('’', "'")
+        .replaceAll('«', '"')
+        .replaceAll('»', '"')
+        .replaceAll('„', '"')
+        .replaceAll('‚', "'")
+        // Dashes & hyphens
         .replaceAll('—', ' - ')
         .replaceAll('–', '-')
-        .replaceAll('…', '...')
+        .replaceAll('―', '-')
+        .replaceAll('−', '-')
+        // Bullets & symbols
         .replaceAll('•', '*')
-        .replaceAll('★', '*')
+        .replaceAll('◦', '*')
+        .replaceAll('▪', '*')
+        .replaceAll('▫', '*')
+        .replaceAll('‣', '*')
+        .replaceAll('…', '...')
+        .replaceAll('™', '(TM)')
+        .replaceAll('©', '(C)')
+        .replaceAll('®', '(R)')
         .replaceAll('✓', '[x]')
         .replaceAll('✔', '[x]')
+        .replaceAll('✗', '[ ]')
+        .replaceAll('✘', '[ ]')
+        .replaceAll('★', '*')
+        .replaceAll('☆', '*')
+        // Math symbols
+        .replaceAll('±', '+/-')
+        .replaceAll('≤', '<=')
+        .replaceAll('≥', '>=')
+        .replaceAll('≠', '!=')
+        .replaceAll('≈', '~')
+        .replaceAll('×', 'x')
+        .replaceAll('÷', '/')
+        .replaceAll('∞', 'inf')
+        // Currency
+        .replaceAll('€', 'EUR ')
+        .replaceAll('₹', 'INR ')
+        .replaceAll('₽', 'RUB ')
+        .replaceAll('₿', 'BTC ')
+        .replaceAll('£', 'GBP ')
+        .replaceAll('¥', 'JPY ')
+        .replaceAll('¢', 'c')
+        .replaceAll('₩', 'KRW ')
+        // Arrows
+        .replaceAll('→', '->')
+        .replaceAll('←', '<-')
+        .replaceAll('↔', '<->')
+        .replaceAll('⇒', '=>')
+        .replaceAll('⇐', '<=')
+        .replaceAll('↑', '^')
+        .replaceAll('↓', 'v')
+        // Spaces & zero-width
+        .replaceAll('\u00A0', ' ')
+        .replaceAll('\u200B', '')
+        .replaceAll('\u200C', '')
+        .replaceAll('\u200D', '')
+        .replaceAll('\uFEFF', '')
+        // Clean strip remaining unsupported glyphs beyond WinAnsi to prevent missing glyph boxes
         .replaceAll(RegExp(r'[^\x00-\xFF]'), '');
   }
 
@@ -2385,7 +2457,7 @@ class MarkdownPdfRenderer {
 
   void _renderNodeInto(md.Node node, List<pw.Widget> out) {
     if (node is md.Text) {
-      final sanitized = _sanitize(node.text).trim();
+      final sanitized = sanitize(node.text).trim();
       if (sanitized.isNotEmpty) {
         out.add(pw.Paragraph(
           text: sanitized,
@@ -2453,26 +2525,34 @@ class MarkdownPdfRenderer {
           }
           break;
         case 'pre':
-          final codeText = _sanitize(node.textContent.trim());
+          final rawCode = node.textContent.trim();
+          final codeText = wrapLongCodeLines(sanitize(rawCode));
           if (codeText.isNotEmpty) {
             out.add(pw.Container(
               width: double.infinity,
-              decoration: const pw.BoxDecoration(
+              decoration: pw.BoxDecoration(
                 color: PdfColors.grey100,
-                borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
               ),
-              padding: const pw.EdgeInsets.all(6),
-              margin: const pw.EdgeInsets.only(bottom: 6),
+              padding: const pw.EdgeInsets.all(8),
+              margin: const pw.EdgeInsets.only(bottom: 8),
               child: pw.Text(
                 codeText,
                 style: pw.TextStyle(
                   font: pw.Font.courier(),
                   fontSize: 8.5,
-                  color: PdfColors.grey800,
+                  color: PdfColors.grey900,
+                  lineSpacing: 1.3,
                 ),
+                softWrap: true,
               ),
             ));
           }
+          break;
+        case 'table':
+          final tableWidget = _renderMarkdownTable(node);
+          if (tableWidget != null) out.add(tableWidget);
           break;
         case 'hr':
           out.add(pw.Padding(
@@ -2488,6 +2568,84 @@ class MarkdownPdfRenderer {
           }
       }
     }
+  }
+
+  pw.Widget? _renderMarkdownTable(md.Element tableNode) {
+    final rows = <pw.TableRow>[];
+
+    void processRow(md.Element rowNode, {required bool isHeader}) {
+      final cells = <pw.Widget>[];
+      for (final cellNode in (rowNode.children ?? [])) {
+        if (cellNode is md.Element && (cellNode.tag == 'th' || cellNode.tag == 'td')) {
+          final spans = _renderInlineSpans(cellNode.children ?? []);
+          final cellWidget = pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: spans.isNotEmpty
+                ? pw.RichText(
+                    text: pw.TextSpan(
+                      style: pw.TextStyle(
+                        fontSize: isHeader ? 10 : 9.5,
+                        fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+                        color: isHeader ? PdfColors.grey900 : PdfColors.grey800,
+                      ),
+                      children: spans,
+                    ),
+                  )
+                : pw.Text(
+                    sanitize(cellNode.textContent),
+                    style: pw.TextStyle(
+                      fontSize: isHeader ? 10 : 9.5,
+                      fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+                      color: isHeader ? PdfColors.grey900 : PdfColors.grey800,
+                    ),
+                  ),
+          );
+          cells.add(cellWidget);
+        }
+      }
+      if (cells.isNotEmpty) {
+        rows.add(
+          pw.TableRow(
+            decoration: isHeader
+                ? const pw.BoxDecoration(color: PdfColors.grey200)
+                : null,
+            children: cells,
+          ),
+        );
+      }
+    }
+
+    for (final child in (tableNode.children ?? [])) {
+      if (child is md.Element) {
+        if (child.tag == 'thead') {
+          for (final row in (child.children ?? [])) {
+            if (row is md.Element && row.tag == 'tr') {
+              processRow(row, isHeader: true);
+            }
+          }
+        } else if (child.tag == 'tbody') {
+          for (final row in (child.children ?? [])) {
+            if (row is md.Element && row.tag == 'tr') {
+              processRow(row, isHeader: false);
+            }
+          }
+        } else if (child.tag == 'tr') {
+          final isHeader =
+              child.children?.any((c) => c is md.Element && c.tag == 'th') ?? false;
+          processRow(child, isHeader: isHeader);
+        }
+      }
+    }
+
+    if (rows.isEmpty) return null;
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.symmetric(vertical: 8),
+      child: pw.Table(
+        border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.8),
+        children: rows,
+      ),
+    );
   }
 
   pw.Widget _renderHeader(md.Element node, double fontSize,
@@ -2555,7 +2713,7 @@ class MarkdownPdfRenderer {
   void _renderInlineNode(
       md.Node node, List<pw.InlineSpan> spans, pw.TextStyle style) {
     if (node is md.Text) {
-      spans.add(pw.TextSpan(text: _sanitize(node.text), style: style));
+      spans.add(pw.TextSpan(text: sanitize(node.text), style: style));
     } else if (node is md.Element) {
       switch (node.tag) {
         case 'strong':
@@ -2575,7 +2733,7 @@ class MarkdownPdfRenderer {
             font: pw.Font.courier(),
             color: PdfColors.red700,
           );
-          spans.add(pw.TextSpan(text: _sanitize(node.textContent), style: newStyle));
+          spans.add(pw.TextSpan(text: sanitize(node.textContent), style: newStyle));
           break;
         case 'a':
           final newStyle = style.copyWith(
@@ -2616,7 +2774,7 @@ class HtmlPdfRenderer {
         RegExp(r'<\/?(html|body|doctype)[^>]*>', caseSensitive: false), '');
 
     final regExp = RegExp(
-      r'<(h1|h2|h3|h4|h5|h6|p|ul|ol|blockquote|pre|hr)([^>]*)>(.*?)<\/\1>',
+      r'<(h1|h2|h3|h4|h5|h6|p|ul|ol|blockquote|pre|hr|table)([^>]*)>(.*?)<\/\1>',
       caseSensitive: false,
       dotAll: true,
     );
@@ -2625,13 +2783,14 @@ class HtmlPdfRenderer {
     if (matches.isEmpty) {
       final lines = sanitized.split('\n');
       for (final line in lines) {
-        if (line.trim().isNotEmpty) {
+        final sanitizedLine = MarkdownPdfRenderer.sanitize(line).trim();
+        if (sanitizedLine.isNotEmpty) {
           widgets.add(pw.Container(
             margin: const pw.EdgeInsets.only(bottom: 8),
             child: pw.RichText(
               text: pw.TextSpan(
                 style: const pw.TextStyle(fontSize: 11, lineSpacing: 2),
-                text: line.trim(),
+                text: sanitizedLine,
               ),
             ),
           ));
@@ -2700,23 +2859,34 @@ class HtmlPdfRenderer {
               codeText = codeMatch.group(1)!;
             }
           }
-          widgets.add(pw.Container(
-            width: double.infinity,
-            decoration: const pw.BoxDecoration(
-              color: PdfColors.grey100,
-              borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
-            ),
-            padding: const pw.EdgeInsets.all(8),
-            margin: const pw.EdgeInsets.only(bottom: 12),
-            child: pw.Text(
-              codeText.trim(),
-              style: pw.TextStyle(
-                font: pw.Font.courier(),
-                fontSize: 9,
-                color: PdfColors.grey800,
+          final sanitizedWrapped = MarkdownPdfRenderer.wrapLongCodeLines(
+              MarkdownPdfRenderer.sanitize(codeText.trim()));
+          if (sanitizedWrapped.isNotEmpty) {
+            widgets.add(pw.Container(
+              width: double.infinity,
+              decoration: pw.BoxDecoration(
+                color: PdfColors.grey100,
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                border: pw.Border.all(color: PdfColors.grey300, width: 0.8),
               ),
-            ),
-          ));
+              padding: const pw.EdgeInsets.all(8),
+              margin: const pw.EdgeInsets.only(bottom: 12),
+              child: pw.Text(
+                sanitizedWrapped,
+                style: pw.TextStyle(
+                  font: pw.Font.courier(),
+                  fontSize: 8.5,
+                  color: PdfColors.grey900,
+                  lineSpacing: 1.3,
+                ),
+                softWrap: true,
+              ),
+            ));
+          }
+          break;
+        case 'table':
+          final tableWidget = _renderHtmlTable(content);
+          if (tableWidget != null) widgets.add(tableWidget);
           break;
         case 'hr':
           widgets.add(pw.Padding(
@@ -2728,6 +2898,88 @@ class HtmlPdfRenderer {
     }
 
     return widgets;
+  }
+
+  pw.Widget? _renderHtmlTable(String tableHtml) {
+    final rows = <pw.TableRow>[];
+
+    final trReg =
+        RegExp(r'<tr[^>]*>(.*?)<\/tr>', caseSensitive: false, dotAll: true);
+    final trMatches = trReg.allMatches(tableHtml);
+
+    for (final trMatch in trMatches) {
+      final rowHtml = trMatch.group(1)!;
+      final cellReg = RegExp(r'<(th|td)[^>]*>(.*?)<\/\1>',
+          caseSensitive: false, dotAll: true);
+      final cellMatches = cellReg.allMatches(rowHtml);
+
+      final cells = <pw.Widget>[];
+      bool isHeaderRow = false;
+
+      for (final cellMatch in cellMatches) {
+        final cellTag = cellMatch.group(1)!.toLowerCase();
+        final cellInner = cellMatch.group(2)!;
+        if (cellTag == 'th') isHeaderRow = true;
+
+        final spans = _renderInlineSpans(cellInner.trim());
+
+        cells.add(
+          pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: spans.isNotEmpty
+                ? pw.RichText(
+                    text: pw.TextSpan(
+                      style: pw.TextStyle(
+                        fontSize: cellTag == 'th' ? 10 : 9.5,
+                        fontWeight: cellTag == 'th'
+                            ? pw.FontWeight.bold
+                            : pw.FontWeight.normal,
+                        color: cellTag == 'th'
+                            ? PdfColors.grey900
+                            : PdfColors.grey800,
+                      ),
+                      children: spans,
+                    ),
+                  )
+                : pw.Text(
+                    MarkdownPdfRenderer.sanitize(cellInner
+                        .replaceAll(RegExp(r'<[^>]+>'), '')
+                        .trim()),
+                    style: pw.TextStyle(
+                      fontSize: cellTag == 'th' ? 10 : 9.5,
+                      fontWeight: cellTag == 'th'
+                          ? pw.FontWeight.bold
+                          : pw.FontWeight.normal,
+                      color: cellTag == 'th'
+                          ? PdfColors.grey900
+                          : PdfColors.grey800,
+                    ),
+                  ),
+          ),
+        );
+      }
+
+      if (cells.isNotEmpty) {
+        rows.add(
+          pw.TableRow(
+            decoration: isHeaderRow
+                ? const pw.BoxDecoration(color: PdfColors.grey200)
+                : null,
+            children: cells,
+          ),
+        );
+      }
+    }
+
+    if (rows.isEmpty) return null;
+
+    return pw.Container(
+      margin: const pw.EdgeInsets.symmetric(vertical: 8),
+      child: pw.Table(
+        border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.8),
+        children: rows,
+      ),
+    );
   }
 
   pw.Widget _renderHeader(String innerHtml, double fontSize,
@@ -2795,7 +3047,7 @@ class HtmlPdfRenderer {
 
     final matches = inlineReg.allMatches(text);
     if (matches.isEmpty && text.isNotEmpty) {
-      spans.add(pw.TextSpan(text: text));
+      spans.add(pw.TextSpan(text: MarkdownPdfRenderer.sanitize(text)));
       return spans;
     }
 
@@ -2805,26 +3057,28 @@ class HtmlPdfRenderer {
       final plainText = match.group(4);
 
       if (plainText != null && plainText.isNotEmpty) {
-        spans.add(pw.TextSpan(text: plainText));
+        spans.add(
+            pw.TextSpan(text: MarkdownPdfRenderer.sanitize(plainText)));
       } else if (tag != null && content != null) {
+        final sanitizedContent = MarkdownPdfRenderer.sanitize(content);
         switch (tag) {
           case 'strong':
           case 'b':
             spans.add(pw.TextSpan(
-              text: content,
+              text: sanitizedContent,
               style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ));
             break;
           case 'em':
           case 'i':
             spans.add(pw.TextSpan(
-              text: content,
+              text: sanitizedContent,
               style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
             ));
             break;
           case 'code':
             spans.add(pw.TextSpan(
-              text: content,
+              text: sanitizedContent,
               style: pw.TextStyle(
                 font: pw.Font.courier(),
                 color: PdfColors.red700,
@@ -2833,7 +3087,7 @@ class HtmlPdfRenderer {
             break;
           case 'a':
             spans.add(pw.TextSpan(
-              text: content,
+              text: sanitizedContent,
               style: const pw.TextStyle(
                 color: PdfColors.blue,
                 decoration: pw.TextDecoration.underline,
@@ -2845,7 +3099,7 @@ class HtmlPdfRenderer {
     }
 
     if (spans.isEmpty && text.isNotEmpty) {
-      spans.add(pw.TextSpan(text: text));
+      spans.add(pw.TextSpan(text: MarkdownPdfRenderer.sanitize(text)));
     }
 
     return spans;
