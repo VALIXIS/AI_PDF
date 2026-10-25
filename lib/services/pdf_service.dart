@@ -248,22 +248,44 @@ class PdfService {
       syncfusion.PdfDocument? outputDocument;
       try {
         outputDocument = syncfusion.PdfDocument();
+        final List<syncfusion.PdfPage> allOutputPages = [];
+        bool isFirstDoc = true;
 
         for (final filePath in pdfPaths) {
-          final bytes = await File(filePath).readAsBytes();
+          RandomAccessFile? raf;
+          Uint8List bytes;
+          try {
+            raf = await File(filePath).open(mode: FileMode.read);
+            final length = await raf.length();
+            bytes = await raf.read(length);
+          } finally {
+            await raf?.close();
+          }
 
           final syncfusion.PdfDocument sourceDocument =
               syncfusion.PdfDocument(inputBytes: bytes);
           try {
             final int pageCount = sourceDocument.pages.count;
             if (pageCount == 0) {
-              throw PdfServiceException('Source PDF contains no pages: $filePath',
+              throw PdfServiceException(
+                  'Source PDF contains no pages: $filePath',
                   code: 'PDF_EMPTY_PAGES');
             }
 
+            // Preserve document metadata from input files
+            if (isFirstDoc) {
+              _copyPdfMetadata(sourceDocument, outputDocument);
+              isFirstDoc = false;
+            } else {
+              _fillMissingPdfMetadata(sourceDocument, outputDocument);
+            }
+
+            final int startOffset = allOutputPages.length;
+
             for (int i = 0; i < pageCount; i++) {
               final syncfusion.PdfPage sourcePage = sourceDocument.pages[i];
-              final syncfusion.PdfTemplate template = sourcePage.createTemplate();
+              final syncfusion.PdfTemplate template =
+                  sourcePage.createTemplate();
 
               final syncfusion.PdfSection section =
                   outputDocument.sections!.add();
@@ -277,6 +299,18 @@ class PdfService {
                 Offset.zero,
                 sourcePage.size,
               );
+              allOutputPages.add(newPage);
+            }
+
+            // Preserve outline trees (bookmarks)
+            if (sourceDocument.bookmarks.count > 0) {
+              _copyBookmarksRecursively(
+                sourceParent: sourceDocument.bookmarks,
+                targetParent: outputDocument.bookmarks,
+                sourceDoc: sourceDocument,
+                pageOffset: startOffset,
+                allOutputPages: allOutputPages,
+              );
             }
           } finally {
             sourceDocument.dispose();
@@ -284,7 +318,15 @@ class PdfService {
         }
 
         final List<int> mergedBytes = outputDocument.saveSync();
-        return await FileService().safeWriteBytes(targetPath, mergedBytes);
+        IOSink? sink;
+        try {
+          sink = File(targetPath).openWrite();
+          sink.add(mergedBytes);
+          await sink.flush();
+        } finally {
+          await sink?.close();
+        }
+        return targetPath;
       } finally {
         outputDocument?.dispose();
       }
@@ -315,7 +357,15 @@ class PdfService {
           'File is empty, corrupt, or not a valid PDF: $pdfPath',
           code: 'PDF_CORRUPT_OR_INVALID');
     }
-    final bytes = await File(pdfPath).readAsBytes();
+    RandomAccessFile? raf;
+    Uint8List bytes;
+    try {
+      raf = await File(pdfPath).open(mode: FileMode.read);
+      final length = await raf.length();
+      bytes = await raf.read(length);
+    } finally {
+      await raf?.close();
+    }
 
     syncfusion.PdfDocument? sourceDocument;
     syncfusion.PdfDocument? outputDocument;
@@ -345,6 +395,11 @@ class PdfService {
 
       outputDocument = syncfusion.PdfDocument();
 
+      // Preserve document metadata from source document
+      _copyPdfMetadata(sourceDocument, outputDocument);
+
+      final List<syncfusion.PdfPage> splitOutputPages = [];
+
       for (int pageNum = startPage; pageNum <= endPage; pageNum++) {
         final int pageIndex = pageNum - 1;
         final syncfusion.PdfPage sourcePage = sourceDocument.pages[pageIndex];
@@ -361,6 +416,19 @@ class PdfService {
           Offset.zero,
           sourcePage.size,
         );
+        splitOutputPages.add(newPage);
+      }
+
+      // Preserve outline trees (bookmarks) within the split page range
+      if (sourceDocument.bookmarks.count > 0) {
+        _copySplitBookmarksRecursively(
+          sourceParent: sourceDocument.bookmarks,
+          targetParent: outputDocument.bookmarks,
+          sourceDoc: sourceDocument,
+          startPageIdx: startPage - 1,
+          endPageIdx: endPage - 1,
+          splitOutputPages: splitOutputPages,
+        );
       }
 
       final List<int> outputBytes = outputDocument.saveSync();
@@ -374,8 +442,16 @@ class PdfService {
         extension: 'pdf',
       );
       final targetPath = path.join(dirPath, fileName);
-      final resultPath =
-          await FileService().safeWriteBytes(targetPath, outputBytes);
+      IOSink? sink;
+      try {
+        final outputFile = File(targetPath);
+        sink = outputFile.openWrite();
+        sink.add(outputBytes);
+        await sink.flush();
+      } finally {
+        await sink?.close();
+      }
+      final resultPath = targetPath;
 
       if (!await fs.isFileValidAndAccessible(resultPath)) {
         throw PdfServiceException('Failed to generate valid split PDF output.',
@@ -388,6 +464,185 @@ class PdfService {
     } finally {
       sourceDocument?.dispose();
       outputDocument?.dispose();
+    }
+  }
+
+  static void _copyPdfMetadata(
+    syncfusion.PdfDocument source,
+    syncfusion.PdfDocument destination,
+  ) {
+    try {
+      final srcInfo = source.documentInformation;
+      final destInfo = destination.documentInformation;
+
+      if (srcInfo.title.isNotEmpty) {
+        destInfo.title = srcInfo.title;
+      }
+      if (srcInfo.author.isNotEmpty) {
+        destInfo.author = srcInfo.author;
+      }
+      if (srcInfo.subject.isNotEmpty) {
+        destInfo.subject = srcInfo.subject;
+      }
+      if (srcInfo.keywords.isNotEmpty) {
+        destInfo.keywords = srcInfo.keywords;
+      }
+      if (srcInfo.creator.isNotEmpty) {
+        destInfo.creator = srcInfo.creator;
+      }
+      if (srcInfo.creationDate != null) {
+        destInfo.creationDate = srcInfo.creationDate;
+      }
+      destInfo.modificationDate = DateTime.now();
+    } catch (_) {}
+  }
+
+  static void _fillMissingPdfMetadata(
+    syncfusion.PdfDocument source,
+    syncfusion.PdfDocument destination,
+  ) {
+    try {
+      final srcInfo = source.documentInformation;
+      final destInfo = destination.documentInformation;
+
+      if (destInfo.title.isEmpty && srcInfo.title.isNotEmpty) {
+        destInfo.title = srcInfo.title;
+      }
+      if (destInfo.author.isEmpty && srcInfo.author.isNotEmpty) {
+        destInfo.author = srcInfo.author;
+      }
+      if (destInfo.subject.isEmpty && srcInfo.subject.isNotEmpty) {
+        destInfo.subject = srcInfo.subject;
+      }
+      if (destInfo.keywords.isEmpty && srcInfo.keywords.isNotEmpty) {
+        destInfo.keywords = srcInfo.keywords;
+      }
+      if (destInfo.creator.isEmpty && srcInfo.creator.isNotEmpty) {
+        destInfo.creator = srcInfo.creator;
+      }
+      if (destInfo.creationDate == null && srcInfo.creationDate != null) {
+        destInfo.creationDate = srcInfo.creationDate;
+      }
+    } catch (_) {}
+  }
+
+  static void _copyBookmarksRecursively({
+    required syncfusion.PdfBookmarkBase sourceParent,
+    required syncfusion.PdfBookmarkBase targetParent,
+    required syncfusion.PdfDocument sourceDoc,
+    required int pageOffset,
+    required List<syncfusion.PdfPage> allOutputPages,
+  }) {
+    for (int i = 0; i < sourceParent.count; i++) {
+      final syncfusion.PdfBookmark srcBm = sourceParent[i];
+      final syncfusion.PdfBookmark newBm = targetParent.add(srcBm.title);
+
+      if (srcBm.destination != null) {
+        final destPage = srcBm.destination!.page;
+        int srcPageIdx = -1;
+        for (int p = 0; p < sourceDoc.pages.count; p++) {
+          if (sourceDoc.pages[p] == destPage) {
+            srcPageIdx = p;
+            break;
+          }
+        }
+
+        if (srcPageIdx != -1) {
+          final targetIndex = pageOffset + srcPageIdx;
+          if (targetIndex >= 0 && targetIndex < allOutputPages.length) {
+            newBm.destination = syncfusion.PdfDestination(
+              allOutputPages[targetIndex],
+              srcBm.destination!.location,
+            );
+          }
+        }
+      }
+
+      if (srcBm.count > 0) {
+        _copyBookmarksRecursively(
+          sourceParent: srcBm,
+          targetParent: newBm,
+          sourceDoc: sourceDoc,
+          pageOffset: pageOffset,
+          allOutputPages: allOutputPages,
+        );
+      }
+    }
+  }
+
+  static bool _hasBookmarksInRange(
+    syncfusion.PdfBookmark bm,
+    syncfusion.PdfDocument doc,
+    int startPageIdx,
+    int endPageIdx,
+  ) {
+    for (int i = 0; i < bm.count; i++) {
+      final child = bm[i];
+      if (child.destination != null) {
+        for (int p = startPageIdx; p <= endPageIdx; p++) {
+          if (doc.pages[p] == child.destination!.page) {
+            return true;
+          }
+        }
+      }
+      if (child.count > 0 &&
+          _hasBookmarksInRange(child, doc, startPageIdx, endPageIdx)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static void _copySplitBookmarksRecursively({
+    required syncfusion.PdfBookmarkBase sourceParent,
+    required syncfusion.PdfBookmarkBase targetParent,
+    required syncfusion.PdfDocument sourceDoc,
+    required int startPageIdx,
+    required int endPageIdx,
+    required List<syncfusion.PdfPage> splitOutputPages,
+  }) {
+    for (int i = 0; i < sourceParent.count; i++) {
+      final syncfusion.PdfBookmark srcBm = sourceParent[i];
+
+      int srcPageIdx = -1;
+      if (srcBm.destination != null) {
+        final destPage = srcBm.destination!.page;
+        for (int p = 0; p < sourceDoc.pages.count; p++) {
+          if (sourceDoc.pages[p] == destPage) {
+            srcPageIdx = p;
+            break;
+          }
+        }
+      }
+
+      final bool destInRange =
+          (srcPageIdx >= startPageIdx && srcPageIdx <= endPageIdx);
+      final bool hasChildrenInRange =
+          _hasBookmarksInRange(srcBm, sourceDoc, startPageIdx, endPageIdx);
+
+      if (destInRange || hasChildrenInRange) {
+        final syncfusion.PdfBookmark newBm = targetParent.add(srcBm.title);
+        if (destInRange) {
+          final newIndex = srcPageIdx - startPageIdx;
+          if (newIndex >= 0 && newIndex < splitOutputPages.length) {
+            newBm.destination = syncfusion.PdfDestination(
+              splitOutputPages[newIndex],
+              srcBm.destination!.location,
+            );
+          }
+        }
+
+        if (srcBm.count > 0) {
+          _copySplitBookmarksRecursively(
+            sourceParent: srcBm,
+            targetParent: newBm,
+            sourceDoc: sourceDoc,
+            startPageIdx: startPageIdx,
+            endPageIdx: endPageIdx,
+            splitOutputPages: splitOutputPages,
+          );
+        }
+      }
     }
   }
 

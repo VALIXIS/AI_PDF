@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
@@ -28,8 +29,21 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
       final files = await _fileService.pickMultiplePdfFiles();
       if (!mounted) return;
       if (files.isNotEmpty) {
+        final verifiedFiles = <String>[];
+        for (final f in files) {
+          RandomAccessFile? raf;
+          try {
+            raf = await File(f).open(mode: FileMode.read);
+            verifiedFiles.add(f);
+          } catch (_) {
+            // Unreadable or locked file is safely skipped
+          } finally {
+            await raf?.close();
+          }
+        }
+
         setState(() {
-          final combined = [..._selectedFiles, ...files];
+          final combined = [..._selectedFiles, ...verifiedFiles];
           _selectedFiles.clear();
           final seen = <String>{};
           for (final f in combined) {
@@ -61,6 +75,28 @@ class _MergePdfScreenState extends State<MergePdfScreen> {
             'Please select at least 2 valid and accessible PDF files to merge.';
       });
       return;
+    }
+
+    // Verify each file stream is accessible and explicitly closed in finally blocks
+    for (final filePath in validFiles) {
+      RandomAccessFile? raf;
+      try {
+        raf = await File(filePath).open(mode: FileMode.read);
+        final length = await raf.length();
+        if (length < 4) {
+          setState(() {
+            _errorMessage = 'File is empty or invalid: $filePath';
+          });
+          return;
+        }
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'Unable to read file "$filePath": $e';
+        });
+        return;
+      } finally {
+        await raf?.close();
+      }
     }
 
     setState(() {
