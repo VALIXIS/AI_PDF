@@ -135,7 +135,7 @@ class _CompressPdfScreenState extends State<CompressPdfScreen> {
             'Level: ${_compressionLevel.toUpperCase()} ($dpiLabel) • File size unchanged (${_fileService.formatBytes(originalSize)})\nPDF structure optimized • Vector text preserved';
       } else {
         subtitle =
-            'Level: ${_compressionLevel.toUpperCase()} ($dpiLabel) • Already optimized (+${_fileService.formatBytes(-bytesSaved)})\n${_fileService.formatBytes(originalSize)} → ${_fileService.formatBytes(compressedSize)}';
+            'Level: ${_compressionLevel.toUpperCase()} ($dpiLabel) • Already at optimum size (${_fileService.formatBytes(compressedSize)})\nPDF structure optimized • Vector text preserved';
       }
 
       final entry = HistoryEntry(

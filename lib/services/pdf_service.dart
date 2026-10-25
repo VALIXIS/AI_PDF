@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'dart:convert';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -457,65 +458,93 @@ class PdfService {
           break;
       }
 
-      // 1. Resample embedded raster images to target DPI while leaving vector text streams untouched
-      final Uint8List resampledBytes =
-          resamplePdfImages(bytes, targetDpi: targetDpi);
-
-      // 2. Apply stream compression and structure optimization
-      syncfusion.PdfDocument? sourceDoc;
-      syncfusion.PdfDocument? outputDoc;
-
+      // 1. Resample embedded raster images to target DPI while leaving vector text streams untouched.
+      // Strict rule: image downsampling must only be adopted if it produces a smaller, valid PDF.
+      bool imagesWereResampled = false;
+      Uint8List bestBytes = bytes;
       try {
-        sourceDoc = syncfusion.PdfDocument(inputBytes: resampledBytes);
-        outputDoc = syncfusion.PdfDocument();
-
-        final pageCount = sourceDoc.pages.count;
-        if (pageCount == 0) {
-          throw PdfServiceException(
-              'PDF document contains no pages to compress.',
-              code: 'PDF_COMPRESS_EMPTY_PDF');
+        final Uint8List resampledBytes =
+            resamplePdfImages(bytes, targetDpi: targetDpi);
+        if (resampledBytes.isNotEmpty &&
+            resampledBytes.length < bestBytes.length) {
+          syncfusion.PdfDocument? testDoc;
+          try {
+            testDoc = syncfusion.PdfDocument(inputBytes: resampledBytes);
+            if (testDoc.pages.count > 0) {
+              bestBytes = resampledBytes;
+              imagesWereResampled = true;
+            }
+          } catch (_) {
+            // Keep bestBytes if resampled bytes cannot be parsed
+          } finally {
+            testDoc?.dispose();
+          }
         }
-
-        outputDoc.compressionLevel = sfLevel;
-
-        for (int i = 0; i < pageCount; i++) {
-          final syncfusion.PdfPage sourcePage = sourceDoc.pages[i];
-          final syncfusion.PdfTemplate template = sourcePage.createTemplate();
-
-          final syncfusion.PdfSection section = outputDoc.sections!.add();
-          section.pageSettings.size = sourcePage.size;
-          section.pageSettings.margins.all = 0;
-          section.pageSettings.rotate = sourcePage.rotation;
-
-          final syncfusion.PdfPage newPage = section.pages.add();
-          newPage.graphics.drawPdfTemplate(
-            template,
-            Offset.zero,
-            sourcePage.size,
-          );
-        }
-
-        final List<int> outputBytes = outputDoc.saveSync();
-
-        // Choose the optimal bytes between resampledBytes and stream-compressed outputBytes
-        final List<int> finalBytes =
-            (outputBytes.isNotEmpty && outputBytes.length < resampledBytes.length)
-                ? outputBytes
-                : resampledBytes;
-
-        IOSink? sink;
-        try {
-          sink = File(targetPath).openWrite();
-          sink.add(finalBytes);
-          await sink.flush();
-        } finally {
-          await sink?.close();
-        }
-        return targetPath;
-      } finally {
-        sourceDoc?.dispose();
-        outputDoc?.dispose();
+      } catch (e) {
+        debugPrint('Image resampling error: $e');
       }
+
+      // 2. Stream compression & structure optimization for vector/text documents
+      // If images were already successfully resampled, do not run template recreation
+      // (which could inflate file size or alter XObject streams).
+      if (!imagesWereResampled) {
+        try {
+          final syncfusion.PdfDocument sourceDoc =
+              syncfusion.PdfDocument(inputBytes: bestBytes);
+          final syncfusion.PdfDocument outputDoc = syncfusion.PdfDocument();
+
+          try {
+            final pageCount = sourceDoc.pages.count;
+            if (pageCount > 0) {
+              outputDoc.compressionLevel = sfLevel;
+
+              for (int i = 0; i < pageCount; i++) {
+                final syncfusion.PdfPage sourcePage = sourceDoc.pages[i];
+                final syncfusion.PdfTemplate template =
+                    sourcePage.createTemplate();
+
+                final syncfusion.PdfSection section = outputDoc.sections!.add();
+                section.pageSettings.size = sourcePage.size;
+                section.pageSettings.margins.all = 0;
+                section.pageSettings.rotate = sourcePage.rotation;
+
+                final syncfusion.PdfPage newPage = section.pages.add();
+                newPage.graphics.drawPdfTemplate(
+                  template,
+                  Offset.zero,
+                  sourcePage.size,
+                );
+              }
+
+              final List<int> outputBytes = outputDoc.saveSync();
+              if (outputBytes.isNotEmpty &&
+                  outputBytes.length < bestBytes.length) {
+                bestBytes = Uint8List.fromList(outputBytes);
+              }
+            }
+          } finally {
+            sourceDoc.dispose();
+            outputDoc.dispose();
+          }
+        } catch (_) {
+          // Keep bestBytes
+        }
+      }
+
+      // 3. Absolute safety ceiling: compressed output must NEVER exceed original input size
+      if (bestBytes.length > bytes.length) {
+        bestBytes = bytes;
+      }
+
+      IOSink? sink;
+      try {
+        sink = File(targetPath).openWrite();
+        sink.add(bestBytes);
+        await sink.flush();
+      } finally {
+        await sink?.close();
+      }
+      return targetPath;
     });
 
     if (!await fs.isFileValidAndAccessible(resultPath)) {
@@ -531,19 +560,20 @@ class PdfService {
   /// Refines image re-sampling algorithms by downsampling embedded raster images
   /// to target DPI (Low: 72 DPI, Medium: 150 DPI, High: 300 DPI) while leaving
   /// vector text streams, fonts, and graphics completely untouched.
+  /// Strict guarantee: Never increases image stream or document size.
   static Uint8List resamplePdfImages(Uint8List pdfBytes,
       {required int targetDpi}) {
     int maxDim;
     int jpgQuality;
     if (targetDpi <= 72) {
       maxDim = 800; // ~72 DPI for standard 11-inch document
-      jpgQuality = 60;
+      jpgQuality = 55;
     } else if (targetDpi <= 150) {
       maxDim = 1600; // ~150 DPI for standard 11-inch document
-      jpgQuality = 75;
+      jpgQuality = 70;
     } else {
-      maxDim = 3200; // ~300 DPI for standard 11-inch document
-      jpgQuality = 88;
+      maxDim = 2400; // ~300 DPI for standard 11-inch document
+      jpgQuality = 80;
     }
 
     final latin1Str = latin1.decode(pdfBytes);
@@ -581,9 +611,50 @@ class PdfService {
       if (objId > maxObjId) maxObjId = objId;
 
       final startIdx = m.start;
-      final endobjIdx = latin1Str.indexOf('endobj', startIdx);
-      if (endobjIdx == -1) continue;
-      final fullEndIdx = endobjIdx + 'endobj'.length;
+      final nextObjStart = (i + 1 < objMatches.length)
+          ? objMatches[i + 1].start
+          : latin1Str.length;
+
+      final rawObjText = latin1Str.substring(startIdx, nextObjStart);
+
+      // Check if this specific object contains a stream
+      final streamWordMatch =
+          RegExp(r'\bstream(\r?\n)').firstMatch(rawObjText);
+
+      if (streamWordMatch == null) {
+        // Non-stream object (fonts, pages, catalog, metadata, etc.)
+        final endobjRelative = rawObjText.lastIndexOf('endobj');
+        if (endobjRelative == -1) continue;
+        final fullEndIdx = startIdx + endobjRelative + 'endobj'.length;
+        final objText = latin1Str.substring(startIdx, fullEndIdx);
+        if (objText.contains('/Type/XRef') || objText.contains('/Type /XRef')) {
+          continue;
+        }
+
+        objectOffsets[objId] = buffer.length;
+        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
+        buffer.add(latin1.encode('\n'));
+        continue;
+      }
+
+      // Stream object: find endstream and endobj within this object's bounds
+      final endstreamRelative =
+          rawObjText.indexOf('endstream', streamWordMatch.end);
+      if (endstreamRelative == -1) {
+        final endobjRelative = rawObjText.lastIndexOf('endobj');
+        if (endobjRelative == -1) continue;
+        final fullEndIdx = startIdx + endobjRelative + 'endobj'.length;
+        objectOffsets[objId] = buffer.length;
+        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
+        buffer.add(latin1.encode('\n'));
+        continue;
+      }
+
+      final endobjRelative =
+          rawObjText.indexOf('endobj', endstreamRelative);
+      final fullEndIdx = (endobjRelative != -1)
+          ? (startIdx + endobjRelative + 'endobj'.length)
+          : (startIdx + endstreamRelative + 'endstream'.length);
 
       final objText = latin1Str.substring(startIdx, fullEndIdx);
       if (objText.contains('/Type/XRef') || objText.contains('/Type /XRef')) {
@@ -592,50 +663,20 @@ class PdfService {
 
       objectOffsets[objId] = buffer.length;
 
-      // Ensure vector text streams and non-image objects are untouched
-      final isImage = objText.contains('/Subtype/Image') ||
-          objText.contains('/Subtype /Image');
+      // Extract dictionary part specifically for this object
+      final dictPart =
+          rawObjText.substring(0, streamWordMatch.start);
+
+      // Ensure vector text streams (/Contents) and non-image objects are 100% untouched
+      final isImage = RegExp(r'/Subtype\s*/Image\b').hasMatch(dictPart);
       if (!isImage) {
         buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
         buffer.add(latin1.encode('\n'));
         continue;
       }
 
-      final streamWordMatch = RegExp(r'stream(\r?\n)').firstMatch(objText);
-      if (streamWordMatch == null) {
-        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
-        buffer.add(latin1.encode('\n'));
-        continue;
-      }
-
-      final dictPart =
-          objText.substring(objText.indexOf('<<'), streamWordMatch.start);
       final streamStartInPdf = startIdx + streamWordMatch.end;
-
-      final endstreamPattern = latin1.encode('endstream');
-      int endstreamInPdf = -1;
-      for (int b = streamStartInPdf; b < fullEndIdx; b++) {
-        if (pdfBytes[b] == endstreamPattern[0] &&
-            pdfBytes[b + 1] == endstreamPattern[1] &&
-            pdfBytes[b + 2] == endstreamPattern[2] &&
-            pdfBytes[b + 3] == endstreamPattern[3] &&
-            pdfBytes[b + 4] == endstreamPattern[4] &&
-            pdfBytes[b + 5] == endstreamPattern[5] &&
-            pdfBytes[b + 6] == endstreamPattern[6] &&
-            pdfBytes[b + 7] == endstreamPattern[7] &&
-            pdfBytes[b + 8] == endstreamPattern[8]) {
-          endstreamInPdf = b;
-          break;
-        }
-      }
-
-      if (endstreamInPdf == -1) {
-        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
-        buffer.add(latin1.encode('\n'));
-        continue;
-      }
-
-      int streamEndInPdf = endstreamInPdf;
+      int streamEndInPdf = startIdx + endstreamRelative;
       if (streamEndInPdf > streamStartInPdf &&
           pdfBytes[streamEndInPdf - 1] == 10) {
         streamEndInPdf--;
@@ -646,27 +687,92 @@ class PdfService {
       }
 
       final rawImageStream = pdfBytes.sublist(streamStartInPdf, streamEndInPdf);
-      final decoded = img.decodeImage(rawImageStream);
+
+      // Attempt decoding based on filter type
+      img.Image? decoded;
+      final isFlate = dictPart.contains('/FlateDecode');
+      final isDct = dictPart.contains('/DCTDecode');
+
+      if (isDct || !isFlate) {
+        try {
+          decoded = img.decodeImage(rawImageStream);
+        } catch (_) {}
+      }
+
+      if (decoded == null && isFlate) {
+        try {
+          final decompressed = zlib.decode(rawImageStream);
+          try {
+            decoded = img.decodeImage(Uint8List.fromList(decompressed));
+          } catch (_) {}
+
+          if (decoded == null) {
+            final wMatch = RegExp(r'/Width\s+(\d+)').firstMatch(dictPart);
+            final hMatch = RegExp(r'/Height\s+(\d+)').firstMatch(dictPart);
+            if (wMatch != null && hMatch != null) {
+              final w = int.parse(wMatch.group(1)!);
+              final h = int.parse(hMatch.group(1)!);
+              if (decompressed.length == w * h * 3) {
+                decoded = img.Image.fromBytes(
+                  width: w,
+                  height: h,
+                  bytes: Uint8List.fromList(decompressed).buffer,
+                  numChannels: 3,
+                );
+              } else if (decompressed.length == w * h) {
+                decoded = img.Image.fromBytes(
+                  width: w,
+                  height: h,
+                  bytes: Uint8List.fromList(decompressed).buffer,
+                  numChannels: 1,
+                );
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
       if (decoded == null) {
         buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
         buffer.add(latin1.encode('\n'));
         continue;
       }
 
+      // Downsample raster image if larger than target DPI bounds
       img.Image processed = decoded;
       if (decoded.width > maxDim || decoded.height > maxDim) {
         if (decoded.width >= decoded.height) {
-          processed = img.copyResize(decoded, width: maxDim);
+          final targetW = maxDim;
+          final targetH = (decoded.height * maxDim / decoded.width).round();
+          processed = img.copyResize(decoded,
+              width: targetW,
+              height: targetH,
+              interpolation: img.Interpolation.linear);
         } else {
-          processed = img.copyResize(decoded, height: maxDim);
+          final targetH = maxDim;
+          final targetW = (decoded.width * maxDim / decoded.height).round();
+          processed = img.copyResize(decoded,
+              width: targetW,
+              height: targetH,
+              interpolation: img.Interpolation.linear);
         }
       }
 
-      final newJpgBytes =
-          Uint8List.fromList(img.encodeJpg(processed, quality: jpgQuality));
-      if (newJpgBytes.length >= rawImageStream.length &&
-          processed.width == decoded.width &&
-          processed.height == decoded.height) {
+      // Encode downsampled JPEG and strictly verify size reduction
+      Uint8List? newJpgBytes;
+      int q = jpgQuality;
+      while (q >= 30) {
+        final candidate =
+            Uint8List.fromList(img.encodeJpg(processed, quality: q));
+        if (candidate.length < rawImageStream.length) {
+          newJpgBytes = candidate;
+          break;
+        }
+        q -= 15;
+      }
+
+      // Strict safety rule: If candidate is NOT strictly smaller than rawImageStream, KEEP ORIGINAL!
+      if (newJpgBytes == null || newJpgBytes.length >= rawImageStream.length) {
         buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
         buffer.add(latin1.encode('\n'));
         continue;
@@ -681,18 +787,28 @@ class PdfService {
           RegExp(r'/Height\s+\d+'), '/Height ${processed.height}');
       newDict = newDict.replaceAll(
           RegExp(r'/Length\s+\d+'), '/Length ${newJpgBytes.length}');
+
       if (!newDict.contains('/Filter/DCTDecode') &&
           !newDict.contains('/Filter /DCTDecode')) {
         newDict = newDict.replaceAll(
             RegExp(r'/Filter\s*/[a-zA-Z0-9]+'), '/Filter /DCTDecode');
-        newDict =
-            newDict.replaceAll(RegExp(r'/Filter\s*\[.*?\]'), '/Filter /DCTDecode');
+        newDict = newDict.replaceAll(
+            RegExp(r'/Filter\s*\[.*?\]'), '/Filter /DCTDecode');
         if (!newDict.contains('/Filter')) {
           newDict = newDict.replaceFirst('>>', ' /Filter /DCTDecode>>');
         }
       }
+
       if (!newDict.contains('/ColorSpace')) {
         newDict = newDict.replaceFirst('>>', ' /ColorSpace /DeviceRGB>>');
+      } else {
+        newDict = newDict.replaceAll(
+            RegExp(r'/ColorSpace\s*/[a-zA-Z0-9]+'), '/ColorSpace /DeviceRGB');
+      }
+
+      if (newDict.contains('/BitsPerComponent')) {
+        newDict = newDict.replaceAll(
+            RegExp(r'/BitsPerComponent\s+\d+'), '/BitsPerComponent 8');
       }
 
       final newObjHeader = '$objId $genId obj\n$newDict\nstream\n';
