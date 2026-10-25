@@ -372,7 +372,7 @@ class _RedactionScreenState extends State<RedactionScreen> {
     return ToolScreenShell(
       title: 'Redact PDF',
       explanation:
-          'Drag across sensitive areas to draw blackout rectangles and permanently redact text or graphics.',
+          'Drag across sensitive areas to draw blackout rectangles. Visual redaction auto-aligns to page rotation (90°, 180°, 270°) and crop box offsets.',
       explanationIcon: Icons.touch_app_rounded,
       actions: [
         if (_pdfFile != null && _totalRedactionCount > 0 && !_isProcessing)
@@ -408,7 +408,7 @@ class _RedactionScreenState extends State<RedactionScreen> {
       selectedFiles: _pdfFile != null ? [_pdfFile!.path] : [],
       emptyStateTitle: 'No PDF Selected',
       emptyStateSubtitle:
-          'Select a PDF document to blackout sensitive text or areas',
+          'Select a PDF document to blackout sensitive text or areas. Visual redaction auto-aligns to page rotation (90°, 180°, 270°) & crop offsets.',
       emptyStateIcon: Icons.find_replace_rounded,
       emptyStateActionLabel: 'Select PDF',
       onPickFiles: (_isLoadingPdf || _isProcessing) ? null : _pickPdf,
@@ -472,6 +472,7 @@ class _RedactionScreenState extends State<RedactionScreen> {
           final currentGeom = (_currentPageIndex < _pageGeometries.length)
               ? _pageGeometries[_currentPageIndex]
               : null;
+          final int rot = currentGeom?.rotation ?? 0;
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -493,32 +494,40 @@ class _RedactionScreenState extends State<RedactionScreen> {
                     ),
                   ),
                 ),
-                if (currentGeom != null && currentGeom.rotation != 0)
-                  Container(
-                    margin: const EdgeInsets.only(left: 6),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Rotated ${currentGeom.rotation}°',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: primary,
-                      ),
+                Container(
+                  margin: const EdgeInsets.only(left: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: rot != 0
+                        ? Colors.amber.withValues(alpha: 0.2)
+                        : primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: rot != 0
+                          ? Colors.amber
+                          : primary.withValues(alpha: 0.3),
+                      width: 1,
                     ),
                   ),
+                  child: Text(
+                    rot != 0 ? 'Rotated $rot°' : '0° Upright',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: rot != 0 ? Colors.amber[800] : primary,
+                    ),
+                  ),
+                ),
                 if (currentGeom != null && currentGeom.hasCropOffset)
                   Container(
                     margin: const EdgeInsets.only(left: 6),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.15),
+                      color: Colors.blue.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.blueAccent, width: 1),
                     ),
                     child: const Text(
                       'CropBox',
@@ -615,9 +624,9 @@ class _RedactionScreenState extends State<RedactionScreen> {
                               (_currentPageIndex < _pageGeometries.length)
                                   ? _pageGeometries[_currentPageIndex]
                                   : null;
-                          if (currentGeom == null || currentGeom.rotation == 0) {
-                            return const SizedBox.shrink();
-                          }
+                          final int rot = currentGeom?.rotation ?? 0;
+                          final bool isRotated = rot != 0;
+
                           return Positioned(
                             top: 8,
                             right: 8,
@@ -625,21 +634,33 @@ class _RedactionScreenState extends State<RedactionScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.75),
+                                color: Colors.black.withValues(alpha: 0.8),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.3)),
+                                  color: isRotated
+                                      ? Colors.amberAccent
+                                      : Colors.white24,
+                                ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.rotate_right_rounded,
-                                      color: Colors.amberAccent, size: 14),
+                                  Icon(
+                                    isRotated
+                                        ? Icons.rotate_right_rounded
+                                        : Icons.crop_portrait_rounded,
+                                    color: isRotated
+                                        ? Colors.amberAccent
+                                        : Colors.white70,
+                                    size: 14,
+                                  ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '${currentGeom.rotation}°',
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    isRotated ? '$rot°' : '0° (Upright)',
+                                    style: TextStyle(
+                                      color: isRotated
+                                          ? Colors.amberAccent
+                                          : Colors.white,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
                                     ),

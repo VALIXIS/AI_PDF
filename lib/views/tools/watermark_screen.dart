@@ -169,10 +169,13 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
           _errorMessage = null;
         });
       },
-      onExecute: _pdfFile != null ? _apply : null,
-      executeButtonLabel: 'Apply Watermark',
+      onExecute: _pdfFile != null ? _apply : _pick,
+      executeButtonLabel:
+          _pdfFile == null ? 'Select PDF to Apply' : 'Apply Watermark',
       executeButtonIcon: Icons.branding_watermark_rounded,
       pickButtonLabel: 'Select PDF',
+      showPickButton: false,
+      scrollable: true,
       isLoading: _isLoading,
       loadingMessage: 'Applying watermark to PDF document...',
       errorMessage: _errorMessage,
@@ -196,13 +199,70 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
       emptyStateTitle: 'No PDF Selected',
       emptyStateSubtitle: 'Select a PDF document to overlay a text or image watermark',
       emptyStateActionLabel: 'Select PDF',
-      extraConfig: _pdfFile == null
-          ? null
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Rotation & CropBox Offset Auto-Alignment info badge
-                Container(
+      customContent: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Selected PDF Document Status / Picker Card
+          GestureDetector(
+            onTap: _isLoading ? null : _pick,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _pdfFile != null
+                      ? primary.withValues(alpha: 0.4)
+                      : primary.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _pdfFile != null
+                        ? Icons.picture_as_pdf_rounded
+                        : Icons.file_upload_outlined,
+                    color: primary,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _pdfFile != null
+                              ? FileService().getFileName(_pdfFile!.path)
+                              : 'Select PDF Document',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: primary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          _pdfFile != null
+                              ? 'Tap to select another file'
+                              : 'Tap to choose a PDF to watermark',
+                          style: TextStyle(fontSize: 12, color: sub),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _pdfFile != null
+                        ? Icons.swap_horiz_rounded
+                        : Icons.chevron_right_rounded,
+                    color: sub,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Rotation & CropBox Offset Auto-Alignment info badge
+          Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: primary.withValues(alpha: 0.08),
