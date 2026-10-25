@@ -423,40 +423,60 @@ class PdfService {
     final String baseName = path.basenameWithoutExtension(pdfPath);
     final fileName = FileService().formatOutputFileName(
       baseName: baseName,
-      suffix: 'compressed',
+      suffix: 'compressed_${compressionLevel.toLowerCase()}',
       extension: 'pdf',
     );
     final targetPath = path.join(dirPath, fileName);
 
     final resultPath = await Isolate.run(() async {
-      final bytes = await File(pdfPath).readAsBytes();
+      RandomAccessFile? raf;
+      Uint8List bytes;
+      try {
+        raf = await File(pdfPath).open(mode: FileMode.read);
+        final len = await raf.length();
+        bytes = await raf.read(len);
+      } finally {
+        await raf?.close();
+      }
+
+      int targetDpi;
+      syncfusion.PdfCompressionLevel sfLevel;
+      switch (compressionLevel.toLowerCase()) {
+        case 'low':
+          targetDpi = 72;
+          sfLevel = syncfusion.PdfCompressionLevel.belowNormal;
+          break;
+        case 'high':
+          targetDpi = 300;
+          sfLevel = syncfusion.PdfCompressionLevel.best;
+          break;
+        case 'medium':
+        default:
+          targetDpi = 150;
+          sfLevel = syncfusion.PdfCompressionLevel.normal;
+          break;
+      }
+
+      // 1. Resample embedded raster images to target DPI while leaving vector text streams untouched
+      final Uint8List resampledBytes =
+          resamplePdfImages(bytes, targetDpi: targetDpi);
+
+      // 2. Apply stream compression and structure optimization
       syncfusion.PdfDocument? sourceDoc;
       syncfusion.PdfDocument? outputDoc;
 
       try {
-        sourceDoc = syncfusion.PdfDocument(inputBytes: bytes);
+        sourceDoc = syncfusion.PdfDocument(inputBytes: resampledBytes);
         outputDoc = syncfusion.PdfDocument();
 
         final pageCount = sourceDoc.pages.count;
         if (pageCount == 0) {
-          throw PdfServiceException('PDF document contains no pages to compress.',
+          throw PdfServiceException(
+              'PDF document contains no pages to compress.',
               code: 'PDF_COMPRESS_EMPTY_PDF');
         }
 
-        syncfusion.PdfCompressionLevel level;
-        switch (compressionLevel.toLowerCase()) {
-          case 'low':
-            level = syncfusion.PdfCompressionLevel.belowNormal;
-            break;
-          case 'high':
-            level = syncfusion.PdfCompressionLevel.best;
-            break;
-          case 'medium':
-          default:
-            level = syncfusion.PdfCompressionLevel.normal;
-            break;
-        }
-        outputDoc.compressionLevel = level;
+        outputDoc.compressionLevel = sfLevel;
 
         for (int i = 0; i < pageCount; i++) {
           final syncfusion.PdfPage sourcePage = sourceDoc.pages[i];
@@ -476,7 +496,22 @@ class PdfService {
         }
 
         final List<int> outputBytes = outputDoc.saveSync();
-        return await FileService().safeWriteBytes(targetPath, outputBytes);
+
+        // Choose the optimal bytes between resampledBytes and stream-compressed outputBytes
+        final List<int> finalBytes =
+            (outputBytes.isNotEmpty && outputBytes.length < resampledBytes.length)
+                ? outputBytes
+                : resampledBytes;
+
+        IOSink? sink;
+        try {
+          sink = File(targetPath).openWrite();
+          sink.add(finalBytes);
+          await sink.flush();
+        } finally {
+          await sink?.close();
+        }
+        return targetPath;
       } finally {
         sourceDoc?.dispose();
         outputDoc?.dispose();
@@ -491,6 +526,214 @@ class PdfService {
 
     AnalyticsService().logOperationSuccess('compressPdf');
     return resultPath;
+  }
+
+  /// Refines image re-sampling algorithms by downsampling embedded raster images
+  /// to target DPI (Low: 72 DPI, Medium: 150 DPI, High: 300 DPI) while leaving
+  /// vector text streams, fonts, and graphics completely untouched.
+  static Uint8List resamplePdfImages(Uint8List pdfBytes,
+      {required int targetDpi}) {
+    int maxDim;
+    int jpgQuality;
+    if (targetDpi <= 72) {
+      maxDim = 800; // ~72 DPI for standard 11-inch document
+      jpgQuality = 60;
+    } else if (targetDpi <= 150) {
+      maxDim = 1600; // ~150 DPI for standard 11-inch document
+      jpgQuality = 75;
+    } else {
+      maxDim = 3200; // ~300 DPI for standard 11-inch document
+      jpgQuality = 88;
+    }
+
+    final latin1Str = latin1.decode(pdfBytes);
+
+    String rootRef = '2 0 R';
+    final rootMatch = RegExp(r'/Root\s+(\d+\s+\d+\s+R)').firstMatch(latin1Str);
+    if (rootMatch != null) {
+      rootRef = rootMatch.group(1)!;
+    }
+
+    String? infoRef;
+    final infoMatch = RegExp(r'/Info\s+(\d+\s+\d+\s+R)').firstMatch(latin1Str);
+    if (infoMatch != null) {
+      infoRef = infoMatch.group(1)!;
+    }
+
+    final objStartRegex = RegExp(r'(\d+)\s+(\d+)\s+obj\b');
+    final objMatches = objStartRegex.allMatches(latin1Str).toList();
+    if (objMatches.isEmpty) return pdfBytes;
+
+    final Map<int, int> objectOffsets = {};
+    final buffer = BytesBuilder();
+
+    final headerEnd = latin1Str.indexOf('\n');
+    final header = latin1Str.substring(0, headerEnd + 1);
+    buffer.add(latin1.encode(header));
+
+    int maxObjId = 0;
+    bool anyModified = false;
+
+    for (int i = 0; i < objMatches.length; i++) {
+      final m = objMatches[i];
+      final objId = int.parse(m.group(1)!);
+      final genId = int.parse(m.group(2)!);
+      if (objId > maxObjId) maxObjId = objId;
+
+      final startIdx = m.start;
+      final endobjIdx = latin1Str.indexOf('endobj', startIdx);
+      if (endobjIdx == -1) continue;
+      final fullEndIdx = endobjIdx + 'endobj'.length;
+
+      final objText = latin1Str.substring(startIdx, fullEndIdx);
+      if (objText.contains('/Type/XRef') || objText.contains('/Type /XRef')) {
+        continue;
+      }
+
+      objectOffsets[objId] = buffer.length;
+
+      // Ensure vector text streams and non-image objects are untouched
+      final isImage = objText.contains('/Subtype/Image') ||
+          objText.contains('/Subtype /Image');
+      if (!isImage) {
+        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
+        buffer.add(latin1.encode('\n'));
+        continue;
+      }
+
+      final streamWordMatch = RegExp(r'stream(\r?\n)').firstMatch(objText);
+      if (streamWordMatch == null) {
+        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
+        buffer.add(latin1.encode('\n'));
+        continue;
+      }
+
+      final dictPart =
+          objText.substring(objText.indexOf('<<'), streamWordMatch.start);
+      final streamStartInPdf = startIdx + streamWordMatch.end;
+
+      final endstreamPattern = latin1.encode('endstream');
+      int endstreamInPdf = -1;
+      for (int b = streamStartInPdf; b < fullEndIdx; b++) {
+        if (pdfBytes[b] == endstreamPattern[0] &&
+            pdfBytes[b + 1] == endstreamPattern[1] &&
+            pdfBytes[b + 2] == endstreamPattern[2] &&
+            pdfBytes[b + 3] == endstreamPattern[3] &&
+            pdfBytes[b + 4] == endstreamPattern[4] &&
+            pdfBytes[b + 5] == endstreamPattern[5] &&
+            pdfBytes[b + 6] == endstreamPattern[6] &&
+            pdfBytes[b + 7] == endstreamPattern[7] &&
+            pdfBytes[b + 8] == endstreamPattern[8]) {
+          endstreamInPdf = b;
+          break;
+        }
+      }
+
+      if (endstreamInPdf == -1) {
+        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
+        buffer.add(latin1.encode('\n'));
+        continue;
+      }
+
+      int streamEndInPdf = endstreamInPdf;
+      if (streamEndInPdf > streamStartInPdf &&
+          pdfBytes[streamEndInPdf - 1] == 10) {
+        streamEndInPdf--;
+        if (streamEndInPdf > streamStartInPdf &&
+            pdfBytes[streamEndInPdf - 1] == 13) {
+          streamEndInPdf--;
+        }
+      }
+
+      final rawImageStream = pdfBytes.sublist(streamStartInPdf, streamEndInPdf);
+      final decoded = img.decodeImage(rawImageStream);
+      if (decoded == null) {
+        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
+        buffer.add(latin1.encode('\n'));
+        continue;
+      }
+
+      img.Image processed = decoded;
+      if (decoded.width > maxDim || decoded.height > maxDim) {
+        if (decoded.width >= decoded.height) {
+          processed = img.copyResize(decoded, width: maxDim);
+        } else {
+          processed = img.copyResize(decoded, height: maxDim);
+        }
+      }
+
+      final newJpgBytes =
+          Uint8List.fromList(img.encodeJpg(processed, quality: jpgQuality));
+      if (newJpgBytes.length >= rawImageStream.length &&
+          processed.width == decoded.width &&
+          processed.height == decoded.height) {
+        buffer.add(pdfBytes.sublist(startIdx, fullEndIdx));
+        buffer.add(latin1.encode('\n'));
+        continue;
+      }
+
+      anyModified = true;
+
+      var newDict = dictPart;
+      newDict = newDict.replaceAll(
+          RegExp(r'/Width\s+\d+'), '/Width ${processed.width}');
+      newDict = newDict.replaceAll(
+          RegExp(r'/Height\s+\d+'), '/Height ${processed.height}');
+      newDict = newDict.replaceAll(
+          RegExp(r'/Length\s+\d+'), '/Length ${newJpgBytes.length}');
+      if (!newDict.contains('/Filter/DCTDecode') &&
+          !newDict.contains('/Filter /DCTDecode')) {
+        newDict = newDict.replaceAll(
+            RegExp(r'/Filter\s*/[a-zA-Z0-9]+'), '/Filter /DCTDecode');
+        newDict =
+            newDict.replaceAll(RegExp(r'/Filter\s*\[.*?\]'), '/Filter /DCTDecode');
+        if (!newDict.contains('/Filter')) {
+          newDict = newDict.replaceFirst('>>', ' /Filter /DCTDecode>>');
+        }
+      }
+      if (!newDict.contains('/ColorSpace')) {
+        newDict = newDict.replaceFirst('>>', ' /ColorSpace /DeviceRGB>>');
+      }
+
+      final newObjHeader = '$objId $genId obj\n$newDict\nstream\n';
+      buffer.add(latin1.encode(newObjHeader));
+      buffer.add(newJpgBytes);
+      buffer.add(latin1.encode('\nendstream\nendobj\n'));
+    }
+
+    if (!anyModified) {
+      return pdfBytes;
+    }
+
+    final xrefStartOffset = buffer.length;
+    final xrefBuf = StringBuffer();
+    xrefBuf.writeln('xref');
+    xrefBuf.writeln('0 ${maxObjId + 1}');
+    xrefBuf.writeln('0000000000 65535 f ');
+
+    for (int id = 1; id <= maxObjId; id++) {
+      final offset = objectOffsets[id];
+      if (offset != null) {
+        xrefBuf.writeln('${offset.toString().padLeft(10, '0')} 00000 n ');
+      } else {
+        xrefBuf.writeln('0000000000 65535 f ');
+      }
+    }
+
+    xrefBuf.writeln('trailer');
+    xrefBuf.writeln('<<');
+    xrefBuf.writeln('  /Size ${maxObjId + 1}');
+    xrefBuf.writeln('  /Root $rootRef');
+    if (infoRef != null) {
+      xrefBuf.writeln('  /Info $infoRef');
+    }
+    xrefBuf.writeln('>>');
+    xrefBuf.writeln('startxref');
+    xrefBuf.writeln('$xrefStartOffset');
+    xrefBuf.writeln('%%EOF');
+
+    buffer.add(latin1.encode(xrefBuf.toString()));
+    return buffer.toBytes();
   }
 
   /// Rotates the pages of a PDF by a specified angle (90, 180, 270) in an isolated heap

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
@@ -6,6 +7,7 @@ import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 
 import 'package:flutter/services.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:image/image.dart' as img;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 
 void main() {
@@ -283,6 +285,109 @@ void main() {
               .compressPdf(corruptFile.path, customOutputPath: tempDir.path),
           throwsA(isA<PdfServiceException>()),
         );
+      } finally {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+
+    test(
+        'compressPdf downsamples embedded raster images to target DPI (Low: 72, Medium: 150, High: 300) while keeping vector text streams untouched',
+        () async {
+      final tempDir =
+          Directory.systemTemp.createTempSync('pdf_compress_dpi_');
+      try {
+        // 1. Create high-resolution raster image (1800x1200)
+        final testImg = img.Image(width: 1800, height: 1200);
+        for (int y = 0; y < 1200; y++) {
+          for (int x = 0; x < 1800; x++) {
+            testImg.setPixelRgb(
+                x, y, (x * 2) % 256, (y * 3) % 256, (x + y) % 256);
+          }
+        }
+        final jpgBytes =
+            Uint8List.fromList(img.encodeJpg(testImg, quality: 95));
+
+        // 2. Build PDF document containing both vector text and the high-res embedded image
+        final pdf = pw.Document();
+        pdf.addPage(
+          pw.Page(
+            build: (ctx) => pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Vector Header: Pure Vector Typography Stays Untouched!',
+                  style: const pw.TextStyle(fontSize: 20),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                    'High quality vector text streams must remain scalable and sharp.'),
+                pw.SizedBox(height: 20),
+                pw.Image(pw.MemoryImage(jpgBytes), width: 450, height: 300),
+              ],
+            ),
+          ),
+        );
+
+        final rawBytes = await pdf.save();
+        final inputPath = '${tempDir.path}/input_with_image.pdf';
+        await File(inputPath).writeAsBytes(rawBytes);
+        final originalSize = File(inputPath).lengthSync();
+
+        // 3. Compress at all three target DPI levels:
+        // High (300 DPI), Medium (150 DPI), Low (72 DPI)
+        final highPath = await PdfService().compressPdf(
+          inputPath,
+          customOutputPath: tempDir.path,
+          compressionLevel: 'high',
+        );
+        final mediumPath = await PdfService().compressPdf(
+          inputPath,
+          customOutputPath: tempDir.path,
+          compressionLevel: 'medium',
+        );
+        final lowPath = await PdfService().compressPdf(
+          inputPath,
+          customOutputPath: tempDir.path,
+          compressionLevel: 'low',
+        );
+
+        final highSize = File(highPath).lengthSync();
+        final mediumSize = File(mediumPath).lengthSync();
+        final lowSize = File(lowPath).lengthSync();
+        print('Original: $originalSize, High: $highSize, Medium: $mediumSize, Low: $lowSize');
+
+        // 4. Verify relative sizing based on downsampled DPI
+        // 72 DPI (Low) < 150 DPI (Medium) < 300 DPI (High) < Original
+        expect(highSize, lessThan(originalSize));
+        expect(mediumSize, lessThan(highSize));
+        expect(lowSize, lessThan(mediumSize));
+
+        // 5. Verify vector text streams are untouched and extractable in all 3 outputs
+        for (final outPath in [highPath, mediumPath, lowPath]) {
+          final doc = syncfusion.PdfDocument(
+              inputBytes: await File(outPath).readAsBytes());
+          try {
+            expect(doc.pages.count, equals(1));
+            final text = syncfusion.PdfTextExtractor(doc).extractText();
+            final normalized = text.replaceAll(RegExp(r'\s+'), ' ');
+            expect(
+                normalized.contains('Pure Vector Typography Stays Untouched!'),
+                isTrue);
+            expect(
+                normalized.contains('High quality vector text streams'),
+                isTrue);
+          } finally {
+            doc.dispose();
+          }
+
+          // 6. Verify file stream safety - file can be opened and closed cleanly
+          final raf = await File(outPath).open(mode: FileMode.read);
+          try {
+            expect(await raf.length(), greaterThan(0));
+          } finally {
+            await raf.close();
+          }
+        }
       } finally {
         tempDir.deleteSync(recursive: true);
       }
