@@ -288,29 +288,115 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Watermark Type Segmented Button
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment<bool>(
-                      value: false,
-                      label: Text('Text Watermark'),
-                      icon: Icon(Icons.text_fields_rounded),
-                    ),
-                    ButtonSegment<bool>(
-                      value: true,
-                      label: Text('Image Watermark'),
-                      icon: Icon(Icons.image_outlined),
-                    ),
-                  ],
-                  selected: {_isImageMode},
-                  onSelectionChanged: _isLoading
-                      ? null
-                      : (newSelection) {
-                          setState(() {
-                            _isImageMode = newSelection.first;
-                            _errorMessage = null;
-                          });
-                        },
+                // Watermark Type Toggle Bar (Text vs Image)
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF1E293B)
+                        : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: border),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () => setState(() {
+                                    _isImageMode = false;
+                                    _errorMessage = null;
+                                  }),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            decoration: BoxDecoration(
+                              color:
+                                  !_isImageMode ? primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: !_isImageMode
+                                  ? [
+                                      BoxShadow(
+                                        color: primary.withValues(alpha: 0.3),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.text_fields_rounded,
+                                  size: 19,
+                                  color: !_isImageMode ? Colors.white : sub,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Text Watermark',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: !_isImageMode ? Colors.white : sub,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () => setState(() {
+                                    _isImageMode = true;
+                                    _errorMessage = null;
+                                  }),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(vertical: 11),
+                            decoration: BoxDecoration(
+                              color:
+                                  _isImageMode ? primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: _isImageMode
+                                  ? [
+                                      BoxShadow(
+                                        color: primary.withValues(alpha: 0.3),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.image_rounded,
+                                  size: 19,
+                                  color: _isImageMode ? Colors.white : sub,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Image Watermark',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: _isImageMode ? Colors.white : sub,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
 
@@ -345,19 +431,68 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _isLoading ? null : _pickImage,
-                    icon: Icon(
-                      _imageFile == null
-                          ? Icons.add_photo_alternate_outlined
-                          : Icons.check_circle_outline_rounded,
-                      color: _imageFile == null ? null : primary,
-                    ),
-                    label: Text(
-                      _imageFile == null
-                          ? 'Select PNG / JPG Logo'
-                          : FileService().getFileName(_imageFile!.path),
-                      overflow: TextOverflow.ellipsis,
+                  GestureDetector(
+                    onTap: _isLoading ? null : _pickImage,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: bg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _imageFile != null
+                              ? primary.withValues(alpha: 0.5)
+                              : border,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              _imageFile != null
+                                  ? Icons.image_rounded
+                                  : Icons.add_photo_alternate_rounded,
+                              color: primary,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _imageFile != null
+                                      ? FileService()
+                                          .getFileName(_imageFile!.path)
+                                      : 'Select PNG / JPG Logo',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color:
+                                        _imageFile != null ? primary : null,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _imageFile != null
+                                      ? 'Tap to choose a different watermark image'
+                                      : 'Supports PNG, JPG, JPEG, WEBP (transparent recommended)',
+                                  style: TextStyle(fontSize: 12, color: sub),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.chevron_right_rounded, color: sub),
+                        ],
+                      ),
                     ),
                   ),
                 ],

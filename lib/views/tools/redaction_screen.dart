@@ -416,16 +416,21 @@ class _RedactionScreenState extends State<RedactionScreen> {
       scrollable: true,
       onExecute:
           (_totalRedactionCount == 0 || _isProcessing) ? null : _applyRedaction,
-      executeButtonLabel: 'Redact & Export PDF ($_totalRedactionCount)',
+      executeButtonLabel: _pdfFile == null
+          ? 'Select PDF to Redact'
+          : 'Redact & Export PDF ($_totalRedactionCount)',
       executeButtonIcon: Icons.find_replace_rounded,
-      customContent: _pdfFile == null
-          ? null
-          : _buildRedactionContent(context, primary, sub, isDark),
+      customContent: _buildRedactionContent(context, primary, sub, isDark),
     );
   }
 
   Widget _buildRedactionContent(
       BuildContext context, Color primary, Color sub, bool isDark) {
+    final currentGeom = (_currentPageIndex < _pageGeometries.length)
+        ? _pageGeometries[_currentPageIndex]
+        : null;
+    final int rot = currentGeom?.rotation ?? 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -437,114 +442,173 @@ class _RedactionScreenState extends State<RedactionScreen> {
             decoration: BoxDecoration(
               color: primary.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: primary.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: _pdfFile != null
+                    ? primary.withValues(alpha: 0.4)
+                    : primary.withValues(alpha: 0.2),
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.picture_as_pdf_rounded, color: primary, size: 28),
+                Icon(
+                  _pdfFile != null
+                      ? Icons.picture_as_pdf_rounded
+                      : Icons.file_upload_outlined,
+                  color: primary,
+                  size: 28,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        FileService().getFileName(_pdfFile!.path),
+                        _pdfFile != null
+                            ? FileService().getFileName(_pdfFile!.path)
+                            : 'Select PDF Document to Redact',
                         style: TextStyle(
                             fontWeight: FontWeight.w700, color: primary),
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        '$_pageCount pages · $_totalRedactionCount total redaction(s)',
+                        _pdfFile != null
+                            ? '$_pageCount pages · $_totalRedactionCount total redaction(s)'
+                            : 'Tap to choose a PDF to blackout sensitive content',
                         style: TextStyle(fontSize: 12, color: sub),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.swap_horiz_rounded, color: sub),
+                Icon(
+                  _pdfFile != null
+                      ? Icons.swap_horiz_rounded
+                      : Icons.chevron_right_rounded,
+                  color: sub,
+                ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        // Rotation & CropBox Offset Info Banner
-        Builder(builder: (context) {
-          final currentGeom = (_currentPageIndex < _pageGeometries.length)
-              ? _pageGeometries[_currentPageIndex]
-              : null;
-          final int rot = currentGeom?.rotation ?? 0;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: primary.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: primary.withValues(alpha: 0.25)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.shield_outlined, size: 18, color: primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Visual redaction auto-aligns to page rotation & crop offsets',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: primary,
-                    ),
+        // Rotation & CropBox Offset Info Banner (ALWAYS VISIBLE!)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: primary.withValues(alpha: 0.25)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 18, color: primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Visual redaction auto-aligns to page rotation & crop offsets',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: primary,
                   ),
                 ),
+              ),
+              Container(
+                margin: const EdgeInsets.only(left: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: rot != 0
+                      ? Colors.amber.withValues(alpha: 0.2)
+                      : primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: rot != 0
+                        ? Colors.amber
+                        : primary.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  rot != 0 ? 'Rotated $rot°' : '0° Upright',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: rot != 0 ? Colors.amber[800] : primary,
+                  ),
+                ),
+              ),
+              if (currentGeom != null && currentGeom.hasCropOffset)
                 Container(
                   margin: const EdgeInsets.only(left: 6),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: rot != 0
-                        ? Colors.amber.withValues(alpha: 0.2)
-                        : primary.withValues(alpha: 0.15),
+                    color: Colors.blue.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: rot != 0
-                          ? Colors.amber
-                          : primary.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
+                    border: Border.all(color: Colors.blueAccent, width: 1),
                   ),
-                  child: Text(
-                    rot != 0 ? 'Rotated $rot°' : '0° Upright',
+                  child: const Text(
+                    'CropBox',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: rot != 0 ? Colors.amber[800] : primary,
+                      color: Colors.blueAccent,
                     ),
                   ),
                 ),
-                if (currentGeom != null && currentGeom.hasCropOffset)
-                  Container(
-                    margin: const EdgeInsets.only(left: 6),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.blueAccent, width: 1),
-                    ),
-                    child: const Text(
-                      'CropBox',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueAccent,
-                      ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // If no PDF selected yet, show placeholder picker prompt
+        if (_pdfFile == null)
+          GestureDetector(
+            onTap: (_isLoadingPdf || _isProcessing) ? null : _pickPdf,
+            child: Container(
+              width: double.infinity,
+              height: 300,
+              decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: primary.withValues(alpha: 0.2),
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.touch_app_rounded, size: 48, color: primary),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No PDF Selected',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: primary,
                     ),
                   ),
-              ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'Select a document to drag blackout boxes over sensitive areas',
+                    style: TextStyle(fontSize: 12, color: sub),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed:
+                        (_isLoadingPdf || _isProcessing) ? null : _pickPdf,
+                    icon: const Icon(Icons.picture_as_pdf_rounded),
+                    label: const Text('Select PDF'),
+                  ),
+                ],
+              ),
             ),
-          );
-        }),
-        const SizedBox(height: 12),
-
-        // Page Canvas with Drag-to-Draw Blackout Overlay
+          )
+        else ...[
+          // Page Canvas with Drag-to-Draw Blackout Overlay
         if (_isLoadingPdf || _currentRenderedPage == null)
           Container(
             height: 350,
@@ -801,6 +865,7 @@ class _RedactionScreenState extends State<RedactionScreen> {
           ],
         ),
       ],
-    );
-  }
+    ],
+  );
+}
 }
