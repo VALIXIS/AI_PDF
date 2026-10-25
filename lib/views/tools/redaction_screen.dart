@@ -4,6 +4,7 @@ import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/models/history_entry.dart';
+import 'package:pdf_ai_toolkit/models/pdf_page_geometry.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 
@@ -42,6 +43,9 @@ class _RedactionScreenState extends State<RedactionScreen> {
   // Active drag tracking (normalized points 0..1)
   Offset? _dragStartNormalized;
   Offset? _dragCurrentNormalized;
+
+  // Extracted page geometries (rotation, mediaBox, cropBox)
+  List<PdfPageGeometry> _pageGeometries = [];
 
   @override
   void dispose() {
@@ -93,8 +97,10 @@ class _RedactionScreenState extends State<RedactionScreen> {
       bool isEncrypted = false;
       try {
         final sfCheck = sf.PdfDocument(inputBytes: bytes);
+        _pageGeometries = PdfPageGeometry.extractPageGeometries(bytes, sfCheck);
         sfCheck.dispose();
       } catch (sfErr) {
+        _pageGeometries = [];
         final sfErrStr = sfErr.toString().toLowerCase();
         if (sfErrStr.contains('encrypted') ||
             sfErrStr.contains('password') ||
@@ -396,6 +402,7 @@ class _RedactionScreenState extends State<RedactionScreen> {
           _pdfDocument?.close();
           _pdfDocument = null;
           _redactionsByPage.clear();
+          _pageGeometries.clear();
         });
       },
       selectedFiles: _pdfFile != null ? [_pdfFile!.path] : [],
@@ -459,6 +466,74 @@ class _RedactionScreenState extends State<RedactionScreen> {
           ),
         ),
         const SizedBox(height: 16),
+
+        // Rotation & CropBox Offset Info Banner
+        Builder(builder: (context) {
+          final currentGeom = (_currentPageIndex < _pageGeometries.length)
+              ? _pageGeometries[_currentPageIndex]
+              : null;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: primary.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.shield_outlined, size: 18, color: primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Visual redaction auto-aligns to page rotation & crop offsets',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: primary,
+                    ),
+                  ),
+                ),
+                if (currentGeom != null && currentGeom.rotation != 0)
+                  Container(
+                    margin: const EdgeInsets.only(left: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Rotated ${currentGeom.rotation}°',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: primary,
+                      ),
+                    ),
+                  ),
+                if (currentGeom != null && currentGeom.hasCropOffset)
+                  Container(
+                    margin: const EdgeInsets.only(left: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'CropBox',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 12),
 
         // Page Canvas with Drag-to-Draw Blackout Overlay
         if (_isLoadingPdf || _currentRenderedPage == null)
@@ -533,6 +608,47 @@ class _RedactionScreenState extends State<RedactionScreen> {
                             fit: BoxFit.fill,
                           ),
                         ),
+
+                        // Page rotation indicator tag on canvas
+                        Builder(builder: (context) {
+                          final currentGeom =
+                              (_currentPageIndex < _pageGeometries.length)
+                                  ? _pageGeometries[_currentPageIndex]
+                                  : null;
+                          if (currentGeom == null || currentGeom.rotation == 0) {
+                            return const SizedBox.shrink();
+                          }
+                          return Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.75),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.rotate_right_rounded,
+                                      color: Colors.amberAccent, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${currentGeom.rotation}°',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
 
                         // Existing Blackout Redaction Rectangles on Current Page
                         for (int i = 0; i < pageRedactions.length; i++) ...[

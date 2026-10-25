@@ -18,9 +18,12 @@ class WatermarkScreen extends StatefulWidget {
 class _WatermarkScreenState extends State<WatermarkScreen> {
   File? _pdfFile;
   bool _isLoading = false;
+  bool _isImageMode = false;
+  File? _imageFile;
   final _textCtrl = TextEditingController(text: 'CONFIDENTIAL');
   double _opacity = 0.25;
   double _angle = -0.4;
+  double _imageScale = 0.6;
   Color _wColor = const Color(0xFFDC2626);
   String? _errorMessage;
   String? _successPath;
@@ -51,6 +54,27 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
     }
   }
 
+  Future<void> _pickImage() async {
+    try {
+      final r = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+      );
+      if (!mounted) return;
+      if (r?.files.single.path != null) {
+        setState(() {
+          _imageFile = File(r!.files.single.path!);
+          _errorMessage = null;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Failed to pick watermark image: $e';
+      });
+    }
+  }
+
   Future<void> _apply() async {
     if (_pdfFile == null ||
         !await FileService().isFileAccessible(_pdfFile!.path)) {
@@ -59,9 +83,15 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
       });
       return;
     }
-    if (_textCtrl.text.trim().isEmpty) {
+    if (!_isImageMode && _textCtrl.text.trim().isEmpty) {
       setState(() {
         _errorMessage = 'Please enter watermark text.';
+      });
+      return;
+    }
+    if (_isImageMode && (_imageFile == null || !await _imageFile!.exists())) {
+      setState(() {
+        _errorMessage = 'Please select a watermark image.';
       });
       return;
     }
@@ -73,17 +103,33 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
     });
 
     try {
-      final path = await PdfService().watermarkPdf(
-        pdfPath: _pdfFile!.path,
-        watermarkText: _textCtrl.text,
-        opacity: _opacity,
-        angle: _angle,
-        color: _wColor,
-      );
+      String path;
+      if (_isImageMode) {
+        final imageBytes = await _imageFile!.readAsBytes();
+        path = await PdfService().watermarkPdf(
+          pdfPath: _pdfFile!.path,
+          watermarkImageBytes: imageBytes,
+          opacity: _opacity,
+          angle: _angle,
+          imageScale: _imageScale,
+        );
+      } else {
+        path = await PdfService().watermarkPdf(
+          pdfPath: _pdfFile!.path,
+          watermarkText: _textCtrl.text,
+          opacity: _opacity,
+          angle: _angle,
+          color: _wColor,
+        );
+      }
+
+      final title = _isImageMode
+          ? 'Image Watermarked'
+          : 'Watermarked: ${_textCtrl.text}';
 
       await StorageService().addHistoryEntry(HistoryEntry(
         id: AiController().generateId(),
-        title: 'Watermarked: ${_textCtrl.text}',
+        title: title,
         date: DateTime.now(),
         filePath: path,
         toolType: 'watermark',
@@ -114,7 +160,7 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
     return ToolScreenShell(
       title: 'Watermark PDF',
       explanation:
-          'Add a customizable text watermark stamp overlay across all pages of your PDF document.',
+          'Add a customizable text or image watermark overlay across all pages of your PDF, auto-aligned to rotated pages and crop boxes.',
       onPickFiles: _pick,
       selectedFiles: _pdfFile != null ? [_pdfFile!.path] : [],
       onRemoveFile: (_) {
@@ -134,45 +180,127 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
       onRetry: _pdfFile != null ? _apply : null,
       successPath: _successPath,
       successTitle: 'Watermark Applied!',
-      successSubtitle: 'Watermark text "${_textCtrl.text}" overlay complete.',
+      successSubtitle: _isImageMode
+          ? 'Image watermark overlay complete.'
+          : 'Watermark text "${_textCtrl.text}" overlay complete.',
       defaultSavePrefix: 'WatermarkedPDF',
       onReset: () {
         setState(() {
           _successPath = null;
           _pdfFile = null;
+          _imageFile = null;
           _errorMessage = null;
         });
       },
       emptyStateIcon: Icons.branding_watermark_rounded,
       emptyStateTitle: 'No PDF Selected',
-      emptyStateSubtitle: 'Select a PDF document to overlay a text watermark',
+      emptyStateSubtitle: 'Select a PDF document to overlay a text or image watermark',
       emptyStateActionLabel: 'Select PDF',
       extraConfig: _pdfFile == null
           ? null
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Watermark Text',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  enabled: !_isLoading,
-                  controller: _textCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'e.g. CONFIDENTIAL',
-                    isDense: true,
+                // Rotation & CropBox Offset Auto-Alignment info badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: primary.withValues(alpha: 0.25)),
                   ),
-                  onChanged: (_) {
-                    if (_errorMessage != null) {
-                      setState(() => _errorMessage = null);
-                    }
-                  },
+                  child: Row(
+                    children: [
+                      Icon(Icons.crop_rotate_rounded, size: 18, color: primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Auto-aligns to page rotation (90°, 180°, 270°) & CropBox offsets',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 16),
+
+                // Watermark Type Segmented Button
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text('Text Watermark'),
+                      icon: Icon(Icons.text_fields_rounded),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text('Image Watermark'),
+                      icon: Icon(Icons.image_outlined),
+                    ),
+                  ],
+                  selected: {_isImageMode},
+                  onSelectionChanged: _isLoading
+                      ? null
+                      : (newSelection) {
+                          setState(() {
+                            _isImageMode = newSelection.first;
+                            _errorMessage = null;
+                          });
+                        },
+                ),
+                const SizedBox(height: 16),
+
+                if (!_isImageMode) ...[
+                  Text(
+                    'Watermark Text',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    enabled: !_isLoading,
+                    controller: _textCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. CONFIDENTIAL',
+                      isDense: true,
+                    ),
+                    onChanged: (_) {
+                      if (_errorMessage != null) {
+                        setState(() => _errorMessage = null);
+                      }
+                    },
+                  ),
+                ] else ...[
+                  Text(
+                    'Watermark Image',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _pickImage,
+                    icon: Icon(
+                      _imageFile == null
+                          ? Icons.add_photo_alternate_outlined
+                          : Icons.check_circle_outline_rounded,
+                      color: _imageFile == null ? null : primary,
+                    ),
+                    label: Text(
+                      _imageFile == null
+                          ? 'Select PNG / JPG Logo'
+                          : FileService().getFileName(_imageFile!.path),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -204,40 +332,55 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
                             ? (_) {}
                             : (v) => setState(() => _angle = v),
                       ),
-                      const Divider(),
-                      Row(
-                        children: [
-                          const Text('Color',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                          const Spacer(),
-                          for (final c in [
-                            const Color(0xFFDC2626),
-                            const Color(0xFF2563EB),
-                            Colors.black,
-                            const Color(0xFF059669)
-                          ])
-                            GestureDetector(
-                              onTap: _isLoading
-                                  ? null
-                                  : () => setState(() => _wColor = c),
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                margin: const EdgeInsets.only(left: 8),
-                                decoration: BoxDecoration(
-                                  color: c,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: _wColor == c
-                                        ? primary
-                                        : Colors.transparent,
-                                    width: 2.5,
+                      if (_isImageMode) ...[
+                        const Divider(),
+                        _SliderRow(
+                          label: 'Scale',
+                          value: _imageScale,
+                          min: 0.2,
+                          max: 1.5,
+                          primary: primary,
+                          onChanged: _isLoading
+                              ? (_) {}
+                              : (v) => setState(() => _imageScale = v),
+                        ),
+                      ],
+                      if (!_isImageMode) ...[
+                        const Divider(),
+                        Row(
+                          children: [
+                            const Text('Color',
+                                style: TextStyle(fontWeight: FontWeight.w600)),
+                            const Spacer(),
+                            for (final c in [
+                              const Color(0xFFDC2626),
+                              const Color(0xFF2563EB),
+                              Colors.black,
+                              const Color(0xFF059669)
+                            ])
+                              GestureDetector(
+                                onTap: _isLoading
+                                    ? null
+                                    : () => setState(() => _wColor = c),
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  margin: const EdgeInsets.only(left: 8),
+                                  decoration: BoxDecoration(
+                                    color: c,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: _wColor == c
+                                          ? primary
+                                          : Colors.transparent,
+                                      width: 2.5,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -257,19 +400,37 @@ class _WatermarkScreenState extends State<WatermarkScreen> {
                       children: [
                         Text('Preview',
                             style: TextStyle(color: sub, fontSize: 13)),
-                        Transform.rotate(
-                          angle: _angle,
-                          child: Text(
-                            _textCtrl.text.isEmpty
-                                ? 'WATERMARK'
-                                : _textCtrl.text,
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              color: _wColor.withValues(alpha: _opacity),
+                        if (!_isImageMode)
+                          Transform.rotate(
+                            angle: _angle,
+                            child: Text(
+                              _textCtrl.text.isEmpty
+                                  ? 'WATERMARK'
+                                  : _textCtrl.text,
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                color: _wColor.withValues(alpha: _opacity),
+                              ),
                             ),
+                          )
+                        else if (_imageFile != null)
+                          Transform.rotate(
+                            angle: _angle,
+                            child: Opacity(
+                              opacity: _opacity,
+                              child: Image.file(
+                                _imageFile!,
+                                height: 80 * _imageScale,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          )
+                        else
+                          Text(
+                            'No image chosen',
+                            style: TextStyle(color: sub, fontSize: 12),
                           ),
-                        ),
                       ],
                     ),
                   ),

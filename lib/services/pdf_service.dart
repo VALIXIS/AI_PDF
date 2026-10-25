@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
@@ -14,6 +15,7 @@ import 'package:path/path.dart' as path;
 import 'package:image/image.dart' as img;
 import 'package:archive/archive.dart';
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
+import 'package:pdf_ai_toolkit/models/pdf_page_geometry.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/analytics_service.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
@@ -770,13 +772,17 @@ class PdfService {
     return thumbnails;
   }
 
-  /// Applies a visible text watermark to all pages of a PDF
+  /// Applies a visible text or image watermark to all pages of a PDF, accounting
+  /// for page rotation (90, 180, 270 degrees) and media box vs crop box offsets.
   Future<String> watermarkPdf({
     required String pdfPath,
-    required String watermarkText,
+    String? watermarkText,
+    Uint8List? watermarkImageBytes,
+    String? watermarkImagePath,
     required double opacity,
-    required double angle, // in radians
-    required Color color,
+    required double angle, // in radians (viewer upright perspective)
+    Color color = const Color(0xFFDC2626),
+    double imageScale = 1.0,
     String? customOutputPath,
   }) async {
     final fs = FileService();
@@ -800,9 +806,21 @@ class PdfService {
             code: 'PDF_CORRUPT_OR_INVALID');
       }
 
-      if (watermarkText.trim().isEmpty) {
-        throw PdfServiceException('Watermark text cannot be empty',
-            code: 'PDF_WATERMARK_EMPTY_TEXT');
+      Uint8List? effectiveImageBytes = watermarkImageBytes;
+      if (effectiveImageBytes == null && watermarkImagePath != null) {
+        final imgFile = File(watermarkImagePath);
+        if (await imgFile.exists()) {
+          effectiveImageBytes = await imgFile.readAsBytes();
+        }
+      }
+
+      final hasText = watermarkText != null && watermarkText.trim().isNotEmpty;
+      final hasImage = effectiveImageBytes != null && effectiveImageBytes.isNotEmpty;
+
+      if (!hasText && !hasImage) {
+        throw PdfServiceException(
+            'Please provide either watermark text or an image.',
+            code: 'PDF_WATERMARK_EMPTY_CONTENT');
       }
 
       final bytes = await file.readAsBytes();
@@ -822,7 +840,12 @@ class PdfService {
               code: 'PDF_WATERMARK_EMPTY_PDF');
         }
 
-        final double angleInDegrees = angle * 180 / 3.141592653589793;
+        // Extract geometry for all pages (rotation, MediaBox, CropBox offsets)
+        final geometries =
+            PdfPageGeometry.extractPageGeometries(bytes, document);
+
+        final double userAngleDegrees = angle * 180 / math.pi;
+
         final sf.PdfFont font = sf.PdfStandardFont(
           sf.PdfFontFamily.helvetica,
           50,
@@ -839,8 +862,28 @@ class PdfService {
 
         final clampedOpacity = opacity.clamp(0.0, 1.0);
 
+        sf.PdfBitmap? watermarkBitmap;
+        if (effectiveImageBytes != null) {
+          try {
+            watermarkBitmap = sf.PdfBitmap(effectiveImageBytes);
+          } catch (imgErr) {
+            throw PdfServiceException(
+                'Invalid or unsupported watermark image format: $imgErr',
+                code: 'PDF_WATERMARK_INVALID_IMAGE',
+                details: imgErr);
+          }
+        }
+
         for (int i = 0; i < pageCount; i++) {
           final sf.PdfPage page = document.pages[i];
+          final PdfPageGeometry geometry = (i < geometries.length)
+              ? geometries[i]
+              : PdfPageGeometry(
+                  mediaBox: Rect.fromLTWH(0, 0, page.size.width, page.size.height),
+                  cropBox: Rect.fromLTWH(0, 0, page.size.width, page.size.height),
+                  rotation: 0,
+                );
+
           final sf.PdfGraphics graphics = page.graphics;
 
           // Save current graphics state
@@ -849,28 +892,56 @@ class PdfService {
           // Set transparency/opacity
           graphics.setTransparency(clampedOpacity);
 
-          // Translate origin to the center of the page
-          graphics.translateTransform(
-              page.size.width / 2, page.size.height / 2);
-
-          // Apply rotation in degrees
-          graphics.rotateTransform(angleInDegrees);
-
-          // Measure text size to center it
-          final Size textSize = font.measureString(watermarkText);
-
-          // Draw the text centered around the new origin (0, 0)
-          graphics.drawString(
-            watermarkText,
-            font,
-            brush: brush,
+          // Restrict watermark rendering strictly to CropBox bounds
+          graphics.setClip(
             bounds: Rect.fromLTWH(
-              -textSize.width / 2,
-              -textSize.height / 2,
-              textSize.width,
-              textSize.height,
+              geometry.cropOffsetX,
+              geometry.cropOffsetY,
+              geometry.cropWidth,
+              geometry.cropHeight,
             ),
           );
+
+          // Translate origin to visible center of CropBox
+          graphics.translateTransform(
+            geometry.visibleCenterX,
+            geometry.visibleCenterY,
+          );
+
+          // Compensate for page rotation (90, 180, 270) so watermark appears at target angle
+          // from the viewer's upright perspective
+          final double effectiveAngle = userAngleDegrees - geometry.rotation;
+          graphics.rotateTransform(effectiveAngle);
+
+          if (hasImage && watermarkBitmap != null) {
+            final double maxAllowedW = geometry.visualWidth * 0.8;
+            final double maxAllowedH = geometry.visualHeight * 0.8;
+            double w = watermarkBitmap.width * imageScale;
+            double h = watermarkBitmap.height * imageScale;
+            if (w > maxAllowedW || h > maxAllowedH) {
+              final scale = math.min(maxAllowedW / w, maxAllowedH / h);
+              w *= scale;
+              h *= scale;
+            }
+
+            graphics.drawImage(
+              watermarkBitmap,
+              Rect.fromLTWH(-w / 2, -h / 2, w, h),
+            );
+          } else if (watermarkText != null) {
+            final Size textSize = font.measureString(watermarkText);
+            graphics.drawString(
+              watermarkText,
+              font,
+              brush: brush,
+              bounds: Rect.fromLTWH(
+                -textSize.width / 2,
+                -textSize.height / 2,
+                textSize.width,
+                textSize.height,
+              ),
+            );
+          }
 
           // Restore graphics state
           graphics.restore(state);
@@ -2220,9 +2291,12 @@ class PdfService {
     }
 
     try {
+      final bytes = await file.readAsBytes();
+
       try {
         // High-security rasterization redaction via pdfx page rendering
         final doc = await pdfx.PdfDocument.openFile(pdfPath);
+
         try {
           final pageCount = doc.pagesCount;
           if (pageCount == 0) {
@@ -2313,23 +2387,34 @@ class PdfService {
       } catch (e) {
         if (e is PdfServiceException) rethrow;
 
-        // Fallback for headless test environments where native pdf_renderer platform channels are absent
-        final bytes = await file.readAsBytes();
+        // Vector redaction fallback accounting for page rotation (90, 180, 270)
+        // and media box vs crop box offsets.
         final sfDoc = syncfusion.PdfDocument(inputBytes: bytes);
         try {
+          final geometries =
+              PdfPageGeometry.extractPageGeometries(bytes, sfDoc);
+
           for (int i = 0; i < sfDoc.pages.count; i++) {
             final page = sfDoc.pages[i];
-            final pSize = page.getClientSize();
+            final geometry = (i < geometries.length)
+                ? geometries[i]
+                : PdfPageGeometry(
+                    mediaBox: Rect.fromLTWH(0, 0, page.size.width, page.size.height),
+                    cropBox: Rect.fromLTWH(0, 0, page.size.width, page.size.height),
+                    rotation: 0,
+                  );
+
             final pageRedactions = redactionsByPage[i];
             if (pageRedactions != null && pageRedactions.isNotEmpty) {
-              for (final rect in pageRedactions) {
-                final rx = rect.left * pSize.width;
-                final ry = rect.top * pSize.height;
-                final rw = rect.width * pSize.width;
-                final rh = rect.height * pSize.height;
+              for (final visualRect in pageRedactions) {
+                // Map visual normalized coordinate [0..1] on screen to unrotated PDF canvas
+                // accounting for rotation (90, 180, 270) and crop box offset
+                final Rect pageRect =
+                    geometry.mapNormalizedVisualRectToPage(visualRect);
+
                 page.graphics.drawRectangle(
                   brush: syncfusion.PdfBrushes.black,
-                  bounds: Rect.fromLTWH(rx, ry, rw, rh),
+                  bounds: pageRect,
                 );
               }
             }
