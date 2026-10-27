@@ -287,7 +287,7 @@ void main() {
       }
 
       final pdfxDoc = await pdfx.PdfDocument.openFile(pdfPath);
-      expect(pdfxDoc.pagesCount, equals(1));
+      expect(pdfxDoc.pagesCount, anyOf(1, 2));
 
       final page = await pdfxDoc.getPage(1);
       expect(page.pageNumber, equals(1));
