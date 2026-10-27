@@ -1,8 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui';
 import 'dart:convert';
 import 'dart:isolate';
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -491,9 +491,7 @@ class PdfService {
       if (srcInfo.creator.isNotEmpty) {
         destInfo.creator = srcInfo.creator;
       }
-      if (srcInfo.creationDate != null) {
-        destInfo.creationDate = srcInfo.creationDate;
-      }
+      destInfo.creationDate = srcInfo.creationDate;
       destInfo.modificationDate = DateTime.now();
     } catch (_) {}
   }
@@ -521,9 +519,7 @@ class PdfService {
       if (destInfo.creator.isEmpty && srcInfo.creator.isNotEmpty) {
         destInfo.creator = srcInfo.creator;
       }
-      if (destInfo.creationDate == null && srcInfo.creationDate != null) {
-        destInfo.creationDate = srcInfo.creationDate;
-      }
+      destInfo.creationDate = srcInfo.creationDate;
     } catch (_) {}
   }
 

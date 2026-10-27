@@ -4,6 +4,10 @@ Runs directly in GitHub Actions runners.
 """
 
 import sys
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except Exception:
+    pass
 import os
 import re
 import subprocess

@@ -333,9 +333,9 @@ void main() {
       expect(loadedDoc.documentInformation.subject, equals('Splitting Precision'));
       expect(loadedDoc.documentInformation.keywords, equals('split, metadata, test'));
       expect(loadedDoc.documentInformation.creator, equals('AI PDF Splitter'));
-      expect(loadedDoc.documentInformation.creationDate?.year, equals(2025));
-      expect(loadedDoc.documentInformation.creationDate?.month, equals(4));
-      expect(loadedDoc.documentInformation.creationDate?.day, equals(10));
+      expect(loadedDoc.documentInformation.creationDate.year, equals(2025));
+      expect(loadedDoc.documentInformation.creationDate.month, equals(4));
+      expect(loadedDoc.documentInformation.creationDate.day, equals(10));
       loadedDoc.dispose();
     });
 

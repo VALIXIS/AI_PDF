@@ -316,9 +316,9 @@ void main() {
       expect(loadedDoc.documentInformation.subject, equals('Merging Architecture'));
       expect(loadedDoc.documentInformation.keywords, equals('syncfusion, pdf, metadata'));
       expect(loadedDoc.documentInformation.creator, equals('AI PDF Maker'));
-      expect(loadedDoc.documentInformation.creationDate?.year, equals(2025));
-      expect(loadedDoc.documentInformation.creationDate?.month, equals(6));
-      expect(loadedDoc.documentInformation.creationDate?.day, equals(15));
+      expect(loadedDoc.documentInformation.creationDate.year, equals(2025));
+      expect(loadedDoc.documentInformation.creationDate.month, equals(6));
+      expect(loadedDoc.documentInformation.creationDate.day, equals(15));
       loadedDoc.dispose();
     });
 
