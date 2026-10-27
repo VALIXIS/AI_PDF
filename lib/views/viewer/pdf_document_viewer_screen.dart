@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
 import 'package:pdfx/pdfx.dart' as pdfx;
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_cache_service.dart';
 import 'package:pdf_ai_toolkit/services/share_service.dart';
+import 'package:pdf_ai_toolkit/widgets/pdf_security_dialogs.dart';
 
 /// Representation of a rasterized PDF page texture held in memory.
 class _PageTextureData {
@@ -33,10 +35,12 @@ class _PageTextureData {
 
 class PdfDocumentViewerScreen extends StatefulWidget {
   final String filePath;
+  final String? password;
 
   const PdfDocumentViewerScreen({
     Key? key,
     required this.filePath,
+    this.password,
   }) : super(key: key);
 
   @override
@@ -53,6 +57,9 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   bool _isDisposed = false;
+  String? _password;
+  PdfIssueType _detectedIssue = PdfIssueType.none;
+  int? _detectedFileSize;
 
   // Viewport virtualized memory texture cache:
   // Strictly contains only visible page(s) + 1 ahead lookahead.
@@ -81,6 +88,7 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
   @override
   void initState() {
     super.initState();
+    _password = widget.password;
     _pageController = PageController(initialPage: 0);
 
     // Enforce strict image cache limits while viewing PDF to keep memory <120MB on large books
@@ -93,28 +101,94 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
     _initPdf();
   }
 
-  Future<void> _initPdf() async {
+  Future<void> initPdf({String? password}) => _initPdf(password: password);
+
+  Future<void> _initPdf({String? password}) async {
+    if (password != null) {
+      _password = password;
+    }
+
     try {
       final file = File(widget.filePath);
       if (!await file.exists()) {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
+          _detectedIssue = PdfIssueType.formatException;
           _errorMessage = 'PDF file not found at: ${widget.filePath}';
         });
         return;
       }
 
-      if (await file.length() == 0) {
+      // Perform deep security, corruption, and format exception inspection
+      final inspection =
+          await inspectPdfFile(widget.filePath, password: _password);
+      _detectedFileSize = inspection.fileSizeBytes;
+
+      // 1. Catch header corruption errors
+      if (inspection.hasHeaderCorruption) {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
-          _errorMessage = 'PDF file is empty (0 bytes).';
+          _detectedIssue = PdfIssueType.headerCorrupted;
+          _errorMessage = inspection.errorMessage ??
+              "Invalid or corrupted '%PDF-' header signature.";
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showCorruptionExplanationModal(PdfIssueType.headerCorrupted);
+          }
         });
         return;
       }
 
-      final doc = await pdfx.PdfDocument.openFile(widget.filePath);
+      // 2. Catch format exceptions
+      if (inspection.hasFormatException) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _detectedIssue = PdfIssueType.formatException;
+          _errorMessage = inspection.errorMessage ??
+              'Malformed PDF structure or syntax FormatException.';
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showCorruptionExplanationModal(PdfIssueType.formatException);
+          }
+        });
+        return;
+      }
+
+      // 3. Catch password requirement signals
+      if (inspection.isPasswordProtected) {
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _detectedIssue = PdfIssueType.passwordRequired;
+          _errorMessage =
+              'This document is password protected and encrypted.';
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _promptDecryptionPassword();
+          }
+        });
+        return;
+      }
+
+      // Document is valid! Open via pdfx
+      pdfx.PdfDocument doc;
+      if (_password != null &&
+          _password!.isNotEmpty &&
+          inspection.bytes != null) {
+        doc = await pdfx.PdfDocument.openData(
+          inspection.bytes!,
+          password: _password,
+        );
+      } else {
+        doc = await pdfx.PdfDocument.openFile(widget.filePath);
+      }
+
       if (!mounted) {
         await doc.close();
         return;
@@ -126,6 +200,7 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
+          _detectedIssue = PdfIssueType.formatException;
           _errorMessage = 'PDF document contains no pages.';
         });
         return;
@@ -134,6 +209,8 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
       _pdfDocument = doc;
       _pageCount = count;
       _currentPage = 1;
+      _detectedIssue = PdfIssueType.none;
+      _errorMessage = null;
 
       // Extract initial page aspect ratio for placeholder layout stability
       try {
@@ -155,12 +232,92 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
 
       // Virtualized render: visible page 1 and prefetch page 2 (+1 ahead)
       _updateViewportAndPrefetch(1);
-    } catch (e) {
+    } on FormatException catch (fe) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Failed to load PDF: $e';
+        _detectedIssue = PdfIssueType.formatException;
+        _errorMessage = 'FormatException: ${fe.message}';
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showCorruptionExplanationModal(PdfIssueType.formatException);
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final err = e.toString().toLowerCase();
+      if (err.contains('password') ||
+          err.contains('encrypted') ||
+          err.contains('protected')) {
+        setState(() {
+          _isLoading = false;
+          _detectedIssue = PdfIssueType.passwordRequired;
+          _errorMessage =
+              'This document is encrypted. Enter password to view.';
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _promptDecryptionPassword();
+          }
+        });
+      } else if (err.contains('header') || err.contains('%pdf')) {
+        setState(() {
+          _isLoading = false;
+          _detectedIssue = PdfIssueType.headerCorrupted;
+          _errorMessage = 'Header corruption error: $e';
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showCorruptionExplanationModal(PdfIssueType.headerCorrupted);
+          }
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _detectedIssue = PdfIssueType.formatException;
+          _errorMessage = 'Failed to load PDF: $e';
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showCorruptionExplanationModal(PdfIssueType.formatException);
+          }
+        });
+      }
+    }
+  }
+
+  void _showCorruptionExplanationModal(PdfIssueType type) {
+    showPdfCorruptionModal(
+      context: context,
+      issueType: type,
+      fileName: p.basename(widget.filePath),
+      fileSizeBytes: _detectedFileSize,
+      technicalDetails: _errorMessage,
+      onChooseAnother: () => Navigator.of(context).maybePop(),
+    );
+  }
+
+  Future<void> _promptDecryptionPassword() async {
+    final fileName = p.basename(widget.filePath);
+    final pass = await showPdfPasswordModal(
+      context: context,
+      fileName: fileName,
+      onValidatePassword: (candidate) async {
+        final recheck =
+            await inspectPdfFile(widget.filePath, password: candidate);
+        return recheck.isValid;
+      },
+    );
+
+    if (pass != null && mounted) {
+      setState(() {
+        _password = pass;
+        _isLoading = true;
+        _errorMessage = null;
+        _detectedIssue = PdfIssueType.none;
+      });
+      await _initPdf(password: pass);
     }
   }
 
@@ -591,32 +748,151 @@ class _PdfDocumentViewerScreenState extends State<PdfDocumentViewerScreen> {
     }
 
     if (_errorMessage != null) {
+      final isPassword = _detectedIssue == PdfIssueType.passwordRequired;
+      final isHeaderCorrupt = _detectedIssue == PdfIssueType.headerCorrupted;
+
+      final icon = isPassword
+          ? Icons.lock_rounded
+          : (isHeaderCorrupt
+              ? Icons.broken_image_rounded
+              : Icons.error_outline_rounded);
+
+      final iconColor = isPassword
+          ? const Color(0xFFEF4444)
+          : (isHeaderCorrupt
+              ? const Color(0xFFF59E0B)
+              : const Color(0xFFEF4444));
+
+      final issueTitle = isPassword
+          ? 'Password Protected PDF'
+          : (isHeaderCorrupt
+              ? 'Corrupted PDF Header'
+              : 'PDF Format Exception');
+
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded,
-                  color: Colors.red, size: 48),
-              const SizedBox(height: 16),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: iconColor.withValues(alpha: 0.28),
+                    width: 2,
+                  ),
+                ),
+                child: Icon(icon, color: iconColor, size: 36),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                issueTitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? const Color(0xFF13131F)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  p.basename(widget.filePath),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  color: isDark ? Colors.white60 : Colors.black54,
+                ),
               ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Try Again'),
-                onPressed: () {
-                  setState(() {
-                    _isLoading = true;
-                    _errorMessage = null;
-                  });
-                  _initPdf();
-                },
-              ),
+              const SizedBox(height: 24),
+              if (isPassword) ...[
+                ElevatedButton.icon(
+                  key: const Key('viewer_enter_password_button'),
+                  icon: const Icon(Icons.key_rounded, size: 18),
+                  label: const Text('Enter Password'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: _promptDecryptionPassword,
+                ),
+              ] else ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      key: const Key('viewer_explain_issue_button'),
+                      icon: const Icon(Icons.info_outline_rounded, size: 18),
+                      label: const Text('Details'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () =>
+                          _showCorruptionExplanationModal(_detectedIssue),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      key: const Key('viewer_try_again_button'),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Try Again'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isLoading = true;
+                          _errorMessage = null;
+                        });
+                        _initPdf();
+                      },
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

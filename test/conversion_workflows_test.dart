@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/core/errors/app_exceptions.dart';
 import 'package:pdfx/src/renderer/interfaces/platform.dart';
 import 'package:pdfx/src/renderer/io/platform_method_channel.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -245,6 +247,45 @@ void main() {
     final file = File(
         '$tempDirPath/test_img_${DateTime.now().millisecondsSinceEpoch}.png');
     await file.writeAsBytes(bytes);
+    return file.path;
+  }
+
+  // Helper to generate an image file with custom dimensions and aspect ratio
+  Future<String> createOrientedImage({
+    required int width,
+    required int height,
+  }) async {
+    final image = img.Image(width: width, height: height);
+    img.fill(image, color: img.ColorRgb8(50, 150, 250));
+    final pngBytes = Uint8List.fromList(img.encodePng(image));
+    final file = File(
+        '$tempDirPath/test_img_${width}x${height}_${DateTime.now().microsecondsSinceEpoch}.png');
+    file.writeAsBytesSync(pngBytes);
+    return file.path;
+  }
+
+  // Helper to generate a multi-page test PDF with distinct per-page rotations
+  Future<String> createMultiPagePdfWithRotations({
+    required List<sf.PdfPageRotateAngle> rotations,
+  }) async {
+    final doc = sf.PdfDocument();
+    for (int i = 0; i < rotations.length; i++) {
+      final section = doc.sections!.add();
+      section.pageSettings.size = const Size(595, 842);
+      section.pageSettings.rotate = rotations[i];
+      section.pageSettings.margins.all = 0;
+      final page = section.pages.add();
+      page.graphics.drawString(
+        'Page ${i + 1} with rotation ${rotations[i]}',
+        sf.PdfStandardFont(sf.PdfFontFamily.helvetica, 12),
+        bounds: const Rect.fromLTWH(20, 20, 250, 50),
+      );
+    }
+    final bytes = doc.saveSync();
+    doc.dispose();
+    final file = File(
+        '$tempDirPath/multi_orient_${DateTime.now().microsecondsSinceEpoch}.pdf');
+    file.writeAsBytesSync(bytes);
     return file.path;
   }
 
@@ -512,6 +553,344 @@ void main() {
         throwsA(isA<PdfServiceException>()
             .having((e) => e.code, 'code', 'PDF_TO_IMAGE_INPUT_NOT_FOUND')),
       );
+    });
+  });
+
+  group('Orientation & Aspect Ratio Workflows', () {
+    test('Image to PDF respects portrait and landscape orientation', () async {
+      // 1. Portrait image (width < height)
+      final portraitImg = await createOrientedImage(width: 300, height: 600);
+      final portraitPdf = await pdfService.convertImagesToPdf(
+        imagePaths: [portraitImg],
+        customOutputPath: tempDirPath,
+      );
+      final docPortrait =
+          sf.PdfDocument(inputBytes: await File(portraitPdf).readAsBytes());
+      expect(docPortrait.pages.count, equals(1));
+      final portraitSize = docPortrait.pages[0].size;
+      expect(portraitSize.height, greaterThanOrEqualTo(portraitSize.width));
+      docPortrait.dispose();
+
+      // 2. Landscape image (width > height)
+      final landscapeImg = await createOrientedImage(width: 800, height: 400);
+      final landscapePdf = await pdfService.convertImagesToPdf(
+        imagePaths: [landscapeImg],
+        customOutputPath: tempDirPath,
+      );
+      final docLandscape =
+          sf.PdfDocument(inputBytes: await File(landscapePdf).readAsBytes());
+      expect(docLandscape.pages.count, equals(1));
+      final landscapeSize = docLandscape.pages[0].size;
+      expect(landscapeSize.width, greaterThan(landscapeSize.height));
+      docLandscape.dispose();
+
+      await File(portraitImg).delete();
+      await File(portraitPdf).delete();
+      await File(landscapeImg).delete();
+      await File(landscapePdf).delete();
+    });
+
+    test(
+        'Full 360-degree rotation cycle rotates cleanly through 90, 180, 270, and back to 0 degrees',
+        () async {
+      final inputPath = await createMultiPagePdfWithRotations(
+        rotations: [sf.PdfPageRotateAngle.rotateAngle0],
+      );
+
+      // Rotate by 90
+      final path90 = await pdfService.rotatePdf(
+        pdfPath: inputPath,
+        rotationAngle: 90,
+        customOutputPath: tempDirPath,
+      );
+      final doc90 =
+          sf.PdfDocument(inputBytes: await File(path90).readAsBytes());
+      expect(
+          doc90.pages[0].rotation, equals(sf.PdfPageRotateAngle.rotateAngle90));
+      doc90.dispose();
+
+      // Rotate by another 90 (cumulative 180)
+      final path180 = await pdfService.rotatePdf(
+        pdfPath: path90,
+        rotationAngle: 90,
+        customOutputPath: tempDirPath,
+      );
+      final doc180 =
+          sf.PdfDocument(inputBytes: await File(path180).readAsBytes());
+      expect(doc180.pages[0].rotation,
+          equals(sf.PdfPageRotateAngle.rotateAngle180));
+      doc180.dispose();
+
+      // Rotate by another 90 (cumulative 270)
+      final path270 = await pdfService.rotatePdf(
+        pdfPath: path180,
+        rotationAngle: 90,
+        customOutputPath: tempDirPath,
+      );
+      final doc270 =
+          sf.PdfDocument(inputBytes: await File(path270).readAsBytes());
+      expect(doc270.pages[0].rotation,
+          equals(sf.PdfPageRotateAngle.rotateAngle270));
+      doc270.dispose();
+
+      // Rotate by another 90 (cumulative 360 -> back to 0)
+      final path360 = await pdfService.rotatePdf(
+        pdfPath: path270,
+        rotationAngle: 90,
+        customOutputPath: tempDirPath,
+      );
+      final doc360 =
+          sf.PdfDocument(inputBytes: await File(path360).readAsBytes());
+      expect(
+          doc360.pages[0].rotation, equals(sf.PdfPageRotateAngle.rotateAngle0));
+      doc360.dispose();
+
+      await File(inputPath).delete();
+      await File(path90).delete();
+      await File(path180).delete();
+      await File(path270).delete();
+      await File(path360).delete();
+    });
+
+    test('reorganizePdfPages applies distinct rotations to individual pages',
+        () async {
+      final inputPath = await createMultiPagePdfWithRotations(
+        rotations: [
+          sf.PdfPageRotateAngle.rotateAngle0,
+          sf.PdfPageRotateAngle.rotateAngle0,
+          sf.PdfPageRotateAngle.rotateAngle0,
+        ],
+      );
+
+      final reorgPath = await pdfService.reorganizePdfPages(
+        pdfPath: inputPath,
+        pages: const [
+          PdfPageReorganizeItem(originalPageIndex: 0, rotationAngle: 90),
+          PdfPageReorganizeItem(originalPageIndex: 1, rotationAngle: 180),
+          PdfPageReorganizeItem(originalPageIndex: 2, rotationAngle: 270),
+        ],
+        customOutputPath: tempDirPath,
+      );
+
+      final doc =
+          sf.PdfDocument(inputBytes: await File(reorgPath).readAsBytes());
+      expect(doc.pages.count, equals(3));
+      expect(
+          doc.pages[0].rotation, equals(sf.PdfPageRotateAngle.rotateAngle90));
+      expect(
+          doc.pages[1].rotation, equals(sf.PdfPageRotateAngle.rotateAngle180));
+      expect(
+          doc.pages[2].rotation, equals(sf.PdfPageRotateAngle.rotateAngle270));
+      doc.dispose();
+
+      await File(inputPath).delete();
+      await File(reorgPath).delete();
+    });
+  });
+
+  group('Edge-Case Splits Workflows', () {
+    test(
+        'Boundary split: Single first page (1 to 1) extraction preserves content and orientation',
+        () async {
+      final inputPath = await createMultiPagePdfWithRotations(
+        rotations: [
+          sf.PdfPageRotateAngle.rotateAngle90,
+          sf.PdfPageRotateAngle.rotateAngle180,
+          sf.PdfPageRotateAngle.rotateAngle270,
+        ],
+      );
+
+      final splitPath = await pdfService.splitPdf(
+        pdfPath: inputPath,
+        startPage: 1,
+        endPage: 1,
+        customOutputPath: tempDirPath,
+      );
+
+      final doc =
+          sf.PdfDocument(inputBytes: await File(splitPath).readAsBytes());
+      expect(doc.pages.count, equals(1));
+      expect(
+          doc.pages[0].rotation, equals(sf.PdfPageRotateAngle.rotateAngle90));
+      final text = sf.PdfTextExtractor(doc).extractText();
+      expect(text, contains('Page 1'));
+      doc.dispose();
+
+      await File(inputPath).delete();
+      await File(splitPath).delete();
+    });
+
+    test(
+        'Boundary split: Single last page (N to N) extraction preserves content and orientation',
+        () async {
+      final inputPath = await createMultiPagePdfWithRotations(
+        rotations: [
+          sf.PdfPageRotateAngle.rotateAngle0,
+          sf.PdfPageRotateAngle.rotateAngle90,
+          sf.PdfPageRotateAngle.rotateAngle270,
+        ],
+      );
+
+      final splitPath = await pdfService.splitPdf(
+        pdfPath: inputPath,
+        startPage: 3,
+        endPage: 3,
+        customOutputPath: tempDirPath,
+      );
+
+      final doc =
+          sf.PdfDocument(inputBytes: await File(splitPath).readAsBytes());
+      expect(doc.pages.count, equals(1));
+      expect(
+          doc.pages[0].rotation, equals(sf.PdfPageRotateAngle.rotateAngle270));
+      final text = sf.PdfTextExtractor(doc).extractText();
+      expect(text, contains('Page 3'));
+      doc.dispose();
+
+      await File(inputPath).delete();
+      await File(splitPath).delete();
+    });
+
+    test(
+        'Full document split: (1 to N) extracts all pages retaining exact orientation sequence',
+        () async {
+      final inputPath = await createMultiPagePdfWithRotations(
+        rotations: [
+          sf.PdfPageRotateAngle.rotateAngle0,
+          sf.PdfPageRotateAngle.rotateAngle90,
+          sf.PdfPageRotateAngle.rotateAngle180,
+          sf.PdfPageRotateAngle.rotateAngle270,
+        ],
+      );
+
+      final splitPath = await pdfService.splitPdf(
+        pdfPath: inputPath,
+        startPage: 1,
+        endPage: 4,
+        customOutputPath: tempDirPath,
+      );
+
+      final doc =
+          sf.PdfDocument(inputBytes: await File(splitPath).readAsBytes());
+      expect(doc.pages.count, equals(4));
+      expect(
+          doc.pages[0].rotation, equals(sf.PdfPageRotateAngle.rotateAngle0));
+      expect(
+          doc.pages[1].rotation, equals(sf.PdfPageRotateAngle.rotateAngle90));
+      expect(
+          doc.pages[2].rotation, equals(sf.PdfPageRotateAngle.rotateAngle180));
+      expect(
+          doc.pages[3].rotation, equals(sf.PdfPageRotateAngle.rotateAngle270));
+      doc.dispose();
+
+      await File(inputPath).delete();
+      await File(splitPath).delete();
+    });
+
+    test(
+        'Subrange split: middle pages (2 to 3) correctly extracts subset preserving rotations',
+        () async {
+      final inputPath = await createMultiPagePdfWithRotations(
+        rotations: [
+          sf.PdfPageRotateAngle.rotateAngle0,
+          sf.PdfPageRotateAngle.rotateAngle90,
+          sf.PdfPageRotateAngle.rotateAngle180,
+          sf.PdfPageRotateAngle.rotateAngle270,
+        ],
+      );
+
+      final splitPath = await pdfService.splitPdf(
+        pdfPath: inputPath,
+        startPage: 2,
+        endPage: 3,
+        customOutputPath: tempDirPath,
+      );
+
+      final doc =
+          sf.PdfDocument(inputBytes: await File(splitPath).readAsBytes());
+      expect(doc.pages.count, equals(2));
+      expect(
+          doc.pages[0].rotation, equals(sf.PdfPageRotateAngle.rotateAngle90));
+      expect(
+          doc.pages[1].rotation, equals(sf.PdfPageRotateAngle.rotateAngle180));
+      final text = sf.PdfTextExtractor(doc).extractText();
+      expect(text, contains('Page 2'));
+      expect(text, contains('Page 3'));
+      doc.dispose();
+
+      await File(inputPath).delete();
+      await File(splitPath).delete();
+    });
+
+    test('Edge case rejection: inverted range (startPage > endPage)',
+        () async {
+      final inputPath =
+          await createTestPdf(pageTexts: ['Page 1', 'Page 2', 'Page 3']);
+
+      await expectLater(
+        pdfService.splitPdf(pdfPath: inputPath, startPage: 3, endPage: 1),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_INVALID_PAGE_RANGE')),
+      );
+
+      await File(inputPath).delete();
+    });
+
+    test('Edge case rejection: startPage <= 0', () async {
+      final inputPath = await createTestPdf(pageTexts: ['Page 1', 'Page 2']);
+
+      await expectLater(
+        pdfService.splitPdf(pdfPath: inputPath, startPage: 0, endPage: 2),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_INVALID_PAGE_RANGE')),
+      );
+
+      await expectLater(
+        pdfService.splitPdf(pdfPath: inputPath, startPage: -2, endPage: 2),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_INVALID_PAGE_RANGE')),
+      );
+
+      await File(inputPath).delete();
+    });
+
+    test('Edge case rejection: endPage out of bounds (> totalPages)', () async {
+      final inputPath = await createTestPdf(pageTexts: ['Page 1', 'Page 2']);
+
+      await expectLater(
+        pdfService.splitPdf(pdfPath: inputPath, startPage: 1, endPage: 10),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_INVALID_PAGE_RANGE')),
+      );
+
+      await File(inputPath).delete();
+    });
+
+    test('Edge case rejection: missing or corrupted file', () async {
+      await expectLater(
+        pdfService.splitPdf(
+          pdfPath: '$tempDirPath/non_existent.pdf',
+          startPage: 1,
+          endPage: 2,
+        ),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_INPUT_NOT_FOUND')),
+      );
+
+      final corruptFile = File('$tempDirPath/corrupt_split.pdf');
+      corruptFile.writeAsStringSync('not a pdf at all');
+
+      await expectLater(
+        pdfService.splitPdf(
+          pdfPath: corruptFile.path,
+          startPage: 1,
+          endPage: 1,
+        ),
+        throwsA(isA<PdfServiceException>()
+            .having((e) => e.code, 'code', 'PDF_CORRUPT_OR_INVALID')),
+      );
+
+      await corruptFile.delete();
     });
   });
 }

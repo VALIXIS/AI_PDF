@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/main.dart' show kPrimary, kPrimaryDark;
 import 'package:pdf_ai_toolkit/views/ai/ai_screen.dart';
@@ -23,6 +24,8 @@ import 'package:pdf_ai_toolkit/views/tools/pdf_signature_overlay_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/ai_summarizer_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_form_filler_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/redaction_screen.dart';
+import 'package:pdf_ai_toolkit/views/viewer/pdf_document_viewer_screen.dart';
+import 'package:pdf_ai_toolkit/widgets/pdf_security_dialogs.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_state_widgets.dart';
 
 class ToolItem {
@@ -143,6 +146,14 @@ const List<ToolItem> appTools = [
     screen: RotatePdfScreen(),
     category: 'Organize',
   ),
+  ToolItem(
+    title: 'PDF Viewer',
+    subtitle: 'Open & inspect documents',
+    icon: Icons.menu_book_rounded,
+    color: Color(0xFF2563EB),
+    screen: PdfViewerLauncherScreen(),
+    category: 'Organize',
+  ),
 
   // Edit
   ToolItem(
@@ -257,6 +268,39 @@ class _ToolsScreenState extends State<ToolsScreen> {
     'AI'
   ];
 
+  Future<void> _pickAndInspectPdf(BuildContext context) async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+      if (result != null && result.files.single.path != null) {
+        final path = result.files.single.path!;
+        if (!context.mounted) return;
+        final pass = await handlePdfSecurityAndIntegrity(
+          context: context,
+          filePath: path,
+          onChooseAnother: () => _pickAndInspectPdf(context),
+        );
+        if (pass != null && context.mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PdfDocumentViewerScreen(
+                filePath: path,
+                password: pass.isEmpty ? null : pass,
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open file: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -275,6 +319,14 @@ class _ToolsScreenState extends State<ToolsScreen> {
         automaticallyImplyLeading: widget.showBackButton,
         elevation: 0,
         backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(
+            key: const Key('tools_open_pdf_action_button'),
+            icon: const Icon(Icons.file_open_rounded),
+            tooltip: 'Open PDF',
+            onPressed: () => _pickAndInspectPdf(context),
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,6 +544,173 @@ class _ToolsScreenCardState extends State<_ToolsScreenCard>
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Standalone PDF viewer launcher screen accessible from Tools.
+/// Inspects PDF integrity, intercepts corruption/format exceptions, and handles decryption passwords.
+class PdfViewerLauncherScreen extends StatefulWidget {
+  final String? initialFilePath;
+
+  const PdfViewerLauncherScreen({Key? key, this.initialFilePath})
+      : super(key: key);
+
+  @override
+  State<PdfViewerLauncherScreen> createState() =>
+      _PdfViewerLauncherScreenState();
+}
+
+class _PdfViewerLauncherScreenState extends State<PdfViewerLauncherScreen> {
+  bool _isProcessing = false;
+  String? _statusMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialFilePath != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _inspectAndOpen(widget.initialFilePath!);
+      });
+    }
+  }
+
+  Future<void> _pickAndOpen() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+      if (result != null && result.files.single.path != null) {
+        await _inspectAndOpen(result.files.single.path!);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error choosing file: $e')),
+      );
+    }
+  }
+
+  Future<void> _inspectAndOpen(String path) async {
+    setState(() {
+      _isProcessing = true;
+      _statusMessage = 'Inspecting document integrity...';
+    });
+
+    try {
+      final pass = await handlePdfSecurityAndIntegrity(
+        context: context,
+        filePath: path,
+        onChooseAnother: _pickAndOpen,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _statusMessage = null;
+      });
+
+      if (pass != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PdfDocumentViewerScreen(
+              filePath: path,
+              password: pass.isEmpty ? null : pass,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _statusMessage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to process document: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = isDark ? kPrimaryDark : kPrimary;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('PDF Document Viewer'),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.menu_book_rounded,
+                  color: primary,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Open & Inspect PDF',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Open any PDF document to read, inspect structure, or decrypt password-protected files.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.4,
+                  color: isDark ? Colors.white60 : Colors.black54,
+                ),
+              ),
+              const SizedBox(height: 30),
+              if (_isProcessing) ...[
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  _statusMessage ?? 'Processing...',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ] else ...[
+                ElevatedButton.icon(
+                  key: const Key('tools_launcher_pick_pdf_button'),
+                  icon: const Icon(Icons.file_open_rounded),
+                  label: const Text('Select PDF to View'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: _pickAndOpen,
+                ),
+              ],
             ],
           ),
         ),
