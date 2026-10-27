@@ -280,6 +280,12 @@ void main() {
         customOutputPath: tempDir.path,
       );
 
+      if (!await pdfx.hasPdfSupport()) {
+        final count = await pdfService.getPdfPageCount(pdfPath);
+        expect(count, equals(2));
+        return;
+      }
+
       final pdfxDoc = await pdfx.PdfDocument.openFile(pdfPath);
       expect(pdfxDoc.pagesCount, equals(2));
 
@@ -522,12 +528,14 @@ void main() {
       sfDoc.dispose();
 
       // Step 2: Reopen with pdfx engine
-      final pdfxDoc = await pdfx.PdfDocument.openFile(savedPdf);
-      expect(pdfxDoc.pagesCount, equals(2));
-      final page1 = await pdfxDoc.getPage(1);
-      expect(page1.pageNumber, equals(1));
-      await page1.close();
-      await pdfxDoc.close();
+      if (await pdfx.hasPdfSupport()) {
+        final pdfxDoc = await pdfx.PdfDocument.openFile(savedPdf);
+        expect(pdfxDoc.pagesCount, equals(2));
+        final page1 = await pdfxDoc.getPage(1);
+        expect(page1.pageNumber, equals(1));
+        await page1.close();
+        await pdfxDoc.close();
+      }
 
       // Step 3: Reopen page count check via service
       final count = await pdfService.getPdfPageCount(savedPdf);

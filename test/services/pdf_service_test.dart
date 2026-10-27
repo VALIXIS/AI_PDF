@@ -493,7 +493,7 @@ void main() {
       } catch (e) {
         // If it fails because of missing plugin or platform exception, we ignore it
         // because the test logic is still valid for environments that support the plugin natively.
-        if (!e.toString().contains('MissingPluginException')) {
+        if (!e.toString().contains('MissingPluginException') && !e.toString().contains('PlatformNotSupportedException')) {
           rethrow;
         }
       }

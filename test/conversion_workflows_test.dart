@@ -18,6 +18,8 @@ void main() {
   late Directory tempDir;
   late String tempDirPath;
   final List<MethodCall> methodChannelLog = <MethodCall>[];
+  int testImgCounter = 0;
+  int testPdfCounter = 0;
 
   setUpAll(() async {
     tempDir =
@@ -167,7 +169,7 @@ void main() {
       );
     }
     final file = File(
-        '$tempDirPath/test_input_${DateTime.now().millisecondsSinceEpoch}.pdf');
+        '$tempDirPath/test_input_${DateTime.now().microsecondsSinceEpoch}_${testPdfCounter++}.pdf');
     await file.writeAsBytes(await pdf.save());
     return file.path;
   }
@@ -245,7 +247,7 @@ void main() {
       130
     ]);
     final file = File(
-        '$tempDirPath/test_img_${DateTime.now().millisecondsSinceEpoch}.png');
+        '$tempDirPath/test_img_${DateTime.now().microsecondsSinceEpoch}_${testImgCounter++}.png');
     await file.writeAsBytes(bytes);
     return file.path;
   }

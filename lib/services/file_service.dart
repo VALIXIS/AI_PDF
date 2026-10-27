@@ -403,13 +403,19 @@ class FileService {
   /// Gets file name from path safely across Windows and Unix platforms
   String getFileName(String filePath) {
     if (filePath.isEmpty) return '';
-    return path.basename(filePath);
+    if (filePath.contains('\\')) {
+      return path.windows.basename(filePath);
+    }
+    return path.posix.basename(filePath);
   }
 
   /// Gets directory name from path safely across platforms
   String getDirectoryName(String filePath) {
     if (filePath.isEmpty) return '';
-    return path.dirname(filePath);
+    if (filePath.contains('\\')) {
+      return path.windows.dirname(filePath);
+    }
+    return path.posix.dirname(filePath);
   }
 
   /// Gets file extension from path
