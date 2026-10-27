@@ -1,17 +1,14 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'dart:ui' show PictureRecorder, Canvas;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:pdf_ai_toolkit/models/pdf_annotation.dart';
 import 'package:pdf_ai_toolkit/models/saved_signature.dart';
-import 'package:pdf_ai_toolkit/services/pdf_service.dart';
 import 'package:pdf_ai_toolkit/services/signature_storage_service.dart';
 import 'package:pdf_ai_toolkit/views/tools/pdf_signature_overlay_screen.dart';
 import 'package:pdf_ai_toolkit/views/tools/signature_canvas_screen.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
 void main() {
   late Directory tempDir;

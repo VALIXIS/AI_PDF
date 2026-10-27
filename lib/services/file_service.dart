@@ -3,6 +3,9 @@ import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'dart:io';
+import 'dart:isolate';
+import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 
 enum DetectedFileType {
   pdf,
@@ -912,6 +915,162 @@ class FileService {
     final sec = now.second.toString().padLeft(2, '0');
     final ext = extension.startsWith('.') ? extension.substring(1) : extension;
     return '${prefix}_$year$month${day}_$hour$min$sec.$ext';
+  }
+
+  /// Converts an EXIF orientation tag (1-8) to rotation degrees (0, 90, 180, 270).
+  static int exifOrientationToDegrees(int? orientation) {
+    switch (orientation) {
+      case 3:
+        return 180;
+      case 6:
+        return 90;
+      case 8:
+        return 270;
+      case 1:
+      default:
+        return 0;
+    }
+  }
+
+  /// Converts rotation degrees (0, 90, 180, 270) to an EXIF orientation tag (1, 6, 3, 8).
+  static int degreesToExifOrientation(int degrees) {
+    final normalized = (degrees % 360 + 360) % 360;
+    switch (normalized) {
+      case 90:
+        return 6;
+      case 180:
+        return 3;
+      case 270:
+        return 8;
+      case 0:
+      default:
+        return 1;
+    }
+  }
+
+  /// Reads EXIF orientation from an image file and returns the orientation tag (1-8, or null if unreadable/not present).
+  Future<int?> getImageExifOrientation(String filePath) async {
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return null;
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) return null;
+      final decoded = img.decodeImage(bytes);
+      if (decoded != null && decoded.exif.imageIfd.hasOrientation) {
+        return decoded.exif.imageIfd.orientation;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Returns the rotation degrees (0, 90, 180, 270) based on EXIF metadata.
+  Future<int> getImageRotationDegrees(String filePath) async {
+    final orientation = await getImageExifOrientation(filePath);
+    return exifOrientationToDegrees(orientation);
+  }
+
+  /// Decodes and ensures an image byte buffer is oriented according to EXIF metadata (0, 90, 180, 270 deg)
+  /// and downscaled if width or height exceeds [maxDimension] (default 2048px).
+  ///
+  /// Spawns an isolate via [Isolate.run] to prevent blocking the UI thread during heavy decoding and resizing.
+  Future<Uint8List> orientAndResizeImageBytes(
+    Uint8List imageBytes, {
+    int maxDimension = 2048,
+    int quality = 88,
+  }) async {
+    if (imageBytes.isEmpty) return imageBytes;
+    return await Isolate.run(() {
+      return _isolateOrientAndResizeImageSync(imageBytes, maxDimension, quality);
+    });
+  }
+
+  /// Worker executed synchronously inside the spawned background isolate.
+  static Uint8List _isolateOrientAndResizeImageSync(
+    Uint8List bytes,
+    int maxDimension,
+    int quality,
+  ) {
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return bytes;
+
+    img.Image processed = decoded;
+
+    // 1. Correct orientation via EXIF metadata (0, 90, 180, 270 deg)
+    if (processed.exif.imageIfd.hasOrientation &&
+        processed.exif.imageIfd.orientation != 1) {
+      processed = img.bakeOrientation(processed);
+    }
+
+    // 2. Downscale if exceeding maxDimension (e.g. 2048px)
+    if (processed.width > maxDimension || processed.height > maxDimension) {
+      if (processed.width >= processed.height) {
+        processed = img.copyResize(processed, width: maxDimension);
+      } else {
+        processed = img.copyResize(processed, height: maxDimension);
+      }
+    }
+
+    return Uint8List.fromList(img.encodeJpg(processed, quality: quality));
+  }
+
+  /// Preprocesses an image file by applying EXIF orientation (0, 90, 180, 270 deg)
+  /// and downscaling in a spawned isolate if exceeding [maxDimension] (2048px).
+  /// Saves the processed image to a temporary file (or [customOutputPath]) and returns its path.
+  Future<String> prepareImageForPdf(
+    String imagePath, {
+    int maxDimension = 2048,
+    int quality = 88,
+    String? customOutputPath,
+  }) async {
+    final file = File(imagePath);
+    if (!await file.exists()) {
+      throw FileSystemException('Image file not found', imagePath);
+    }
+    final rawBytes = await file.readAsBytes();
+    if (rawBytes.isEmpty) {
+      throw FileSystemException('Image file is empty', imagePath);
+    }
+
+    final processedBytes = await orientAndResizeImageBytes(
+      rawBytes,
+      maxDimension: maxDimension,
+      quality: quality,
+    );
+
+    if (customOutputPath != null) {
+      final out = File(customOutputPath);
+      await out.parent.create(recursive: true);
+      await out.writeAsBytes(processedBytes, flush: true);
+      return customOutputPath;
+    }
+
+    final tempDir = Directory.systemTemp;
+    final base = path.basenameWithoutExtension(imagePath);
+    final targetPath = path.join(
+      tempDir.path,
+      'prepared_${base}_${DateTime.now().microsecondsSinceEpoch}.jpg',
+    );
+    await File(targetPath).writeAsBytes(processedBytes, flush: true);
+    return targetPath;
+  }
+
+  /// Preprocesses multiple image files in a background isolate, ensuring correct EXIF
+  /// orientation (0, 90, 180, 270 deg) and downscaling images exceeding [maxDimension] (2048px).
+  Future<List<String>> prepareImagesForPdf(
+    List<String> imagePaths, {
+    int maxDimension = 2048,
+    int quality = 88,
+  }) async {
+    final results = <String>[];
+    for (final p in imagePaths) {
+      final prepared = await prepareImageForPdf(
+        p,
+        maxDimension: maxDimension,
+        quality: quality,
+      );
+      results.add(prepared);
+    }
+    return results;
   }
 }
 

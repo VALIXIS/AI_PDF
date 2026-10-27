@@ -109,12 +109,12 @@ void main() {
       const rx = 0.3;
       const ry = 0.5;
       const checkFontSize = 22.0;
-      final checkSize = checkFontSize * 1.1;
-      final normW = checkSize / pageWidth;
-      final normH = checkSize / pageHeight;
+      const checkSize = checkFontSize * 1.1;
+      const normW = checkSize / pageWidth;
+      const normH = checkSize / pageHeight;
 
-      final startX = rx - normW / 2;
-      final startY = ry - normH / 2;
+      const startX = rx - normW / 2;
+      const startY = ry - normH / 2;
 
       expect(startX + normW / 2, closeTo(rx, 0.0001));
       expect(startY + normH / 2, closeTo(ry, 0.0001));
