@@ -569,5 +569,176 @@ void main() {
 
       await File(badHtmlPath).delete();
     });
+
+    test('Markdown to PDF renders tables and wraps code blocks cleanly',
+        () async {
+      const mdContent = '''
+# Audit Markdown Document
+
+| Component | Status | Details |
+| :--- | :---: | ---: |
+| HTML Tables | Completed | Styled with borders & padding |
+| Code Blocks | Completed | Wrapped long lines & subtle fill |
+
+```dart
+final String veryLongUrl = "https://example.com/api/v1/resource/endpoint/subresource/nested?param1=value1&param2=value2&param3=value3&param4=value4&param5=value5";
+```
+''';
+
+      final mdPath = '$tempDirPath/audit_test.md';
+      await File(mdPath).writeAsString(mdContent);
+
+      final outPath = await pdfService.convertMarkdownToPdf(
+        markdownPath: mdPath,
+        title: 'Audit Markdown Test',
+        customOutputPath: tempDirPath,
+      );
+
+      final outFile = File(outPath);
+      expect(outFile.existsSync(), isTrue);
+      expect(outFile.lengthSync(), greaterThan(0));
+
+      final sf.PdfDocument doc =
+          sf.PdfDocument(inputBytes: outFile.readAsBytesSync());
+      try {
+        expect(doc.pages.count, greaterThan(0));
+        final text = sf.PdfTextExtractor(doc)
+            .extractText()
+            .replaceAll(RegExp(r'\s+'), ' ');
+        expect(text.contains('Component'), isTrue);
+        expect(text.contains('HTML Tables'), isTrue);
+        expect(text.contains('veryLongUrl'), isTrue);
+      } finally {
+        doc.dispose();
+      }
+
+      await File(mdPath).delete();
+      await outFile.delete();
+    });
+
+    test('HTML to PDF renders tables and wraps code blocks cleanly', () async {
+      const htmlContent = '''
+<!DOCTYPE html>
+<html>
+<body>
+  <h1>Audit HTML Document</h1>
+  <table border="1">
+    <tr>
+      <th>Module</th>
+      <th>Result</th>
+    </tr>
+    <tr>
+      <td>UTF-8 Glyphs</td>
+      <td>Resolved</td>
+    </tr>
+  </table>
+  <pre><code>final String superLongIdentifierNameThatExceedsTheStandardPageWidthWithoutBreaking = "https://long-domain-name.test.internal/v1/auth/token?signature=abcdef1234567890";</code></pre>
+</body>
+</html>
+''';
+
+      final htmlPath = '$tempDirPath/audit_test.html';
+      await File(htmlPath).writeAsString(htmlContent);
+
+      final outPath = await pdfService.convertHtmlToPdf(
+        htmlPath: htmlPath,
+        title: 'Audit HTML Test',
+        customOutputPath: tempDirPath,
+      );
+
+      final outFile = File(outPath);
+      expect(outFile.existsSync(), isTrue);
+      expect(outFile.lengthSync(), greaterThan(0));
+
+      final sf.PdfDocument doc =
+          sf.PdfDocument(inputBytes: outFile.readAsBytesSync());
+      try {
+        expect(doc.pages.count, greaterThan(0));
+        final text = sf.PdfTextExtractor(doc)
+            .extractText()
+            .replaceAll(RegExp(r'\s+'), ' ');
+        expect(text.contains('Module'), isTrue);
+        expect(text.contains('UTF-8 Glyphs'), isTrue);
+        expect(text.contains('superLongIdentifierName'), isTrue);
+      } finally {
+        doc.dispose();
+      }
+
+      await File(htmlPath).delete();
+      await outFile.delete();
+    });
+
+    test('Markdown and HTML render UTF-8 characters without missing glyph boxes',
+        () async {
+      const utf8Sample = '''
+“Smart Quotes” and ‘single quotes’ — Em Dash and – En Dash.
+• Bullet item 1
+™ Trademark, © Copyright, ® Registered, ✓ Passed checkmark.
+Math: ± 5 ≤ 10 ≥ 2 ≠ 0 × 3 ÷ 2.
+Currencies: €100, ₹500, £50, ¥1000.
+Arrows: Left ← Right → Both ↔.
+Accents: Café, résumé, señor, Über, façade.
+''';
+
+      final mdPath = '$tempDirPath/utf8_test.md';
+      await File(mdPath).writeAsString('# UTF-8 Test\n\n$utf8Sample');
+
+      final mdOut = await pdfService.convertMarkdownToPdf(
+        markdownPath: mdPath,
+        title: 'UTF-8 Markdown Test',
+        customOutputPath: tempDirPath,
+      );
+
+      final mdFile = File(mdOut);
+      expect(mdFile.existsSync(), isTrue);
+
+      final sf.PdfDocument mdDoc =
+          sf.PdfDocument(inputBytes: mdFile.readAsBytesSync());
+      try {
+        expect(mdDoc.pages.count, greaterThan(0));
+        final extracted = sf.PdfTextExtractor(mdDoc)
+            .extractText()
+            .replaceAll(RegExp(r'\s+'), ' ');
+        expect(extracted.contains('"Smart Quotes"'), isTrue);
+        expect(extracted.contains('EUR'), isTrue);
+        expect(extracted.contains('INR'), isTrue);
+        expect(extracted.contains('Café'), isTrue);
+      } finally {
+        mdDoc.dispose();
+      }
+
+      // Test HTML UTF-8
+      final htmlPath = '$tempDirPath/utf8_test.html';
+      await File(htmlPath).writeAsString('<p>$utf8Sample</p>');
+
+      final htmlOut = await pdfService.convertHtmlToPdf(
+        htmlPath: htmlPath,
+        title: 'UTF-8 HTML Test',
+        customOutputPath: tempDirPath,
+      );
+
+      final htmlFile = File(htmlOut);
+      expect(htmlFile.existsSync(), isTrue);
+
+      final sf.PdfDocument htmlDoc =
+          sf.PdfDocument(inputBytes: htmlFile.readAsBytesSync());
+      try {
+        expect(htmlDoc.pages.count, greaterThan(0));
+        final extracted = sf.PdfTextExtractor(htmlDoc)
+            .extractText()
+            .replaceAll(RegExp(r'\s+'), ' ');
+        expect(extracted.contains('"Smart Quotes"'), isTrue);
+        expect(extracted.contains('EUR'), isTrue);
+        expect(extracted.contains('INR'), isTrue);
+        expect(extracted.contains('Café'), isTrue);
+      } finally {
+        htmlDoc.dispose();
+      }
+
+      await File(mdPath).delete();
+      await File(htmlPath).delete();
+      await mdFile.delete();
+      await htmlFile.delete();
+    });
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:pdf_ai_toolkit/widgets/tool_screen_shell.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
@@ -20,6 +21,7 @@ class _MarkdownToPdfScreenState extends State<MarkdownToPdfScreen> {
   final StorageService _storageService = StorageService();
 
   String? _selectedFile;
+  String? _filePreviewContent;
   bool _isLoading = false;
   String? _errorMessage;
   String? _successPath;
@@ -70,8 +72,15 @@ class _MarkdownToPdfScreenState extends State<MarkdownToPdfScreen> {
           return;
         }
 
+        String? preview;
+        try {
+          final str = await file.readAsString();
+          preview = str.length > 4000 ? str.substring(0, 4000) : str;
+        } catch (_) {}
+
         setState(() {
           _selectedFile = path;
+          _filePreviewContent = preview;
           final filename = _fileService.getFileName(path);
           final dotIdx = filename.lastIndexOf('.');
           if (dotIdx != -1) {
@@ -160,6 +169,7 @@ class _MarkdownToPdfScreenState extends State<MarkdownToPdfScreen> {
       onRemoveFile: (_) {
         setState(() {
           _selectedFile = null;
+          _filePreviewContent = null;
           _errorMessage = null;
         });
       },
@@ -175,6 +185,7 @@ class _MarkdownToPdfScreenState extends State<MarkdownToPdfScreen> {
         setState(() {
           _successPath = null;
           _selectedFile = null;
+          _filePreviewContent = null;
           _errorMessage = null;
           _titleController.text = 'Converted Document';
         });
@@ -202,6 +213,82 @@ class _MarkdownToPdfScreenState extends State<MarkdownToPdfScreen> {
                     }
                   },
                 ),
+                if (_filePreviewContent != null &&
+                    _filePreviewContent!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Icon(Icons.visibility_outlined,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Document Content Preview',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 13.5),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(maxHeight: 280),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Theme.of(context).dividerColor,
+                        width: 0.8,
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: MarkdownBody(
+                        data: _filePreviewContent!,
+                        selectable: true,
+                        styleSheet: MarkdownStyleSheet.fromTheme(
+                                Theme.of(context))
+                            .copyWith(
+                          codeblockDecoration: BoxDecoration(
+                            color: Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? const Color(0xFF334155)
+                                  : const Color(0xFFCBD5E1),
+                              width: 0.8,
+                            ),
+                          ),
+                          codeblockPadding: const EdgeInsets.all(10),
+                          code: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 11.5,
+                            color: Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? const Color(0xFFE2E8F0)
+                                : const Color(0xFF1E293B),
+                          ),
+                          tableBorder: TableBorder.all(
+                            color: Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? const Color(0xFF475569)
+                                : const Color(0xFFCBD5E1),
+                            width: 0.8,
+                          ),
+                          tableCellsPadding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                          tableHead: const TextStyle(
+                              fontWeight: FontWeight.bold),
+                          tableHeadAlign: TextAlign.left,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
     );
