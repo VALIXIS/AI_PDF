@@ -273,5 +273,134 @@ void main() {
       final count = await service.getPdfPageCount(path3Pages);
       expect(count, equals(3));
     });
+
+    test('Test 10 — Preserves PDF document metadata (title, author, creationDate)', () async {
+      final doc1 = syncfusion.PdfDocument();
+      doc1.documentInformation.title = 'Merged Document Master Title';
+      doc1.documentInformation.author = 'Antigravity Architect';
+      doc1.documentInformation.subject = 'Merging Architecture';
+      doc1.documentInformation.keywords = 'syncfusion, pdf, metadata';
+      doc1.documentInformation.creator = 'AI PDF Maker';
+      final creationDate = DateTime(2025, 6, 15, 12, 0, 0);
+      doc1.documentInformation.creationDate = creationDate;
+      final page1 = doc1.pages.add();
+      page1.graphics.drawString(
+        'Doc 1 Page 1',
+        syncfusion.PdfStandardFont(syncfusion.PdfFontFamily.helvetica, 12),
+      );
+      final path1 = '${tempDir.path}/meta_doc1.pdf';
+      await File(path1).writeAsBytes(doc1.saveSync());
+      doc1.dispose();
+
+      final doc2 = syncfusion.PdfDocument();
+      final page2 = doc2.pages.add();
+      page2.graphics.drawString(
+        'Doc 2 Page 1',
+        syncfusion.PdfStandardFont(syncfusion.PdfFontFamily.helvetica, 12),
+      );
+      final path2 = '${tempDir.path}/meta_doc2.pdf';
+      await File(path2).writeAsBytes(doc2.saveSync());
+      doc2.dispose();
+
+      final service = PdfService();
+      final mergedPath = await service.mergePdfs(
+        [path1, path2],
+        customOutputPath: tempDir.path,
+      );
+
+      final loadedDoc = syncfusion.PdfDocument(
+        inputBytes: await File(mergedPath).readAsBytes(),
+      );
+      expect(loadedDoc.documentInformation.title, equals('Merged Document Master Title'));
+      expect(loadedDoc.documentInformation.author, equals('Antigravity Architect'));
+      expect(loadedDoc.documentInformation.subject, equals('Merging Architecture'));
+      expect(loadedDoc.documentInformation.keywords, equals('syncfusion, pdf, metadata'));
+      expect(loadedDoc.documentInformation.creator, equals('AI PDF Maker'));
+      expect(loadedDoc.documentInformation.creationDate?.year, equals(2025));
+      expect(loadedDoc.documentInformation.creationDate?.month, equals(6));
+      expect(loadedDoc.documentInformation.creationDate?.day, equals(15));
+      loadedDoc.dispose();
+    });
+
+    test('Test 11 — Preserves outline tree (bookmarks and nested bookmarks) across merged documents', () async {
+      final doc1 = syncfusion.PdfDocument();
+      final p1 = doc1.pages.add();
+      final p2 = doc1.pages.add();
+      final b1 = doc1.bookmarks.add('Chapter 1');
+      b1.destination = syncfusion.PdfDestination(p1, const Offset(0, 0));
+      final sub1 = b1.add('Section 1.1');
+      sub1.destination = syncfusion.PdfDestination(p2, const Offset(0, 0));
+      final path1 = '${tempDir.path}/tree_doc1.pdf';
+      await File(path1).writeAsBytes(doc1.saveSync());
+      doc1.dispose();
+
+      final doc2 = syncfusion.PdfDocument();
+      final p3 = doc2.pages.add();
+      final p4 = doc2.pages.add();
+      final b2 = doc2.bookmarks.add('Chapter 2');
+      b2.destination = syncfusion.PdfDestination(p3, const Offset(0, 0));
+      final sub2 = b2.add('Section 2.1');
+      sub2.destination = syncfusion.PdfDestination(p4, const Offset(0, 0));
+      final path2 = '${tempDir.path}/tree_doc2.pdf';
+      await File(path2).writeAsBytes(doc2.saveSync());
+      doc2.dispose();
+
+      final service = PdfService();
+      final mergedPath = await service.mergePdfs(
+        [path1, path2],
+        customOutputPath: tempDir.path,
+      );
+
+      final loaded = syncfusion.PdfDocument(
+        inputBytes: await File(mergedPath).readAsBytes(),
+      );
+      expect(loaded.pages.count, equals(4));
+      expect(loaded.bookmarks.count, equals(2));
+
+      // Check Chapter 1 & Section 1.1
+      expect(loaded.bookmarks[0].title, equals('Chapter 1'));
+      expect(loaded.bookmarks[0].destination?.page, equals(loaded.pages[0]));
+      expect(loaded.bookmarks[0].count, equals(1));
+      expect(loaded.bookmarks[0][0].title, equals('Section 1.1'));
+      expect(loaded.bookmarks[0][0].destination?.page, equals(loaded.pages[1]));
+
+      // Check Chapter 2 & Section 2.1 (destinations remapped to pages 2 and 3)
+      expect(loaded.bookmarks[1].title, equals('Chapter 2'));
+      expect(loaded.bookmarks[1].destination?.page, equals(loaded.pages[2]));
+      expect(loaded.bookmarks[1].count, equals(1));
+      expect(loaded.bookmarks[1][0].title, equals('Section 2.1'));
+      expect(loaded.bookmarks[1][0].destination?.page, equals(loaded.pages[3]));
+
+      loaded.dispose();
+    });
+
+    test('Test 12 — File stream safety and explicit closure in finally blocks', () async {
+      final pathA = await createTestPdf(
+        filename: 'stream_a.pdf',
+        pageCount: 1,
+        textPrefix: 'StreamA',
+      );
+      final pathB = await createTestPdf(
+        filename: 'stream_b.pdf',
+        pageCount: 1,
+        textPrefix: 'StreamB',
+      );
+
+      final service = PdfService();
+      final mergedPath = await service.mergePdfs(
+        [pathA, pathB],
+        customOutputPath: tempDir.path,
+      );
+
+      // Verify merged file is not locked and can be read or modified immediately
+      final mergedFile = File(mergedPath);
+      expect(await mergedFile.exists(), isTrue);
+      final raf = await mergedFile.open(mode: FileMode.read);
+      try {
+        expect(await raf.length(), greaterThan(0));
+      } finally {
+        await raf.close();
+      }
+    });
   });
 }

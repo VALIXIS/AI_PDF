@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/pdf_service.dart';
@@ -48,6 +49,26 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
       final file = await _fileService.pickPdfFile();
       if (!mounted) return;
       if (file != null) {
+        // Validate file stream accessibility and ensure deterministic cleanup
+        RandomAccessFile? raf;
+        try {
+          raf = await File(file).open(mode: FileMode.read);
+          final len = await raf.length();
+          if (len < 4) {
+            setState(() {
+              _errorMessage = 'Selected file is empty or invalid.';
+            });
+            return;
+          }
+        } catch (e) {
+          setState(() {
+            _errorMessage = 'Failed to access selected PDF file: $e';
+          });
+          return;
+        } finally {
+          await raf?.close();
+        }
+
         int? pageCount;
         try {
           pageCount = await _pdfService.getPdfPageCount(file);
@@ -129,6 +150,28 @@ class _SplitPdfScreenState extends State<SplitPdfScreen> {
           _isLoading = false;
         });
         return;
+      }
+
+      // Explicitly verify file stream before split with guaranteed finally block cleanup
+      RandomAccessFile? raf;
+      try {
+        raf = await File(_selectedFile!).open(mode: FileMode.read);
+        final len = await raf.length();
+        if (len < 4) {
+          setState(() {
+            _errorMessage = 'Selected file is empty or invalid.';
+            _isLoading = false;
+          });
+          return;
+        }
+      } catch (e) {
+        setState(() {
+          _errorMessage = 'Failed to open selected PDF: $e';
+          _isLoading = false;
+        });
+        return;
+      } finally {
+        await raf?.close();
       }
 
       final filePath = await _pdfService.splitPdf(
