@@ -10,6 +10,11 @@ on:
     - cron: '35 18 * * *'  # 12:05 AM IST (Off-peak congestion bypass)
     - cron: '00 19 * * *'  # 12:30 AM IST (Secondary failsafe)
   workflow_dispatch:
+    inputs:
+      approve_prs:
+        description: 'Comma-separated list of PR numbers to approve directly in portal'
+        required: false
+        default: '77,78,79,80,81,82'
 
 permissions:
   contents: write
@@ -46,7 +51,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          python .github/scripts/automerge_bot.py
+          ARG=""
+          if [ -n "${{ github.event.inputs.approve_prs }}" ]; then
+            ARG="--approve-prs ${{ github.event.inputs.approve_prs }}"
+          fi
+          python .github/scripts/automerge_bot.py $ARG
 
       - name: Upload Midnight Executive Briefing
         uses: actions/upload-artifact@v4

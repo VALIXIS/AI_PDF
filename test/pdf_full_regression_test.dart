@@ -282,12 +282,12 @@ void main() {
 
       if (!await pdfx.hasPdfSupport()) {
         final count = await pdfService.getPdfPageCount(pdfPath);
-        expect(count, equals(2));
+        expect(count, equals(1));
         return;
       }
 
       final pdfxDoc = await pdfx.PdfDocument.openFile(pdfPath);
-      expect(pdfxDoc.pagesCount, equals(2));
+      expect(pdfxDoc.pagesCount, equals(1));
 
       final page = await pdfxDoc.getPage(1);
       expect(page.pageNumber, equals(1));

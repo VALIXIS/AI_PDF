@@ -564,7 +564,21 @@ def generate_reports(results: Dict[str, Any]):
 def main():
     parser = argparse.ArgumentParser(description="VALIXIS Midnight Autonomous PR Auto-Merge & Portal Approval Bot")
     parser.add_argument("--dry-run", action="store_true", help="Simulate run without performing actual merges or comments")
+    parser.add_argument("--approve-prs", type=str, help="Comma-separated list of PR numbers to approve directly in portal")
     args = parser.parse_args()
+
+    if args.approve_prs:
+        print(f"Direct portal approval requested for PRs: {args.approve_prs}")
+        for pr_str in args.approve_prs.split(","):
+            pr_str = pr_str.strip()
+            if not pr_str:
+                continue
+            pr_num = int(pr_str)
+            print(f"\nProcessing direct portal approval for PR #{pr_num}...")
+            detail, code = github_api_request_with_status(f"pulls/{pr_num}")
+            branch = detail.get("head", {}).get("ref", "") if (code == 200 and detail) else ""
+            ok = approve_in_portal(pr_num, branch, dry_run=args.dry_run)
+            print(f"PR #{pr_num} portal approval result: {ok}")
 
     process_pull_requests(dry_run=args.dry_run)
 
