@@ -114,4 +114,8 @@ jobs:
         run: flutter pub get
 
       - name: Compile Release Web Bundle
-        run: flutter build web --release
+        run: |
+          if [ ! -d "web" ]; then
+            flutter create . --platforms web
+          fi
+          flutter build web --release
