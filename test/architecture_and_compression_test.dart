@@ -494,4 +494,105 @@ void main() {
       }
     });
   });
+
+  group('Orientation Preservation & Split Edge Cases in Architecture', () {
+    test('compressPdf preserves multi-page orientation angles', () async {
+      final tempDir =
+          Directory.systemTemp.createTempSync('pdf_compress_orient_');
+      try {
+        final doc = syncfusion.PdfDocument();
+        final rotations = [
+          syncfusion.PdfPageRotateAngle.rotateAngle90,
+          syncfusion.PdfPageRotateAngle.rotateAngle180,
+          syncfusion.PdfPageRotateAngle.rotateAngle270,
+        ];
+        for (int i = 0; i < rotations.length; i++) {
+          final section = doc.sections!.add();
+          section.pageSettings.size = const Size(595, 842);
+          section.pageSettings.rotate = rotations[i];
+          section.pageSettings.margins.all = 0;
+          final page = section.pages.add();
+          page.graphics.drawString(
+            'Rotated Page ${i + 1} with ${rotations[i]}',
+            syncfusion.PdfStandardFont(syncfusion.PdfFontFamily.helvetica, 12),
+            bounds: const Rect.fromLTWH(20, 20, 250, 50),
+          );
+        }
+        final bytes = doc.saveSync();
+        doc.dispose();
+
+        final inputPath = '${tempDir.path}/input_rotations.pdf';
+        File(inputPath).writeAsBytesSync(bytes);
+
+        final compressedPath = await PdfService().compressPdf(
+          inputPath,
+          customOutputPath: tempDir.path,
+          compressionLevel: 'high',
+        );
+
+        final compressedDoc = syncfusion.PdfDocument(
+            inputBytes: await File(compressedPath).readAsBytes());
+        expect(compressedDoc.pages.count, equals(3));
+        expect(compressedDoc.pages[0].rotation,
+            equals(syncfusion.PdfPageRotateAngle.rotateAngle90));
+        expect(compressedDoc.pages[1].rotation,
+            equals(syncfusion.PdfPageRotateAngle.rotateAngle180));
+        expect(compressedDoc.pages[2].rotation,
+            equals(syncfusion.PdfPageRotateAngle.rotateAngle270));
+        compressedDoc.dispose();
+      } finally {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+
+    test('Pipeline test: edge-case single-page boundary split and compress',
+        () async {
+      final tempDir =
+          Directory.systemTemp.createTempSync('pdf_split_compress_');
+      try {
+        final pdf = pw.Document(compress: false);
+        for (int i = 0; i < 3; i++) {
+          pdf.addPage(
+            pw.Page(
+              build: (context) => pw.Center(
+                child: pw.Text('Boundary Page $i Stream Content\n' * 40),
+              ),
+            ),
+          );
+        }
+        final uncompressedPath = '${tempDir.path}/multi_uncompressed.pdf';
+        File(uncompressedPath).writeAsBytesSync(await pdf.save());
+
+        // Split single boundary page 3 (last page of 3)
+        final splitPath = await PdfService().splitPdf(
+          pdfPath: uncompressedPath,
+          startPage: 3,
+          endPage: 3,
+          customOutputPath: tempDir.path,
+        );
+
+        final splitDoc = syncfusion.PdfDocument(
+            inputBytes: await File(splitPath).readAsBytes());
+        expect(splitDoc.pages.count, equals(1));
+        splitDoc.dispose();
+
+        // Compress the extracted single page
+        final compressedSplitPath = await PdfService().compressPdf(
+          splitPath,
+          customOutputPath: tempDir.path,
+          compressionLevel: 'high',
+        );
+
+        final finalDoc = syncfusion.PdfDocument(
+            inputBytes: await File(compressedSplitPath).readAsBytes());
+        expect(finalDoc.pages.count, equals(1));
+        final text = syncfusion.PdfTextExtractor(finalDoc).extractText();
+        final normalizedText = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+        expect(normalizedText, contains('Boundary Page 2'));
+        finalDoc.dispose();
+      } finally {
+        tempDir.deleteSync(recursive: true);
+      }
+    });
+  });
 }
