@@ -48,6 +48,13 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Setup Mock Environment Configuration
+        if: steps.check_flutter.outputs.is_flutter == 'true'
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env 2>/dev/null || touch .env
+          fi
+
       - name: Install Flutter Dependencies
         if: steps.check_flutter.outputs.is_flutter == 'true'
         run: flutter pub get
