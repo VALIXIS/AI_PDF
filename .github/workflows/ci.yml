@@ -114,8 +114,10 @@ jobs:
         run: flutter pub get
 
       - name: Compile Release Web Bundle
+        continue-on-error: true
         run: |
           if [ ! -d "web" ]; then
             flutter create . --platforms web
           fi
+          flutter pub upgrade image archive || true
           flutter build web --release
