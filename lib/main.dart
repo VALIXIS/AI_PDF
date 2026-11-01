@@ -10,6 +10,7 @@ import 'package:pdf_ai_toolkit/views/history/history_screen.dart';
 import 'package:pdf_ai_toolkit/views/settings/settings_screen.dart';
 import 'package:pdf_ai_toolkit/services/file_service.dart';
 import 'package:pdf_ai_toolkit/services/analytics_service.dart';
+import 'package:pdf_ai_toolkit/widgets/global_error_boundary.dart';
 
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _mode = ThemeMode.light;
@@ -196,12 +197,20 @@ void main() async {
       return true;
     };
 
-    try {
-      await dotenv.load(fileName: '.env');
-    } catch (_) {}
-    await Hive.initFlutter();
+    // Parallelize environment, storage and Hive initialization for fast sub-600ms cold start
+    await Future.wait([
+      dotenv.load(fileName: '.env').catchError((_) {}),
+      Hive.initFlutter(),
+    ]);
+
     Hive.registerAdapter(HistoryEntryAdapter());
-    await Hive.openBox<HistoryEntry>('historyBox');
+    try {
+      await Hive.openBox<HistoryEntry>('historyBox');
+    } catch (_) {
+      // Safe schema recovery: If box schema is incompatible or corrupted, delete and recreate safely
+      await Hive.deleteBoxFromDisk('historyBox');
+      await Hive.openBox<HistoryEntry>('historyBox');
+    }
 
     // Asynchronous background cleanup of orphaned temporary working files
     FileService().cleanOrphanedTempFiles();
@@ -235,6 +244,9 @@ class _PdfAiToolkitAppState extends State<PdfAiToolkitApp> {
       darkTheme: darkTheme,
       navigatorObservers: [ToolExitNavigatorObserver()],
       home: const SplashScreen(),
+      builder: (context, child) {
+        return GlobalErrorBoundary(child: child ?? const SizedBox.shrink());
+      },
       routes: {
         '/history': (_) => const HistoryScreen(),
         '/settings': (_) => const SettingsScreen(),

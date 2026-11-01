@@ -1462,8 +1462,25 @@ class PdfService {
           graphics.translateTransform(
               page.size.width / 2, page.size.height / 2);
 
-          // Apply rotation in degrees
-          graphics.rotateTransform(angleInDegrees);
+          // Account for page rotation (90, 180, 270 degrees)
+          double pageRotationOffset = 0.0;
+          switch (page.rotation) {
+            case sf.PdfPageRotateAngle.rotateAngle90:
+              pageRotationOffset = 90.0;
+              break;
+            case sf.PdfPageRotateAngle.rotateAngle180:
+              pageRotationOffset = 180.0;
+              break;
+            case sf.PdfPageRotateAngle.rotateAngle270:
+              pageRotationOffset = 270.0;
+              break;
+            default:
+              pageRotationOffset = 0.0;
+              break;
+          }
+
+          // Apply rotation in degrees accounting for page rotation
+          graphics.rotateTransform(angleInDegrees - pageRotationOffset);
 
           // Measure text size to center it
           final Size textSize = font.measureString(watermarkText);

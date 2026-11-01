@@ -49,7 +49,17 @@ class _ToolCardState extends State<ToolCard>
 
   @override
   Widget build(BuildContext context) {
-    const cardColor = Color(0xFF161B22);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? const Color(0xFF161B26) : Colors.white;
+    final cardBorder = widget.highlighted
+        ? const Color(0xFF38BDF8)
+        : (isDark ? const Color(0xFF262D3D) : const Color(0xFFE2E8F0));
+    final titleColor = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A);
+    final subtitleColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final iconColor = widget.highlighted
+        ? const Color(0xFF38BDF8)
+        : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155));
+
     return GestureDetector(
       onTap: widget.onTap,
       onTapDown: _onTapDown,
@@ -64,64 +74,67 @@ class _ToolCardState extends State<ToolCard>
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [cardColor, cardColor.withValues(alpha: 0.95)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: cardColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.4)
+                    : const Color(0x0A0F172A),
                 blurRadius: 10,
-                offset: const Offset(0, 6),
+                offset: const Offset(0, 4),
               ),
             ],
-            border: widget.highlighted
-                ? Border.all(
-                    color: const Color(0xFF4DA3FF).withValues(alpha: 0.25),
-                    width: 1.5)
-                : null,
+            border: Border.all(
+              color: cardBorder,
+              width: widget.highlighted ? 1.8 : 1.2,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(widget.icon,
-                      size: 28,
-                      color: widget.highlighted
-                          ? const Color(0xFF4DA3FF)
-                          : Colors.white70),
+                  Icon(widget.icon, size: 28, color: iconColor),
                   const Spacer(),
                   if (widget.highlighted)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4DA3FF).withValues(alpha: 0.12),
+                        color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text('AI',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(
-                                  color: const Color(0xFF4DA3FF),
-                                  fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'AI',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: const Color(0xFF0284C7),
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
                     ),
                 ],
               ),
               const SizedBox(height: 16),
-              Text(widget.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700, color: Colors.white)),
+              Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
+                    ),
+              ),
               const SizedBox(height: 6),
-              Text(widget.subtitle,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Colors.grey[400])),
+              Text(
+                widget.subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: subtitleColor,
+                      height: 1.3,
+                    ),
+              ),
             ],
           ),
         ),
