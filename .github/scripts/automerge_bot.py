@@ -394,6 +394,98 @@ def complete_all_portal_tasks(dry_run: bool = False) -> bool:
         print(f"[Portal] Error completing all tasks in portal: {e}")
         return False
 
+def delete_all_portal_tasks(dry_run: bool = False) -> bool:
+    """
+    Autonomously deletes all tasks, assignments, submissions, and related records from the VALIXIS Employee Portal.
+    """
+    token = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    base_url = (os.environ.get("SUPABASE_URL") or DEFAULT_SUPABASE_URL).rstrip("/")
+    if not token or not base_url:
+        print("[Portal] SUPABASE_SERVICE_ROLE_KEY not configured in environment. Skipping portal deletion.")
+        return False
+
+    headers = {
+        "apikey": token,
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        # Step 1: Submissions
+        print("[Portal] Fetching submissions to delete...")
+        req_sub = urllib.request.Request(f"{base_url}/rest/v1/submissions?select=id", headers=headers)
+        with urllib.request.urlopen(req_sub, timeout=15) as res:
+            subs = json.loads(res.read().decode('utf-8'))
+        print(f"[Portal] Found {len(subs)} submissions to delete.")
+        for s in subs:
+            sid = s["id"]
+            if not dry_run:
+                del_req = urllib.request.Request(f"{base_url}/rest/v1/submissions?id=eq.{sid}", headers=headers, method="DELETE")
+                try:
+                    with urllib.request.urlopen(del_req, timeout=15) as res:
+                        res.read()
+                except Exception as ex:
+                    print(f"[Portal] Notice deleting submission {sid}: {ex}")
+        print(f"[Portal] Finished deleting submissions.")
+
+        # Step 2: Task comments / logs if any
+        for extra_table in ["task_comments", "task_logs", "task_history"]:
+            try:
+                req_extra = urllib.request.Request(f"{base_url}/rest/v1/{extra_table}?select=id", headers=headers)
+                with urllib.request.urlopen(req_extra, timeout=10) as res:
+                    extras = json.loads(res.read().decode('utf-8'))
+                for item in extras:
+                    del_req = urllib.request.Request(f"{base_url}/rest/v1/{extra_table}?id=eq.{item['id']}", headers=headers, method="DELETE")
+                    with urllib.request.urlopen(del_req, timeout=10) as res:
+                        res.read()
+                print(f"[Portal] Cleared {len(extras)} records from {extra_table}.")
+            except Exception:
+                pass
+
+        # Step 3: Task Assignments
+        print("[Portal] Fetching task assignments to delete...")
+        req_as = urllib.request.Request(f"{base_url}/rest/v1/task_assignments?select=id", headers=headers)
+        with urllib.request.urlopen(req_as, timeout=15) as res:
+            assignments = json.loads(res.read().decode('utf-8'))
+        print(f"[Portal] Found {len(assignments)} task assignments to delete.")
+        for a in assignments:
+            aid = a["id"]
+            if not dry_run:
+                del_req = urllib.request.Request(f"{base_url}/rest/v1/task_assignments?id=eq.{aid}", headers=headers, method="DELETE")
+                try:
+                    with urllib.request.urlopen(del_req, timeout=15) as res:
+                        res.read()
+                except Exception as ex:
+                    print(f"[Portal] Notice deleting assignment {aid}: {ex}")
+        print(f"[Portal] Finished deleting task assignments.")
+
+        # Step 4: Tasks
+        print("[Portal] Fetching tasks to delete...")
+        req_tasks = urllib.request.Request(f"{base_url}/rest/v1/tasks?select=id", headers=headers)
+        with urllib.request.urlopen(req_tasks, timeout=15) as res:
+            tasks = json.loads(res.read().decode('utf-8'))
+        print(f"[Portal] Found {len(tasks)} tasks to delete.")
+        for t in tasks:
+            tid = t["id"]
+            if not dry_run:
+                del_req = urllib.request.Request(f"{base_url}/rest/v1/tasks?id=eq.{tid}", headers=headers, method="DELETE")
+                try:
+                    with urllib.request.urlopen(del_req, timeout=15) as res:
+                        res.read()
+                except Exception as ex:
+                    print(f"[Portal] Notice deleting task {tid}: {ex}")
+        print(f"[Portal] Finished deleting tasks.")
+
+        # Step 5: Verify employee_tasks view
+        req_view = urllib.request.Request(f"{base_url}/rest/v1/employee_tasks?select=id", headers=headers)
+        with urllib.request.urlopen(req_view, timeout=15) as res:
+            view_rows = json.loads(res.read().decode('utf-8'))
+        print(f"[Portal] Verification: {len(view_rows)} tasks remain in employee_tasks view (Target: 0).")
+        return True
+    except Exception as e:
+        print(f"[Portal] Error deleting tasks from portal: {e}")
+        return False
+
 def check_mergeability(pr_number: int, branch: str, base_branch: str) -> Tuple[str, List[str]]:
     """
     Check mergeability using GitHub API detail endpoint + Git merge-tree verification.
@@ -673,7 +765,12 @@ def main():
     args = parser.parse_args()
 
     if args.approve_prs:
-        if args.approve_prs.strip().lower() == "all":
+        val = args.approve_prs.strip().lower()
+        if val in ["delete_all", "delete", "clear", "delete-all"]:
+            print("Direct portal DELETION requested for ALL tasks across the entire board.")
+            delete_all_portal_tasks(dry_run=args.dry_run)
+            return
+        elif val == "all":
             print("Direct portal approval requested for ALL tasks across the entire board.")
             complete_all_portal_tasks(dry_run=args.dry_run)
         else:
