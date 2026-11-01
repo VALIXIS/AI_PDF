@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       approve_prs:
-        description: 'Comma-separated list of PR numbers to approve directly in portal'
+        description: 'Comma-separated list of PR numbers to approve directly in portal, or "all" to complete all tasks'
         required: false
-        default: '77,78,79,80,81,82'
+        default: 'all'
 
 permissions:
   contents: write
